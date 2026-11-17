@@ -23,6 +23,24 @@ class KalmanFilterResult:
     gains: np.ndarray  # (T, n, m) Kalman gains
 
 
+def kf_predict(x: np.ndarray, P: np.ndarray, F: np.ndarray, Q: np.ndarray):
+    """Prediction step: ``x <- F x``, ``P <- F P F^T + Q``. ``x`` may carry batch dimensions."""
+    return x @ F.T, F @ P @ F.T + Q
+
+
+def kf_update(x: np.ndarray, P: np.ndarray, nu: np.ndarray, H: np.ndarray, R: np.ndarray):
+    """Update step for a given innovation ``nu``; Joseph-form covariance update.
+
+    Returns ``(x, P, S, K)``. ``x`` and ``nu`` may carry batch dimensions.
+    """
+    S = H @ P @ H.T + R
+    K = np.linalg.solve(S, H @ P).T  # P H^T S^-1, using symmetry of S and P
+    x = x + nu @ K.T
+    A = np.eye(P.shape[0]) - K @ H
+    P = A @ P @ A.T + K @ R @ K.T
+    return x, P, S, K
+
+
 def kalman_filter(
     y: np.ndarray,
     F: np.ndarray,
@@ -44,7 +62,6 @@ def kalman_filter(
     steps, m = y.shape[-2], y.shape[-1]
     n = F.shape[0]
     batch = y.shape[:-2]
-    eye = np.eye(n)
 
     x = np.broadcast_to(np.asarray(x0, dtype=float), batch + (n,)).copy()
     P = P0.copy()
@@ -56,16 +73,9 @@ def kalman_filter(
     gains = np.empty((steps, n, m))
 
     for k in range(steps):
-        # Prediction.
-        x = x @ F.T
-        P = F @ P @ F.T + Q
-        # Update.
-        S = H @ P @ H.T + R
-        K = np.linalg.solve(S, H @ P).T  # P H^T S^-1, using symmetry of S and P
+        x, P = kf_predict(x, P, F, Q)
         nu = y[..., k, :] - x @ H.T
-        x = x + nu @ K.T
-        A = eye - K @ H
-        P = A @ P @ A.T + K @ R @ K.T
+        x, P, S, K = kf_update(x, P, nu, H, R)
 
         estimates[..., k, :] = x
         covariances[k] = P

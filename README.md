@@ -15,6 +15,7 @@ neural error-state Kalman filters (ESKF) for inertial navigation without GNSS.
 | `synthetic/` | Scenario generator: noise, bias drift, outliers, dropout and motion profiles. |
 | `experiments/` | Experiment code and results. |
 | `experiments/linear_kf/` | Linear Kalman filter mis-tuning study on a linear Gaussian model (Layer A). |
+| `experiments/filter_family/` | KF, EKF, IEKF, UKF and adaptive filter behind one interface; equivalence tests and a range-bearing comparison. |
 | `experiments/eskf_sensitivity/` | One-parameter-at-a-time sensitivity sweeps (Q, R, P0, bias, dropout, gating) and plots. |
 
 ## Setup

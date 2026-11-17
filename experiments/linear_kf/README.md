@@ -40,7 +40,7 @@ NIS (expected value `m = 1`).
 | File | Purpose |
 |------|---------|
 | `model.py` | Model definition and trajectory simulation. |
-| `kf.py` | Standard Kalman filter (Joseph-form covariance update). |
+| `kf.py` | Standard Kalman filter (Joseph-form covariance update); step functions `kf_predict` and `kf_update` are reused by `experiments/filter_family`. |
 | `sweep.py` | Monte Carlo sweeps; writes `results/sweep_{q,r,p0}.csv`. |
 | `ratio_study.py` | Ratio versus absolute-scale experiments; writes `results/open_point.csv` and `results/grid_*.csv`. |
 | `plots.py` | Writes figures to `figures/`. |
