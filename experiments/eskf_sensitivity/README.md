@@ -1,9 +1,8 @@
 # experiments/eskf_sensitivity
 
 Classical error-state Kalman filter (ESKF) for IMU propagation with low-rate position updates,
-validated on the synthetic generator in `synthetic/`. The folder will also hold the
-one-parameter-at-a-time sensitivity sweeps (Q, R, P0, bias, dropout, gating); these are not yet
-implemented.
+validated on the synthetic generator in `synthetic/`, and a one-parameter-at-a-time sensitivity
+study of the filter (`sweep.py`, protocol below).
 
 ## Conventions
 
@@ -88,13 +87,94 @@ uncertainty matches the actual initial error. The bias estimates start at zero. 
 given the true IMU noise parameters and the true measurement covariance. Metrics are evaluated at
 the measurement epochs (10 Hz) after the update.
 
+## Sensitivity study protocol (`sweep.py`)
+
+This protocol, including all grids, was fixed before any sweep was run; the grids are not changed
+after seeing results.
+
+### Common settings
+
+* Profile `turning`, 60 s, IMU 200 Hz, position measurements 10 Hz, all other scenario values at
+  the `ScenarioConfig` defaults, unless a sweep states otherwise.
+* Monte Carlo over independent seeds: run index `i = 0 .. N-1`, **N = 30**, executed in parallel
+  with `multiprocessing` (one process per CPU core minus two). Run `i` uses scenario seed `i` and
+  draws the turn-on biases and the initial position, velocity and attitude errors from the true
+  initial covariance exactly as `run.py` does. The same run indices are used for every setting
+  (common random numbers), so differences between settings are not caused by different draws.
+* Truth always uses the true initial covariance `P0_true` (the `FilterSettings` defaults); a sweep
+  changes only the filter value where stated. The innovation gate is off except in sweep (g).
+* **Evaluation epochs:** every 20th IMU sample (10 Hz, t = 0, 0.1, ..., 60 s), independent of the
+  measurement rate; the state is taken after the update when a measurement is processed at that
+  sample, otherwise after propagation.
+
+### Metrics per setting
+
+* Position, velocity and attitude RMSE: 3D, over all runs and evaluation epochs.
+* Mean position NEES (expected 3) over all runs and evaluation epochs.
+* Mean NIS (expected 3) over all accepted updates; for sweep (g) also the fraction of
+  measurements rejected by the gate.
+* Final bias estimation error: RMS over runs of the 3D norm of the gyro and accelerometer bias
+  error at t = 60 s.
+* Sweep (f): per run the maximum position error norm over the evaluation epochs inside the dropout
+  window; the mean over runs and the maximum over runs are reported.
+* Runs with non-finite estimates or numerical errors are counted and excluded from the averages.
+
+### Mis-tuning sweeps (true scenario nominal; one filter quantity scaled)
+
+`s` in `logspace(-2, 2, 7)` = 0.01, 0.0464, 0.215, 1, 4.64, 21.5, 100:
+
+* (a) `q_imu`: the white-noise blocks of Q (velocity and attitude) scaled by `s` (noise densities
+  scaled by `sqrt(s)`).
+* (b) `q_bias`: the bias random-walk blocks of Q scaled by `s`.
+* (c) `r`: R scaled by `s`.
+* (d) `p0`: the filter P0 scaled by `s` (truth still drawn from `P0_true`).
+
+### Scenario sweeps (filter given the true noise parameters of each setting)
+
+* (e) `bias_estimation`: turn-on bias scale `c` in **0, 0.1, 0.3, 1, 3, 10** times the nominal
+  standard deviations (gyro 2e-3 rad/s, accelerometer 0.05 m/s^2 per axis); the turn-on biases
+  are drawn per run from `N(0, (c sigma_nominal)^2)`. Two variants: bias estimation **enabled**
+  (filter P0 bias blocks `(c sigma_nominal)^2`, bias random-walk Q as true) and **disabled** (bias
+  states removed from estimation by setting their P0 and Q blocks to zero, so the bias estimates
+  stay at zero). Reasoning: `c = 1` is the nominal MEMS-grade value; `c = 0.1` corresponds to a
+  much better (tactical-grade) sensor, `c = 10` (gyro 0.02 rad/s, about 1.1 deg/s, accelerometer
+  0.5 m/s^2) to a poor consumer sensor; `c = 0` isolates the effect of the bias random walk alone.
+  The bias random walk stays active in the truth for all `c`.
+* (f) `dropout`: one measurement dropout window starting at **t = 15 s** with duration
+  **0, 2, 5, 10, 20, 40 s**. Reasoning for the start time: the window must fit inside the 60 s run
+  for the longest duration (15 + 40 = 55 s, leaving 5 s of recovery) and should start after the
+  first part of the initial transient.
+* (g) `outliers`: measurement outlier probability per epoch **0, 0.01, 0.02, 0.05, 0.1, 0.2** with
+  magnitude 5 m (the generator default), gate **off** and **on**. The gate uses
+  `gate_prob = 0.999` (threshold `chi2.ppf(0.999, 3) = 16.27`), so about 0.1 % of correct
+  measurements are rejected. Reasoning: a 5 m offset is ten times the per-axis measurement
+  standard deviation (0.5 m) and gives a NIS of the order of 100, far above the threshold; the
+  probabilities range from occasional outliers (0.01: about 6 per run at 10 Hz) to heavy
+  contamination (0.2: about 120 per run).
+* (h) `imu_spikes`: IMU spike probability per sample and axis **0, 1e-4, 3e-4, 1e-3, 3e-3, 1e-2**
+  for both sensors, magnitudes at the generator defaults (gyro 0.5 rad/s, accelerometer 5 m/s^2).
+  Reasoning: a run has 12 000 samples per axis, so the grid spans about 1 to 120 spikes per axis
+  and run. A single gyro spike changes the integrated attitude by about 0.5 rad/s x 5 ms = 2.5 mrad
+  and a single accelerometer spike the velocity by about 0.025 m/s; the grid covers the range from
+  isolated spikes to frequent ones whose effects accumulate.
+* (i) `profile`: **straight, turning, aggressive**. Note: `aggressive` carries the known 0.45 m
+  discretisation error of the 200 Hz integration (`synthetic/README.md`), and `straight` has
+  constant attitude, which limits the observability of yaw and of the horizontal accelerometer
+  biases.
+* (j) `meas_rate`: position measurement rate **1, 2, 5, 10, 20 Hz** (all divide the IMU rate).
+
+All settings are reported, including those without a visible effect. Outputs:
+`results/sweep_<name>.csv`, `results/sweep_dropout_timeseries.csv` and `figures/sweep_<name>.png`,
+`figures/sweep_dropout_error_over_time.png`.
+
 ## Files
 
 | File | Purpose |
 |------|---------|
 | `eskf.py` | Filter: nominal step, error dynamics, process noise, injection, reset, update, gate. |
 | `run.py` | Scenario set-up, filter run, summary metrics and CSV output. |
-| `plots.py` | Figures of a single run. |
+| `sweep.py` | Sensitivity study (protocol above), parallel Monte Carlo; writes `results/sweep_*.csv`. |
+| `plots.py` | Figures of a single run and of the sweeps. |
 | `tests/` | Validation tests. |
 | `results/` | CSV output. |
 | `figures/` | PNG output. |
@@ -104,5 +184,6 @@ the measurement epochs (10 Hz) after the update.
 ```bash
 python -m pytest -v -s experiments/eskf_sensitivity
 python -m experiments.eskf_sensitivity.run
+OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 python -m experiments.eskf_sensitivity.sweep
 python -m experiments.eskf_sensitivity.plots
 ```

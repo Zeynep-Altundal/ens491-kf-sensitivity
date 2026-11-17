@@ -92,27 +92,41 @@ def imu_noise(cfg: ScenarioConfig) -> ImuNoise:
 
 
 def run_filter(out: dict, cfg: ScenarioConfig, settings: FilterSettings,
-               x0: NominalState) -> dict[str, np.ndarray]:
+               x0: NominalState, *, noise: ImuNoise | None = None, R: np.ndarray | None = None,
+               P0: np.ndarray | None = None,
+               eval_index: np.ndarray | None = None) -> dict[str, np.ndarray]:
     """Run the filter over a generated scenario.
 
-    Returns a history at the measurement epochs (after the update, or after
-    propagation when no measurement is available) and the maximum position and
-    attitude errors over all IMU samples.
+    By default the filter uses the true IMU noise (``imu_noise(cfg)``), the
+    true measurement covariance and ``settings.P0()``; ``noise``, ``R`` and
+    ``P0`` override these filter values. The history is recorded at the IMU
+    sample indices ``eval_index`` (default: the measurement epochs), after the
+    update when a measurement is processed at that sample and after
+    propagation otherwise. NIS and acceptance flags are recorded per
+    measurement epoch. Also returns the maximum position and attitude errors
+    over all IMU samples.
     """
     t, gyro, accel = out["t"], out["gyro_meas"], out["accel_meas"]
-    R = np.diag(np.asarray(cfg.meas_sigma, dtype=float) ** 2)
+    if R is None:
+        R = np.diag(np.asarray(cfg.meas_sigma, dtype=float) ** 2)
     meas_row = {int(k): j for j, k in enumerate(out["meas_index"])}
+    if eval_index is None:
+        eval_index = out["meas_index"]
+    eval_row = {int(k): j for j, k in enumerate(eval_index)}
 
-    kf = ErrorStateKalmanFilter(x0, settings.P0(), imu_noise(cfg), gyro[0], accel[0],
+    kf = ErrorStateKalmanFilter(x0, settings.P0() if P0 is None else P0,
+                                imu_noise(cfg) if noise is None else noise, gyro[0], accel[0],
                                 gate_prob=settings.gate_prob)
     m = len(out["meas_index"])
+    e = len(eval_index)
     hist = {
-        "t": out["t_meas"].copy(),
-        "err": np.empty((m, 15)),
-        "sigma": np.empty((m, 15)),
-        "p_est": np.empty((m, 3)),
-        "bg_est": np.empty((m, 3)),
-        "ba_est": np.empty((m, 3)),
+        "t": t[eval_index].copy(),
+        "err": np.empty((e, 15)),
+        "sigma": np.empty((e, 15)),
+        "p_est": np.empty((e, 3)),
+        "bg_est": np.empty((e, 3)),
+        "ba_est": np.empty((e, 3)),
+        "P_pos": np.empty((e, 3, 3)),
         "nis": np.full(m, np.nan),
         "accepted": np.zeros(m, dtype=bool),
         "available": out["meas_available"].copy(),
@@ -130,21 +144,21 @@ def run_filter(out: dict, cfg: ScenarioConfig, settings: FilterSettings,
                 res = kf.update_position(out["z_meas"][j], R)
                 hist["nis"][j] = res.nis
                 hist["accepted"][j] = res.accepted
+        if k in eval_row:
+            j = eval_row[k]
             x = kf.state
             hist["err"][j] = difference(x_true, x)
             hist["sigma"][j] = np.sqrt(np.diag(kf.P))
             hist["p_est"][j] = x.p
             hist["bg_est"][j] = x.bg
             hist["ba_est"][j] = x.ba
-            if j == 0:
-                hist["P_pos"] = np.empty((m, 3, 3))
             hist["P_pos"][j] = kf.P[IDX_P, IDX_P]
         dx = difference(x_true, kf.state)
         max_pos_err = max(max_pos_err, float(np.linalg.norm(dx[0:3])))
         max_att_err = max(max_att_err, float(np.linalg.norm(dx[6:9])))
 
-    e = hist["err"][:, 0:3]
-    hist["nees_pos"] = np.einsum("ti,tij,tj->t", e, np.linalg.inv(hist["P_pos"]), e)
+    err_p = hist["err"][:, 0:3]
+    hist["nees_pos"] = np.einsum("ti,tij,tj->t", err_p, np.linalg.inv(hist["P_pos"]), err_p)
     hist["max_pos_err"] = max_pos_err
     hist["max_att_err"] = max_att_err
     return hist
