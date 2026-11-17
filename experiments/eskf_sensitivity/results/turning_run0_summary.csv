@@ -1,0 +1,2 @@
+profile,seed,pos_rmse_3d,vel_rmse_3d,att_rmse_3d_deg,mean_nees_pos,mean_nis,n_updates,max_pos_err,max_att_err_deg
+turning,0,0.2299361988,0.1341871689,1.396984725,2.586347084,2.892917446,601,0.8166394429,3.854403607

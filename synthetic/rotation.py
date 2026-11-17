@@ -91,3 +91,20 @@ def euler_zyx_rates_to_body_rate(roll, pitch, roll_rate, pitch_rate, yaw_rate) -
         ],
         axis=-1,
     )
+
+
+def quat_conjugate(q: np.ndarray) -> np.ndarray:
+    """Conjugate (inverse for unit quaternions) of ``q``."""
+    return np.asarray(q, dtype=float) * np.array([1.0, -1.0, -1.0, -1.0])
+
+
+def quat_log(q: np.ndarray) -> np.ndarray:
+    """Rotation vector (axis * angle, angle in [0, pi]) of unit quaternion(s) (..., 4)."""
+    q = quat_normalize(q)
+    q = np.where(q[..., :1] < 0.0, -q, q)  # shortest rotation
+    w, v = q[..., :1], q[..., 1:]
+    norm_v = np.linalg.norm(v, axis=-1, keepdims=True)
+    small = norm_v < 1e-12
+    angle = 2.0 * np.arctan2(norm_v, w)
+    scale = np.where(small, 2.0 / w, angle / np.where(small, 1.0, norm_v))
+    return scale * v
