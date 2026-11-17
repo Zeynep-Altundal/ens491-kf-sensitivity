@@ -20,6 +20,7 @@ class KalmanFilterResult:
     covariances: np.ndarray  # (T, n, n) posterior covariances
     innovations: np.ndarray  # (..., T, m) y[k] - H x_pred[k]
     innovation_covariances: np.ndarray  # (T, m, m) H P_pred H^T + R
+    gains: np.ndarray  # (T, n, m) Kalman gains
 
 
 def kalman_filter(
@@ -52,6 +53,7 @@ def kalman_filter(
     covariances = np.empty((steps, n, n))
     innovations = np.empty(batch + (steps, m))
     innovation_covariances = np.empty((steps, m, m))
+    gains = np.empty((steps, n, m))
 
     for k in range(steps):
         # Prediction.
@@ -69,5 +71,8 @@ def kalman_filter(
         covariances[k] = P
         innovations[..., k, :] = nu
         innovation_covariances[k] = S
+        gains[k] = K
 
-    return KalmanFilterResult(estimates, covariances, innovations, innovation_covariances)
+    return KalmanFilterResult(
+        estimates, covariances, innovations, innovation_covariances, gains
+    )

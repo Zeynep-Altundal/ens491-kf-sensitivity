@@ -66,3 +66,24 @@ def test_same_seed_gives_identical_results(model):
     for sweep in first:
         assert np.array_equal(first[sweep], second[sweep])
     assert any(not np.array_equal(first[s], other[s]) for s in first)
+
+
+@pytest.mark.parametrize("c", [1e-3, 1e-1, 1e1, 1e3])
+def test_common_scale_invariance(model, data, c):
+    """Scaling (Q_f, R_f, P0_f) by c leaves RMSE unchanged and divides NEES and NIS by c."""
+    x_true, y = data
+    base_params = _true_params(model)
+    scaled = dict(base_params, Q=c * model.Q, R=c * model.R, P0=c * model.P0)
+    base = evaluate(x_true, y, **base_params)
+    out = evaluate(x_true, y, **scaled)
+    print(
+        f"\nc = {c:g}: pos RMSE {out['pos_rmse']:.12g} vs {base['pos_rmse']:.12g}, "
+        f"vel RMSE {out['vel_rmse']:.12g} vs {base['vel_rmse']:.12g}, "
+        f"c*NEES {c * out['mean_nees']:.12g} vs {base['mean_nees']:.12g}, "
+        f"c*NIS {c * out['mean_nis']:.12g} vs {base['mean_nis']:.12g}"
+    )
+    rtol = 1e-9
+    assert out["pos_rmse"] == pytest.approx(base["pos_rmse"], rel=rtol)
+    assert out["vel_rmse"] == pytest.approx(base["vel_rmse"], rel=rtol)
+    assert c * out["mean_nees"] == pytest.approx(base["mean_nees"], rel=rtol)
+    assert c * out["mean_nis"] == pytest.approx(base["mean_nis"], rel=rtol)

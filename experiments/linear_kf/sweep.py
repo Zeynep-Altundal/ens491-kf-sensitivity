@@ -43,21 +43,20 @@ def filter_matrices(model: LinearGaussianModel, sweep: str, s: float) -> dict:
     return params
 
 
-def evaluate(x_true: np.ndarray, y: np.ndarray, **filter_params) -> dict:
+def evaluate(x_true: np.ndarray, y: np.ndarray, k_min: int = 1, **filter_params) -> dict:
     """Run the filter and compute error and consistency metrics.
 
-    Metrics are averaged over all trajectories and all steps k = 1, ..., T.
-    NEES uses the filter's posterior covariance and NIS the filter's
-    innovation covariance.
+    Metrics are averaged over all trajectories and over the steps
+    k = k_min, ..., T (default: all steps). NEES uses the filter's posterior
+    covariance and NIS the filter's innovation covariance.
     """
     res = kalman_filter(y, **filter_params)
-    err = res.estimates - x_true[..., 1:, :]
-    nees = np.einsum("...ti,tij,...tj->...t", err, np.linalg.inv(res.covariances), err)
+    sl = slice(k_min - 1, None)  # result index j corresponds to step k = j + 1
+    err = (res.estimates - x_true[..., 1:, :])[..., sl, :]
+    nu = res.innovations[..., sl, :]
+    nees = np.einsum("...ti,tij,...tj->...t", err, np.linalg.inv(res.covariances[sl]), err)
     nis = np.einsum(
-        "...ti,tij,...tj->...t",
-        res.innovations,
-        np.linalg.inv(res.innovation_covariances),
-        res.innovations,
+        "...ti,tij,...tj->...t", nu, np.linalg.inv(res.innovation_covariances[sl]), nu
     )
     return {
         "pos_rmse": float(np.sqrt(np.mean(err[..., 0] ** 2))),
