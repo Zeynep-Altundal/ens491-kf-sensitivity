@@ -10,3 +10,7 @@ CSV output of the experiment scripts.
 | `grid_diagonals_T200_full.csv`, `grid_diagonals_T2000_steady.csv` | `ratio_study.py` | Minimum and maximum of each metric along lines of constant `log10(Q scale / R scale)`. |
 
 Window `T200_full`: `T = 200`, all steps. Window `T2000_steady`: `T = 2000`, steps `k >= 1000`.
+| `closure_summary.csv` | `closure.py` | Position and velocity RMSE, mean NEES and NIS with 95 % bootstrap intervals for the nominal setting and the sweep endpoints. |
+| `closure_paired.csv` | `closure.py` | Paired differences of position RMSE with intervals. |
+| `closure_seeds.csv` | `closure.py` | Nominal metrics for five master seeds. |
+| `closure_nominal_time.csv` | `closure.py` | Run-averaged NEES and NIS per step with the 95 % chi-square bounds. |

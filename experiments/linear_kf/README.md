@@ -43,6 +43,7 @@ NIS (expected value `m = 1`).
 | `kf.py` | Standard Kalman filter (Joseph-form covariance update); step functions `kf_predict` and `kf_update` are reused by `experiments/filter_family`. |
 | `sweep.py` | Monte Carlo sweeps; writes `results/sweep_{q,r,p0}.csv`. |
 | `ratio_study.py` | Ratio versus absolute-scale experiments; writes `results/open_point.csv` and `results/grid_*.csv`. |
+| `closure.py` | Statistical closure: bootstrap intervals, paired differences, seed spread, per-step chi-square test. |
 | `plots.py` | Writes figures to `figures/`. |
 | `tests/` | Consistency and reproducibility tests. |
 
@@ -60,11 +61,38 @@ depend only on the ratios `Q_f/R_f` and `P0_f/R_f`. This identity is checked by
 * a 13 x 13 grid over the Q and R scale factors (P0 at truth) for both windows, and the spread of
   each metric along lines of constant `Q_f/R_f`.
 
+## Statistical closure protocol (`closure.py`)
+
+Fixed before running; not changed after seeing results.
+
+* Settings: nominal (all filter quantities at truth) and the endpoints `s = 0.001` and
+  `s = 1000` of the Q, R and P0 sweeps (7 settings), N = 200 runs, T = 200 steps, master seed 0.
+* Per-run quantities: time-averaged squared position and velocity error, time-averaged NEES and
+  NIS over k = 1..T. Reported: position and velocity RMSE, mean NEES and mean NIS with 95 %
+  bootstrap intervals.
+* Seed-to-seed spread: the nominal setting is repeated with **5 master seeds** (0, 1, 2, 3, 4;
+  master seed 0 reproduces the earlier results); the spread is reported as the five point estimates
+  and their range.
+* Intervals: bootstrap over runs as defined in `experiments/common/README.md` (B = 10 000, 95 %
+  percentile, resampling seed 2026).
+* Chi-square consistency test at the nominal setting: at every step k the run-averaged NEES
+  is compared with the two-sided 95 % bounds `chi2.ppf([0.025, 0.975], n N) / N` (n = 2) and the
+  run-averaged NIS with `chi2.ppf([0.025, 0.975], m N) / N` (m = 1); the fraction of steps inside
+  the bounds is reported (about 95 % is expected for a consistent filter). The runs at a given step
+  are independent, so these bounds are exact under the Gaussian assumptions.
+* Previously reported comparisons re-examined with paired differences (same data):
+  Q x 1000 vs R x 0.001 (position RMSE), Q x 0.001 vs R x 1000 (position RMSE), P0 x 0.001 and
+  P0 x 1000 vs nominal (position RMSE), and the nominal NEES / NIS against 2 / 1.
+* Outputs: `results/closure_summary.csv`, `results/closure_paired.csv`,
+  `results/closure_seeds.csv`, `results/closure_nominal_time.csv`,
+  `figures/closure_nominal_nees_nis_time.png`.
+
 ## Running (from the repository root)
 
 ```bash
 python -m pytest -v -s experiments/linear_kf/tests
 python -m experiments.linear_kf.sweep
 python -m experiments.linear_kf.ratio_study
+python -m experiments.linear_kf.closure
 python -m experiments.linear_kf.plots
 ```

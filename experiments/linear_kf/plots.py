@@ -175,6 +175,29 @@ def plot_grid_heatmaps(label: str, title: str, path: Path) -> None:
     plt.close(fig)
 
 
+def plot_closure_time(path: Path) -> None:
+    """Run-averaged NEES and NIS per step at the nominal setting with 95 % chi-square bounds."""
+    d = np.genfromtxt(RESULTS_DIR / "closure_nominal_time.csv", delimiter=",", names=True)
+    fig, axes = plt.subplots(2, 1, figsize=(10, 6), sharex=True)
+    for ax, key, label, expected in ((axes[0], "nees", "run-averaged NEES", 2),
+                                     (axes[1], "nis", "run-averaged NIS", 1)):
+        avg, lo, hi = d[f"{key}_avg"], d[f"{key}_lo"], d[f"{key}_hi"]
+        frac = np.mean((avg >= lo) & (avg <= hi))
+        ax.plot(d["t"], avg, "C0-", lw=1, label=label)
+        ax.axhline(expected, color="k", lw=1, label=f"expected = {expected}")
+        ax.plot(d["t"], lo, "C3--", lw=1, label="95 % chi-square bounds")
+        ax.plot(d["t"], hi, "C3--", lw=1)
+        ax.set_ylabel(label)
+        ax.set_title(f"{100 * frac:.1f} % of steps inside the bounds", fontsize=9)
+        ax.grid(True, alpha=0.3)
+        ax.legend(fontsize=8, loc="upper right")
+    axes[-1].set_xlabel("time [s]")
+    fig.suptitle("Linear KF, nominal setting, N = 200 runs: per-step consistency test", fontsize=10)
+    fig.tight_layout()
+    fig.savefig(path, dpi=150)
+    plt.close(fig)
+
+
 def main() -> None:
     FIG_DIR.mkdir(parents=True, exist_ok=True)
     model = constant_velocity_model()
@@ -192,6 +215,10 @@ def main() -> None:
     for name, make in outputs.items():
         make(FIG_DIR / name)
         print(f"wrote {FIG_DIR / name}")
+    if (RESULTS_DIR / "closure_nominal_time.csv").exists():
+        path = FIG_DIR / "closure_nominal_nees_nis_time.png"
+        plot_closure_time(path)
+        print(f"wrote {path}")
 
 
 if __name__ == "__main__":

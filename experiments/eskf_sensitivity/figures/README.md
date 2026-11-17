@@ -10,3 +10,4 @@ PNG figures written by `plots.py` for a single run and for the sweeps:
 | `<profile>_run<i>_nis.png` | NIS per update with the chi-square(3) 95 % interval. |
 | `sweep_<name>.png` | Position RMSE, attitude RMSE and mean position NEES (expected value 3 as reference) versus the swept parameter, one line per variant. |
 | `sweep_dropout_error_over_time.png` | RMS position error over time for each dropout duration, with the dropout window shaded, the no-dropout reference and the 3-sigma bound from the filter covariance. |
+| `consistency_<profile>.png` | Run-averaged full-state and sub-block NEES over time with 95 % chi-square bounds (N = 50, reset on). |

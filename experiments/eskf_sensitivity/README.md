@@ -72,7 +72,8 @@ random-walk densities, in the units of `synthetic/README.md`. The velocity block
 
 Error injection: `p += dp`, `v += dv`, `q <- q ⊗ Exp(dtheta)`, `b_g += db_g`, `b_a += db_a`.
 Reset: the error mean is set to zero and `P <- G P G^T` with
-`G = blkdiag(I_6, I - [dtheta/2]x, I_6)`.
+`G = blkdiag(I_6, I - [dtheta/2]x, I_6)` (switchable with `apply_reset`, default on; off is used
+only in the consistency analysis).
 
 Optional innovation gate (`gate_prob`, off by default): the update is skipped when
 `NIS > chi2.ppf(gate_prob, 3)`.
@@ -167,6 +168,49 @@ All settings are reported, including those without a visible effect. Outputs:
 `results/sweep_<name>.csv`, `results/sweep_dropout_timeseries.csv` and `figures/sweep_<name>.png`,
 `figures/sweep_dropout_error_over_time.png`.
 
+## Statistical closure protocol (`closure.py`)
+
+Fixed before running; not changed after seeing results.
+
+* Settings: the nominal setting and the first and last grid point of every sweep (all variants
+  of sweeps (e) and (g)), with the sweep protocol above (N = 30, turning unless varied, run
+  indices 0..29).
+* Per-run quantities as in the sweeps; reported: position, velocity and attitude RMSE, mean
+  position NEES, mean NIS and the final bias errors with 95 % bootstrap intervals, and the paired
+  difference of position RMSE and mean position NEES of each setting against the nominal setting
+  (the same run indices, hence paired).
+* Seed-to-seed spread: the nominal setting is repeated with **5 master seeds**; master seed `m`
+  uses run indices `1000 m + i`, i = 0..29 (master seed 0 reproduces the sweep).
+* Intervals: bootstrap over runs as defined in `experiments/common/README.md` (B = 10 000, 95 %
+  percentile, resampling seed 2026).
+* Previously reported statements re-examined: each "matters" / "small effect" statement of the
+  sweep report is checked against the paired difference to the nominal setting.
+* Outputs: `results/closure_summary.csv`, `results/closure_paired.csv`, `results/closure_seeds.csv`.
+
+## Full-state consistency protocol (`consistency.py`)
+
+Fixed before running; not changed after seeing results. No noise parameter or threshold is
+changed to make a result consistent.
+
+* Error definition exactly as in the filter (`eskf.difference`): `dp`, `dv`,
+  `dtheta = Log(q_nom^-1 q_true)` (local attitude error), `db_g`, `db_a`.
+* Full NEES `dx^T P^-1 dx` (expected 15) and sub-block NEES for position, velocity, attitude,
+  gyro bias and accelerometer bias using the corresponding diagonal blocks of P (expected 3 each).
+* Monte Carlo **N = 50** (run indices 0..49) on `straight`, `turning` and `aggressive`, 60 s,
+  nominal noise, filter given the true parameters, initial errors and turn-on biases drawn from
+  P0 as in `run.py`; evaluation epochs at 10 Hz.
+* Reported: mean over runs and epochs with a 95 % bootstrap interval over runs; time-resolved
+  run-averaged NEES with the two-sided 95 % bounds `chi2.ppf([0.025, 0.975], d N) / N`
+  (d = 15 or 3); the fraction of epochs inside the bounds (about 95 % expected).
+* Covariance reset: the filter applies `P <- G P G^T` with `G = blkdiag(I6, I - [dtheta/2]x, I6)`
+  after each injection. Checked (i) by a finite-difference test of the map from the pre-injection
+  error to the post-injection error, and (ii) by repeating the Monte Carlo with the reset disabled
+  (`G = I`) and comparing full-state NEES.
+* Attitude-perturbation blocks of F: finite-difference test using attitude perturbations only, on
+  several states of the `aggressive` and `turning` profiles (thresholds as in the existing F test).
+* Outputs: `results/consistency_summary.csv`, `results/consistency_time_<profile>.csv`,
+  `figures/consistency_<profile>.png`.
+
 ## Files
 
 | File | Purpose |
@@ -174,7 +218,9 @@ All settings are reported, including those without a visible effect. Outputs:
 | `eskf.py` | Filter: nominal step, error dynamics, process noise, injection, reset, update, gate. |
 | `run.py` | Scenario set-up, filter run, summary metrics and CSV output. |
 | `sweep.py` | Sensitivity study (protocol above), parallel Monte Carlo; writes `results/sweep_*.csv`. |
-| `plots.py` | Figures of a single run and of the sweeps. |
+| `closure.py` | Statistical closure of the sweeps: bootstrap intervals, paired differences to nominal, seed spread. |
+| `consistency.py` | Full-state and sub-block NEES Monte Carlo, with and without covariance reset. |
+| `plots.py` | Figures of a single run, of the sweeps and of the consistency study. |
 | `tests/` | Validation tests. |
 | `results/` | CSV output. |
 | `figures/` | PNG output. |
@@ -185,5 +231,7 @@ All settings are reported, including those without a visible effect. Outputs:
 python -m pytest -v -s experiments/eskf_sensitivity
 python -m experiments.eskf_sensitivity.run
 OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 python -m experiments.eskf_sensitivity.sweep
+OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 python -m experiments.eskf_sensitivity.closure
+OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 python -m experiments.eskf_sensitivity.consistency
 python -m experiments.eskf_sensitivity.plots
 ```

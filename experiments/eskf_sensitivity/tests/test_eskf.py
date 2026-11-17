@@ -172,3 +172,85 @@ def test_same_seed_identical():
         runs.append(run_filter(out, cfg, settings, initial_state(out, settings, 3)))
     for key in ("err", "sigma", "nis"):
         assert np.array_equal(runs[0][key], runs[1][key], equal_nan=True), key
+
+
+# --- Attitude-perturbation columns of F --------------------------------------------------------
+# Same thresholds as test_F_matches_finite_differences, applied only to the columns of F that
+# belong to the attitude error, on several states of two profiles.
+@pytest.mark.parametrize("profile,t_s", [("aggressive", 5.0), ("aggressive", 10.0),
+                                         ("aggressive", 15.0), ("turning", 10.0)])
+def test_F_attitude_columns_match_finite_differences(profile, t_s):
+    out = generate(ScenarioConfig(profile=profile, duration=20.0, enable_white_noise=False,
+                                  enable_bias_rw=False))
+    k, dt = int(round(t_s * 200)), 1.0 / 200.0
+    x = NominalState(out["p_true"][k], out["v_true"][k], out["q_true"][k],
+                     np.array([1e-3, -2e-3, 1.5e-3]), np.array([0.05, -0.04, 0.03]))
+    imu = (out["gyro_meas"][k], out["accel_meas"][k], out["gyro_meas"][k + 1], out["accel_meas"][k + 1])
+    F = error_transition(x, *imu, dt)
+    x1 = nominal_step(x, *imu, dt)
+    J = np.empty((ERROR_DIM, 3))
+    for c, i in enumerate(range(6, 9)):
+        d = np.zeros(ERROR_DIM)
+        d[i] = FD_STEP
+        plus = difference(nominal_step(inject(x, d), *imu, dt), x1)
+        minus = difference(nominal_step(inject(x, -d), *imu, dt), x1)
+        J[:, c] = (plus - minus) / (2.0 * FD_STEP)
+    Fth = F[:, 6:9]
+    eye = np.eye(ERROR_DIM)[:, 6:9]
+    print(f"\n{profile} t = {t_s:g} s:")
+    failures = []
+    for rn, rs in BLOCKS.items():
+        dev = np.max(np.abs(Fth[rs] - eye[rs]))
+        diff = np.max(np.abs(J[rs] - Fth[rs]))
+        if dev > 0.0:
+            rel = diff / dev
+            print(f"  d{rn}/dth: max|F-I| = {dev:.3e}, max|J-F| = {diff:.3e}, relative = {rel:.3e}")
+            if rel > F_REL_TOL:
+                failures.append((rn, rel))
+        else:
+            print(f"  d{rn}/dth: F-I = 0, max|J-F| = {diff:.3e}")
+            if diff > F_ABS_TOL:
+                failures.append((rn, diff))
+    assert not failures, failures
+
+
+# --- Covariance reset Jacobian -----------------------------------------------------------------
+# After injecting the estimate dx_hat, the error with respect to the new nominal state is
+# g(dx) = difference(inject(x, dx), inject(x, dx_hat)). Its Jacobian at dx = dx_hat is the
+# identity except for the attitude block, which is the right Jacobian J_r(dtheta_hat)
+# = I - [dtheta_hat/2]x + O(|dtheta_hat|^2). The filter uses G = I - [dtheta_hat/2]x, so the
+# attitude block may differ by a second-order term of size about |dtheta_hat|^2 / 6; the threshold
+# 0.5 |dtheta_hat|^2 allows a factor three on that. All other blocks must be the identity.
+RESET_ABS_TOL = 1e-8
+
+
+@pytest.mark.parametrize("angle", [1e-3, 1e-2, 1e-1])
+def test_reset_jacobian_matches_finite_differences(angle):
+    from experiments.eskf_sensitivity.eskf import reset_jacobian
+
+    rng = np.random.default_rng(0)
+    axis = rng.normal(size=3)
+    axis /= np.linalg.norm(axis)
+    x = NominalState(np.array([1.0, 2.0, 3.0]), np.array([0.5, -0.2, 0.1]),
+                     np.array([np.cos(0.3), 0.0, 0.0, np.sin(0.3)]),
+                     np.array([1e-3, 0.0, -1e-3]), np.array([0.02, 0.01, -0.03]))
+    dx_hat = np.concatenate([rng.normal(scale=0.1, size=6), angle * axis, rng.normal(scale=1e-3, size=6)])
+    x_new = inject(x, dx_hat)
+    J = np.empty((ERROR_DIM, ERROR_DIM))
+    for i in range(ERROR_DIM):
+        d = np.zeros(ERROR_DIM)
+        d[i] = FD_STEP
+        J[:, i] = (difference(inject(x, dx_hat + d), x_new)
+                   - difference(inject(x, dx_hat - d), x_new)) / (2.0 * FD_STEP)
+    G = reset_jacobian(dx_hat[6:9])
+    th = slice(6, 9)
+    diff_th = np.max(np.abs(J[th, th] - G[th, th]))
+    diff_th_identity = np.max(np.abs(J[th, th] - np.eye(3)))
+    mask = np.ones((ERROR_DIM, ERROR_DIM), dtype=bool)
+    mask[th, th] = False
+    diff_other = np.max(np.abs(J - np.eye(ERROR_DIM))[mask])
+    print(f"\n|dtheta_hat| = {angle:g}: attitude block max|J - G| = {diff_th:.3e} "
+          f"(threshold {0.5 * angle**2:.3e}), max|J - I| (no reset) = {diff_th_identity:.3e}, "
+          f"other blocks max|J - I| = {diff_other:.3e}")
+    assert diff_th <= 0.5 * angle**2
+    assert diff_other <= RESET_ABS_TOL

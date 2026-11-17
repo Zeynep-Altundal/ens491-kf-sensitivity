@@ -133,6 +133,27 @@ after seeing results.
 All settings are reported, including those where the filters do not differ. Outputs:
 `results/sweep_<name>.csv` and `figures/sweep_<name>.png`.
 
+## Statistical closure protocol (`closure.py`)
+
+Fixed before running; not changed after seeing results.
+
+* Settings (as in the sweeps, N = 100, 60 steps, master seed 0): nominal; initial position
+  standard deviation 40 m; bearing noise 0.5 rad; R x 100; Q x 0.01; P0 x 100.
+* Per filter and setting: position RMSE, mean NEES, mean NIS with 95 % bootstrap intervals over the
+  non-diverged runs, and the divergence count.
+* Paired differences between every pair of filters (position RMSE and mean NEES), resampling runs
+  jointly; runs in which any of the four filters diverged are excluded from the paired analysis
+  of that setting (their number is reported).
+* Seed-to-seed spread: the nominal setting is repeated with **5 master seeds** (0, 1, 2, 3, 4;
+  master seed 0 reproduces the earlier results); the spread is reported as the five point estimates
+  and their range.
+* Intervals: bootstrap over runs as defined in `experiments/common/README.md` (B = 10 000, 95 %
+  percentile, resampling seed 2026).
+* Previously reported comparisons re-examined: nominal EKF / IEKF / UKF agreement and the slightly
+  higher adaptive-filter RMSE and NEES; IEKF best at 40 m initial uncertainty; UKF best at 0.5 rad
+  bearing noise; adaptive filter better at R x 100 and worse at Q x 0.01; UKF worse at P0 x 100.
+* Outputs: `results/closure_summary.csv`, `results/closure_paired.csv`, `results/closure_seeds.csv`.
+
 ### References
 
 * Residual-based adaptive estimation of R in the INS/GPS context: A. H. Mohamed and K. P. Schwarz,
@@ -150,6 +171,7 @@ All settings are reported, including those where the filters do not differ. Outp
 | `filters.py` | KF, EKF, IEKF, UKF, AdaptiveEKF and `run_filter`. |
 | `run.py` | Nominal Monte Carlo comparison on the range-bearing benchmark; writes `results/`. |
 | `sweep.py` | One-parameter-at-a-time sensitivity study (protocol above); writes `results/sweep_<name>.csv`. |
+| `closure.py` | Statistical closure: bootstrap intervals, paired filter differences, seed spread. |
 | `plots.py` | Writes figures to `figures/`. |
 | `tests/` | Equivalence, adaptation, Jacobian and wrap-around tests. |
 
@@ -159,6 +181,7 @@ All settings are reported, including those where the filters do not differ. Outp
 python -m pytest -v -s experiments/filter_family
 python -m experiments.filter_family.run
 python -m experiments.filter_family.sweep
+python -m experiments.filter_family.closure
 python -m experiments.filter_family.plots
 ```
 

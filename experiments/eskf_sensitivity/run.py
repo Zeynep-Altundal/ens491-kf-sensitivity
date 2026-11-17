@@ -94,7 +94,8 @@ def imu_noise(cfg: ScenarioConfig) -> ImuNoise:
 def run_filter(out: dict, cfg: ScenarioConfig, settings: FilterSettings,
                x0: NominalState, *, noise: ImuNoise | None = None, R: np.ndarray | None = None,
                P0: np.ndarray | None = None,
-               eval_index: np.ndarray | None = None) -> dict[str, np.ndarray]:
+               eval_index: np.ndarray | None = None,
+               apply_reset: bool = True) -> dict[str, np.ndarray]:
     """Run the filter over a generated scenario.
 
     By default the filter uses the true IMU noise (``imu_noise(cfg)``), the
@@ -116,7 +117,7 @@ def run_filter(out: dict, cfg: ScenarioConfig, settings: FilterSettings,
 
     kf = ErrorStateKalmanFilter(x0, settings.P0() if P0 is None else P0,
                                 imu_noise(cfg) if noise is None else noise, gyro[0], accel[0],
-                                gate_prob=settings.gate_prob)
+                                gate_prob=settings.gate_prob, apply_reset=apply_reset)
     m = len(out["meas_index"])
     e = len(eval_index)
     hist = {
@@ -127,6 +128,7 @@ def run_filter(out: dict, cfg: ScenarioConfig, settings: FilterSettings,
         "bg_est": np.empty((e, 3)),
         "ba_est": np.empty((e, 3)),
         "P_pos": np.empty((e, 3, 3)),
+        "P": np.empty((e, 15, 15)),
         "nis": np.full(m, np.nan),
         "accepted": np.zeros(m, dtype=bool),
         "available": out["meas_available"].copy(),
@@ -153,6 +155,7 @@ def run_filter(out: dict, cfg: ScenarioConfig, settings: FilterSettings,
             hist["bg_est"][j] = x.bg
             hist["ba_est"][j] = x.ba
             hist["P_pos"][j] = kf.P[IDX_P, IDX_P]
+            hist["P"][j] = kf.P
         dx = difference(x_true, kf.state)
         max_pos_err = max(max_pos_err, float(np.linalg.norm(dx[0:3])))
         max_att_err = max(max_att_err, float(np.linalg.norm(dx[6:9])))

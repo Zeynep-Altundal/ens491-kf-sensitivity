@@ -10,3 +10,4 @@ PNG figures written by `plots.py`:
 | `gain_convergence.png` | Kalman gain entries and their relative deviation from steady state versus step. |
 | `grid_heatmaps_T200_full.png` | RMSE and NEES over the Q-R grid, `T = 200`, all steps. |
 | `grid_heatmaps_T2000_steady.png` | RMSE and NEES over the Q-R grid, `T = 2000`, steps `k >= 1000`. |
+| `closure_nominal_nees_nis_time.png` | Run-averaged NEES and NIS per step at the nominal setting with 95 % chi-square bounds. |

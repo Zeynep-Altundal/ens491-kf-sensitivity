@@ -174,16 +174,21 @@ class ErrorStateKalmanFilter:
         If given, a position update is rejected when its NIS exceeds the
         ``gate_prob`` quantile of the chi-square distribution with 3 degrees
         of freedom. ``None`` (default) disables the gate.
+    apply_reset
+        If True (default), the covariance reset ``P <- G P G^T`` is applied
+        after each error injection; False uses ``G = I`` (for analysis only).
     """
 
     def __init__(self, x0: NominalState, P0: np.ndarray, noise: ImuNoise,
-                 gyro0: np.ndarray, accel0: np.ndarray, gate_prob: float | None = None):
+                 gyro0: np.ndarray, accel0: np.ndarray, gate_prob: float | None = None,
+                 apply_reset: bool = True):
         self._x = x0
         self._P = np.array(P0, dtype=float)
         self.noise = noise
         self._gyro = np.asarray(gyro0, dtype=float)
         self._accel = np.asarray(accel0, dtype=float)
         self.gate_threshold = None if gate_prob is None else float(chi2.ppf(gate_prob, df=3))
+        self.apply_reset = apply_reset
 
     @property
     def state(self) -> NominalState:
@@ -218,7 +223,8 @@ class ErrorStateKalmanFilter:
         A = np.eye(ERROR_DIM) - K @ H_POS
         P = A @ self._P @ A.T + K @ R @ K.T
         self._x = inject(self._x, dx)
-        G = reset_jacobian(dx[IDX_TH])
-        P = G @ P @ G.T
+        if self.apply_reset:
+            G = reset_jacobian(dx[IDX_TH])
+            P = G @ P @ G.T
         self._P = 0.5 * (P + P.T)
         return UpdateResult(nu, S, nis, accepted=True)

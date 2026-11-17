@@ -198,6 +198,34 @@ def plot_dropout_timeseries(sweep, path: Path) -> None:
     plt.close(fig)
 
 
+CONSISTENCY_BLOCKS = (("full", 15), ("position", 3), ("velocity", 3), ("attitude", 3),
+                      ("gyro_bias", 3), ("accel_bias", 3))
+CONSISTENCY_RUNS = 50
+
+
+def plot_consistency(profile: str, path: Path) -> None:
+    """Run-averaged full-state and sub-block NEES over time with 95 % chi-square bounds."""
+    d = np.genfromtxt(RESULTS_DIR / f"consistency_time_{profile}.csv", delimiter=",", names=True)
+    fig, axes = plt.subplots(3, 2, figsize=(13, 9), sharex=True)
+    for ax, (name, dof) in zip(axes.flat, CONSISTENCY_BLOCKS):
+        avg = d[f"nees_{name}"]
+        lo, hi = chi2.ppf([0.025, 0.975], dof * CONSISTENCY_RUNS) / CONSISTENCY_RUNS
+        frac = np.mean((avg >= lo) & (avg <= hi))
+        ax.plot(d["t"], avg, "C0-", lw=0.9, label="run-averaged NEES")
+        ax.axhline(dof, color="k", lw=1, label=f"expected = {dof}")
+        ax.axhline(lo, color="C3", lw=1, ls="--", label="95 % bounds")
+        ax.axhline(hi, color="C3", lw=1, ls="--")
+        ax.set_title(f"{name} NEES ({100 * frac:.1f} % of epochs inside)", fontsize=9)
+        ax.grid(True, alpha=0.3)
+    axes[0, 0].legend(fontsize=8)
+    for ax in axes[-1]:
+        ax.set_xlabel("time [s]")
+    fig.suptitle(f"ESKF consistency, {profile}, N = {CONSISTENCY_RUNS} runs (reset applied)", fontsize=10)
+    fig.tight_layout()
+    fig.savefig(path, dpi=150)
+    plt.close(fig)
+
+
 def main() -> None:
     FIG_DIR.mkdir(parents=True, exist_ok=True)
     stem = f"{DEFAULT_PROFILE}_run{DEFAULT_RUN_INDEX}"
@@ -217,6 +245,11 @@ def main() -> None:
         if sweep.name == "dropout":
             path = FIG_DIR / "sweep_dropout_error_over_time.png"
             plot_dropout_timeseries(sweep, path)
+            print(f"wrote {path}")
+    for profile in ("straight", "turning", "aggressive"):
+        if (RESULTS_DIR / f"consistency_time_{profile}.csv").exists():
+            path = FIG_DIR / f"consistency_{profile}.png"
+            plot_consistency(profile, path)
             print(f"wrote {path}")
 
 

@@ -8,3 +8,6 @@ CSV output of `run.py` (range-bearing benchmark, N = 100 runs, 60 steps, seed 0,
 | `nominal_error_over_time.csv` | Position RMSE over the runs at each step, per filter. |
 | `nominal_example_run.csv` | Truth, measurements (converted to x, y) and all estimates of the example run (first run whose true bearing crosses +pi / -pi). |
 | `sweep_<name>.csv` | Sensitivity sweeps (`mistune_q`, `mistune_r`, `mistune_p0`, `bearing_noise`, `initial_uncertainty`, `closest_approach`): one row per grid value and filter with position RMSE, mean NEES, mean NIS, divergence rate, mean IEKF iterations and the median realised minimum range. RMSE, NEES, NIS and iterations are over non-diverged runs. |
+| `closure_summary.csv` | Per setting and filter: divergence count, position RMSE, mean NEES and mean NIS with 95 % bootstrap intervals. |
+| `closure_paired.csv` | Paired differences between every pair of filters (position RMSE, mean NEES) with intervals. |
+| `closure_seeds.csv` | Nominal metrics per filter for five master seeds. |

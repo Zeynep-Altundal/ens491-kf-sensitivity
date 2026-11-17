@@ -1,0 +1,4 @@
+profile,metric,difference,ci_low,ci_high,supported
+straight,full NEES (reset on - reset off),-0.02780748964,-0.074136678,0.01383882805,False
+turning,full NEES (reset on - reset off),-0.01731612747,-0.06899496271,0.02776310856,False
+aggressive,full NEES (reset on - reset off),-0.0004084657793,-0.02950788689,0.02770604849,False
