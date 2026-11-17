@@ -56,6 +56,17 @@ MEMS-grade IMU, and are not taken from a specific sensor datasheet.
 source, each driving its own `numpy.random.Generator`. Identical configurations give identical
 output, and switching one error source on or off leaves the realisation of the others unchanged.
 
+## Sensor-to-body misalignment
+
+`ScenarioConfig.imu_misalignment_x_deg` sets a constant rotation `R_BS = Exp(dphi e_x)` from the
+sensor frame to the body frame about the body x axis (default 0). The ideal sensor then measures
+`w_S = R_BS^T w_B` and `f_S = R_BS^T f_B`; white noise, turn-on bias, bias random walk and spikes
+are generated in the sensor frame and added to these signals, because they are properties of the
+sensor axes. Since the per-axis white noise is isotropic, its covariance is unchanged by the
+rotation (`R^T sigma^2 I R = sigma^2 I`). `gyro_clean`, `accel_clean`, the measured signals and the
+true biases are all expressed in the sensor frame; `R_bs` is stored with the scenario. With an
+angle of 0 no rotation is applied, so existing scenarios are reproduced bit for bit.
+
 ## Known discretization error
 
 The ground truth is exact: the analytic body rate, velocity and acceleration agree with central

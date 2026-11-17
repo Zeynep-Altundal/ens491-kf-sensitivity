@@ -136,3 +136,20 @@ def test_disabling_one_error_source_keeps_others():
     for key in ("gyro_outlier_mask", "accel_outlier_mask", "z_meas"):
         assert np.array_equal(with_rw[key], without_rw[key], equal_nan=True), key
     assert np.allclose(without_rw["gyro_bias"], np.asarray(base.gyro_turn_on_bias))
+
+
+def test_misalignment_rotates_clean_signals():
+    base = ScenarioConfig(profile="aggressive", duration=5.0, enable_white_noise=False,
+                          enable_turn_on_bias=False, enable_bias_rw=False)
+    body = generate(base)
+    sensor = generate(dataclasses.replace(base, imu_misalignment_x_deg=3.0))
+    R = sensor["R_bs"]
+    assert np.allclose(R @ R.T, np.eye(3), atol=1e-15)
+    assert np.allclose(sensor["gyro_clean"], body["gyro_clean"] @ R, atol=1e-15)
+    assert np.allclose(sensor["accel_clean"], body["accel_clean"] @ R, atol=1e-13)
+    # x axis unchanged, norms preserved.
+    assert np.array_equal(sensor["gyro_clean"][:, 0], body["gyro_clean"][:, 0])
+    assert np.allclose(np.linalg.norm(sensor["accel_clean"], axis=1),
+                       np.linalg.norm(body["accel_clean"], axis=1), atol=1e-12)
+    zero = generate(dataclasses.replace(base, imu_misalignment_x_deg=0.0))
+    assert np.array_equal(zero["R_bs"], np.eye(3))

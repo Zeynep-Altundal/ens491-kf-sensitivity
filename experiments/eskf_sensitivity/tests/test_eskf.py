@@ -254,3 +254,24 @@ def test_reset_jacobian_matches_finite_differences(angle):
           f"other blocks max|J - I| = {diff_other:.3e}")
     assert diff_th <= 0.5 * angle**2
     assert diff_other <= RESET_ABS_TOL
+
+
+def test_zero_misalignment_reproduces_nominal_history(tmp_path):
+    """imu_misalignment_x_deg = 0 must reproduce results/turning_run0_history.csv byte for byte."""
+    from pathlib import Path
+
+    from experiments.eskf_sensitivity.run import (
+        DEFAULT_PROFILE,
+        DEFAULT_RUN_INDEX,
+        RESULTS_DIR,
+        write_history_csv,
+    )
+
+    settings = FilterSettings()
+    cfg = scenario_config(DEFAULT_PROFILE, DEFAULT_RUN_INDEX, settings, imu_misalignment_x_deg=0.0)
+    out = generate(cfg)
+    hist = run_filter(out, cfg, settings, initial_state(out, settings, DEFAULT_RUN_INDEX))
+    path = tmp_path / "history.csv"
+    write_history_csv(hist, out, path)
+    reference = Path(RESULTS_DIR) / f"{DEFAULT_PROFILE}_run{DEFAULT_RUN_INDEX}_history.csv"
+    assert path.read_bytes() == reference.read_bytes()

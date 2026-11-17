@@ -226,6 +226,99 @@ def plot_consistency(profile: str, path: Path) -> None:
     plt.close(fig)
 
 
+MISALIGN_LEVELS = (0, 1, 3, 5)
+GNSS_LABELS = ("S0", "S1", "S2", "S1_at_1_deg", "S1_at_3_deg", "S1_at_5_deg")
+
+
+def plot_misalignment(path: Path) -> None:
+    """Run-averaged full and attitude NEES and RMS attitude error over time per misalignment level."""
+    d = np.genfromtxt(RESULTS_DIR / "misalignment_time.csv", delimiter=",", names=True)
+    fig, axes = plt.subplots(1, 3, figsize=(16, 4.3))
+    for k, lvl in enumerate(MISALIGN_LEVELS):
+        c = f"C{k}"
+        axes[0].semilogy(d["t"], d[f"nees_full_{lvl}deg"], color=c, lw=1, label=f"{lvl} deg")
+        axes[1].semilogy(d["t"], d[f"nees_attitude_{lvl}deg"], color=c, lw=1, label=f"{lvl} deg")
+        axes[2].plot(d["t"], d[f"att_rms_deg_{lvl}deg"], color=c, lw=1, label=f"{lvl} deg")
+    for ax, dof, title in ((axes[0], 15, "full-state NEES"), (axes[1], 3, "attitude NEES")):
+        lo, hi = chi2.ppf([0.025, 0.975], dof * CONSISTENCY_RUNS) / CONSISTENCY_RUNS
+        ax.axhline(lo, color="k", lw=0.8, ls="--")
+        ax.axhline(hi, color="k", lw=0.8, ls="--", label="95 % bounds")
+        ax.set_title(f"run-averaged {title}", fontsize=9)
+    axes[2].set_title("RMS attitude error (w.r.t. body frame) [deg]", fontsize=9)
+    for ax in axes:
+        ax.set_xlabel("time [s]")
+        ax.grid(True, which="both", alpha=0.3)
+        ax.legend(fontsize=8)
+    fig.suptitle("ESKF with unmodelled IMU-to-body misalignment about body x (turning, N = 50)", fontsize=10)
+    fig.tight_layout()
+    fig.savefig(path, dpi=150)
+    plt.close(fig)
+
+
+def plot_gnss(path: Path) -> None:
+    """RMS position error and 3-sigma bound over time for the GNSS availability cases."""
+    d = np.genfromtxt(RESULTS_DIR / "gnss_time.csv", delimiter=",", names=True)
+    fig, axes = plt.subplots(1, 2, figsize=(15, 4.8))
+    for k, lab in enumerate(GNSS_LABELS[:3]):
+        axes[0].semilogy(d["t"], d[f"rms_pos_err_{lab}"], color=f"C{k}", lw=1.3, label=f"{lab} RMS error")
+        axes[0].semilogy(d["t"], d[f"three_sigma_{lab}"], color=f"C{k}", lw=1, ls="--",
+                         label=rf"{lab} $3\sqrt{{\mathrm{{tr}}\,P_{{pos}}}}$")
+    for k, lab in enumerate(("S1", "S1_at_1_deg", "S1_at_3_deg", "S1_at_5_deg")):
+        axes[1].semilogy(d["t"], d[f"rms_pos_err_{lab}"], color=f"C{k}", lw=1.3,
+                         label=f"{lab.replace('_', ' ')} RMS error")
+    axes[1].semilogy(d["t"], d["three_sigma_S1"], color="k", lw=1, ls="--",
+                     label=r"S1 $3\sqrt{\mathrm{tr}\,P_{pos}}$ (0 deg)")
+    for ax in axes:
+        ax.axvspan(20.0, 60.0, color="C3", alpha=0.07, lw=0)
+        ax.set_xlabel("time [s]")
+        ax.set_ylabel("position error [m]")
+        ax.grid(True, which="both", alpha=0.3)
+        ax.legend(fontsize=7)
+    axes[0].set_title("S0 full coverage, S1 outage 20-60 s (shaded), S2 IMU only", fontsize=9)
+    axes[1].set_title("S1 with 0, 1, 3, 5 deg misalignment", fontsize=9)
+    fig.suptitle("ESKF GNSS availability scenarios (turning, N = 50)", fontsize=10)
+    fig.tight_layout()
+    fig.savefig(path, dpi=150)
+    plt.close(fig)
+
+
+def plot_clarify_window(path: Path) -> None:
+    """Turning consistency study: NEES and errors around 10-18 s."""
+    d = np.genfromtxt(RESULTS_DIR / "clarify_turning_window.csv", delimiter=",", names=True)
+    fig, axes = plt.subplots(2, 3, figsize=(16, 7.5), sharex=True)
+    for ax, key, dof in ((axes[0, 0], "nees_full", 15), (axes[0, 1], "nees_attitude", 3),
+                         (axes[0, 2], "nees_gyro_bias", 3)):
+        lo, hi = chi2.ppf([0.025, 0.975], dof * CONSISTENCY_RUNS) / CONSISTENCY_RUNS
+        ax.plot(d["t"], d[key], "C0-", lw=1)
+        ax.axhline(dof, color="k", lw=1)
+        ax.axhline(lo, color="C3", lw=1, ls="--")
+        ax.axhline(hi, color="C3", lw=1, ls="--")
+        ax.set_title(f"run-averaged {key.replace('nees_', '')} NEES (expected {dof})", fontsize=9)
+    for k, a in enumerate("xyz"):
+        axes[1, 0].plot(d["t"], d[f"rms_att_err_{a}_deg"], color=f"C{k}", lw=1.2, label=f"RMS error {a}")
+        axes[1, 0].plot(d["t"], d[f"mean_sigma_att_{a}_deg"], color=f"C{k}", lw=1, ls="--", label=f"mean sigma {a}")
+        axes[1, 1].plot(d["t"], d[f"rms_att_err_{a}_deg"] / d[f"mean_sigma_att_{a}_deg"], color=f"C{k}",
+                        lw=1.2, label=f"attitude {a}")
+        axes[1, 1].plot(d["t"], d[f"rms_bg_err_{a}"] / d[f"mean_sigma_bg_{a}"], color=f"C{k}", lw=1,
+                        ls=":", label=f"gyro bias {a}")
+        axes[1, 2].plot(d["t"], d[f"rms_bg_err_{a}"], color=f"C{k}", lw=1.2, label=f"RMS error {a}")
+        axes[1, 2].plot(d["t"], d[f"mean_sigma_bg_{a}"], color=f"C{k}", lw=1, ls="--", label=f"mean sigma {a}")
+    axes[1, 0].set_title("attitude error [deg]", fontsize=9)
+    axes[1, 1].axhline(1.0, color="k", lw=1)
+    axes[1, 1].set_title("RMS error / mean filter sigma", fontsize=9)
+    axes[1, 2].set_title("gyro bias error [rad/s]", fontsize=9)
+    for ax in axes.flat:
+        ax.axvspan(10.0, 18.0, color="C1", alpha=0.08, lw=0)
+        ax.grid(True, alpha=0.3)
+    for ax in axes[1]:
+        ax.set_xlabel("time [s]")
+        ax.legend(fontsize=7, ncol=2)
+    fig.suptitle("Turning consistency study (N = 50): NEES and errors around 10-18 s (shaded)", fontsize=10)
+    fig.tight_layout()
+    fig.savefig(path, dpi=150)
+    plt.close(fig)
+
+
 def main() -> None:
     FIG_DIR.mkdir(parents=True, exist_ok=True)
     stem = f"{DEFAULT_PROFILE}_run{DEFAULT_RUN_INDEX}"
@@ -251,6 +344,12 @@ def main() -> None:
             path = FIG_DIR / f"consistency_{profile}.png"
             plot_consistency(profile, path)
             print(f"wrote {path}")
+    for name, fn, src in (("misalignment_nees_time.png", plot_misalignment, "misalignment_time.csv"),
+                          ("gnss_position_error.png", plot_gnss, "gnss_time.csv"),
+                          ("clarify_turning_10_18s.png", plot_clarify_window, "clarify_turning_window.csv")):
+        if (RESULTS_DIR / src).exists():
+            fn(FIG_DIR / name)
+            print(f"wrote {FIG_DIR / name}")
 
 
 if __name__ == "__main__":

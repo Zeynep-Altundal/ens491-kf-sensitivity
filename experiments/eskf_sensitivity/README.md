@@ -211,6 +211,76 @@ changed to make a result consistent.
 * Outputs: `results/consistency_summary.csv`, `results/consistency_time_<profile>.csv`,
   `figures/consistency_<profile>.png`.
 
+## Structural mismatch and GNSS availability protocol (`misalignment.py`)
+
+Fixed before running; not changed after seeing results. No filter parameter is tuned.
+
+### Part 1: fixed IMU-to-body misalignment
+
+* Generator: a constant sensor-to-body rotation `R_BS = Exp(dphi e_x)` about the body x axis
+  (`ScenarioConfig.imu_misalignment_x_deg`). The ideal sensor measures `w_S = R_BS^T w_B` and
+  `f_S = R_BS^T f_B`. White noise, turn-on bias, bias random walk and spikes are then generated
+  in the **sensor frame** and added to these signals, as for a physical sensor whose errors belong
+  to its own axes. The per-axis noise is isotropic (`sigma^2 I`), so the noise covariance is the
+  same in any rotated frame (`R^T sigma^2 I R = sigma^2 I`); the misalignment therefore changes only
+  the clean signal, not the noise statistics. The true biases are recorded in the sensor frame.
+* Filter: unchanged. It treats the sensor frame as the body frame (it assumes `R_BS = I`). Errors
+  are computed against the true **body** attitude, so an estimate that converges to the sensor
+  attitude shows a constant attitude error equal to the misalignment.
+* Levels: **0, 1, 3, 5 degrees**. Profile `turning`, 60 s, **N = 50**, run indices 0..49 at every
+  level (same noise, bias and initial-error realisations; the levels are paired).
+* Reported per level: position, velocity and attitude RMSE (3D); full-state NEES (expected 15)
+  and the five sub-block NEES (expected 3); mean over runs and epochs with a 95 % bootstrap
+  interval, the two-sided 95 % chi-square interval of the N-run average at one epoch,
+  `chi2.ppf([0.025, 0.975], d N) / N`, and the fraction of epochs whose run-averaged NEES lies
+  inside it; mean NIS (expected 3); final (t = 60 s) estimated and true biases per axis (mean over
+  runs) and the mean bias error; paired differences to the 0 degree level (position RMSE, attitude
+  RMSE, full NEES, NIS and final bias error per axis) with 95 % bootstrap intervals.
+* Whether the bias estimates absorb part of the misalignment is stated as an observation based on
+  the paired bias-error differences, not as a verified mechanism.
+* Test: `imu_misalignment_x_deg = 0` reproduces the existing nominal single-run history
+  (`results/turning_run0_history.csv`) byte for byte.
+
+### Part 2: GNSS availability scenarios (reported separately)
+
+At 0 degrees misalignment, profile `turning`, 60 s, N = 50, run indices 0..49:
+
+* **S0**: position measurements at 10 Hz for the whole run.
+* **S1**: outage from 20 s to 60 s inclusive (no measurement with `t >= 20 s`; dropout window
+  `[20 s, 60.1 s)`).
+* **S2**: no position measurement in the whole run (dropout window `[0 s, 60.1 s)`); the filter
+  runs on the IMU alone from the P0 prior.
+* **S1 at 1, 3 and 5 degrees** misalignment, to show the effect on dead-reckoning drift.
+
+Reported: RMS position error over time with `3 sqrt(mean tr P_pos)`; final (t = 60 s) and maximum
+position error (mean over runs with 95 % interval, and maximum over runs); mean full-state NEES
+over the epochs inside and outside the outage (95 % intervals); drift growth: RMS position error
+and `3 sqrt(mean tr P_pos)` at elapsed outage times 0, 1, 2, 5, 10, 20, 30 and 40 s (for S2 the
+elapsed time is measured from t = 0).
+
+### Part 3: clarifications (`clarify.py`)
+
+* (a) The "4.2 % of epochs" figure of the turning consistency study is restated with its exact
+  definition. The turning consistency runs (N = 50, run indices 0..49, reset on) are recomputed with
+  the same seeds to obtain the errors behind the NEES; the recomputed run-averaged NEES must equal
+  `results/consistency_time_turning.csv`. Shown for t = 5..25 s (window 10..18 s highlighted):
+  run-averaged full, attitude and gyro-bias NEES with bounds, the RMS attitude error per axis and
+  the RMS gyro-bias error per axis together with the mean filter standard deviations.
+* (b) Attitude columns of F (`aggressive`, t = 10 s, as in the existing test): sensitivity of the
+  finite-difference result to the step `h = 1e-4 .. 1e-8 rad` (central differences), and the
+  linearisation error for finite attitude perturbations of magnitude `1e-4 .. 1e-1 rad`, measured
+  as `|g(d) - d - (F - I) d| / |(F - I) d|`, where `g(d)` is the propagated error.
+* (c) Every bootstrap in this repository resamples whole Monte Carlo runs, never epochs (see
+  "Bootstrap unit" below).
+
+### Bootstrap unit
+
+All bootstrap intervals (`closure.py` in `linear_kf`, `filter_family` and `eskf_sensitivity`,
+`consistency.py` and `misalignment.py`) resample whole Monte Carlo runs: each resample draws run
+indices with replacement and recomputes the statistic from the per-run values (per-run time
+averages or per-run final values). Epochs within a run are never resampled individually, because
+they are correlated in time.
+
 ## Files
 
 | File | Purpose |
@@ -220,7 +290,9 @@ changed to make a result consistent.
 | `sweep.py` | Sensitivity study (protocol above), parallel Monte Carlo; writes `results/sweep_*.csv`. |
 | `closure.py` | Statistical closure of the sweeps: bootstrap intervals, paired differences to nominal, seed spread. |
 | `consistency.py` | Full-state and sub-block NEES Monte Carlo, with and without covariance reset. |
-| `plots.py` | Figures of a single run, of the sweeps and of the consistency study. |
+| `misalignment.py` | IMU-to-body misalignment study and GNSS availability scenarios. |
+| `clarify.py` | Clarifications on the consistency study and on the finite-difference check of F. |
+| `plots.py` | Figures of a single run, of the sweeps, of the consistency, misalignment and GNSS studies and of the clarifications. |
 | `tests/` | Validation tests. |
 | `results/` | CSV output. |
 | `figures/` | PNG output. |
@@ -233,5 +305,7 @@ python -m experiments.eskf_sensitivity.run
 OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 python -m experiments.eskf_sensitivity.sweep
 OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 python -m experiments.eskf_sensitivity.closure
 OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 python -m experiments.eskf_sensitivity.consistency
+OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 python -m experiments.eskf_sensitivity.misalignment
+OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 python -m experiments.eskf_sensitivity.clarify
 python -m experiments.eskf_sensitivity.plots
 ```

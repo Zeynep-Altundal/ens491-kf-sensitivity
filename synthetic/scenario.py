@@ -71,6 +71,9 @@ class ScenarioConfig:
     accel_outlier_prob: float = 0.0  # per sample and axis
     accel_outlier_magnitude: float = 5.0  # [m/s^2]
 
+    # Fixed sensor-to-body misalignment: rotation R_BS about the body x axis [deg].
+    imu_misalignment_x_deg: float = 0.0
+
     # IMU error switches (apply to both gyro and accelerometer).
     enable_white_noise: bool = True
     enable_turn_on_bias: bool = True
@@ -147,6 +150,13 @@ class ScenarioConfig:
         return cls(**data)
 
 
+def sensor_to_body_rotation(angle_deg: float) -> np.ndarray:
+    """``R_BS = Exp(dphi e_x)``: rotation from the sensor frame to the body frame."""
+    a = np.deg2rad(angle_deg)
+    c, s = np.cos(a), np.sin(a)
+    return np.array([[1.0, 0.0, 0.0], [0.0, c, -s], [0.0, s, c]])
+
+
 def generate(config: ScenarioConfig, path: str | Path | None = None) -> dict[str, np.ndarray]:
     """Generate a scenario; optionally also write it to ``path`` as ``.npz``.
 
@@ -155,14 +165,17 @@ def generate(config: ScenarioConfig, path: str | Path | None = None) -> dict[str
     t, p_true, v_true, a_true, q_true, w_true
         IMU time stamps and ground truth at the IMU rate.
     gyro_clean, accel_clean, gyro_meas, accel_meas
-        Ideal and corrupted IMU signals.
+        Ideal and corrupted IMU signals in the sensor frame (equal to the body
+        frame when ``imu_misalignment_x_deg`` is 0).
     gyro_bias, accel_bias
-        True time-varying biases contained in the corrupted signals.
+        True time-varying biases contained in the corrupted signals (sensor frame).
     gyro_outlier_mask, accel_outlier_mask
         Samples and axes that received an outlier spike.
     t_meas, meas_index, p_meas_true, z_meas, meas_available, meas_outlier_mask
         Measurement epochs, their IMU sample indices, true positions,
         measurements (NaN when unavailable), availability and outlier flags.
+    R_bs
+        Sensor-to-body rotation (identity without misalignment).
     config_json
         The full configuration as a JSON string.
     """
@@ -172,6 +185,11 @@ def generate(config: ScenarioConfig, path: str | Path | None = None) -> dict[str
 
     state = get_trajectory(config.profile).evaluate(t)
     gyro_clean, accel_clean = ideal_imu(state)
+    r_bs = sensor_to_body_rotation(config.imu_misalignment_x_deg)
+    if config.imu_misalignment_x_deg != 0.0:
+        # Sensor-frame signals w_S = R_BS^T w_B and f_S = R_BS^T f_B (row vectors: x @ R_BS).
+        gyro_clean = gyro_clean @ r_bs
+        accel_clean = accel_clean @ r_bs
 
     children = np.random.SeedSequence(config.seed).spawn(len(RNG_STREAMS))
     rng = {name: np.random.default_rng(ss) for name, ss in zip(RNG_STREAMS, children)}
@@ -207,6 +225,7 @@ def generate(config: ScenarioConfig, path: str | Path | None = None) -> dict[str
         "z_meas": meas["z"],
         "meas_available": meas["available"],
         "meas_outlier_mask": meas["outlier_mask"],
+        "R_bs": r_bs,
         "config_json": np.array(config.to_json()),
     }
     if path is not None:

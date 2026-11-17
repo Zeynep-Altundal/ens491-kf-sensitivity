@@ -6,8 +6,8 @@ filters evaluated on the same runs.
 
 ## Bootstrap convention (used by every `closure.py`)
 
-* Unit of resampling: one Monte Carlo run (runs are independent; time steps within a run are
-  not resampled separately because they are correlated).
+* Unit of resampling: one whole Monte Carlo run, in every bootstrap in this repository (runs are
+  independent; epochs within a run are never resampled individually because they are correlated).
 * Statistic: the reported metric recomputed on each resample, e.g. the mean over runs of the
   per-run time-averaged NEES, or the RMSE as the square root of the mean over runs of the per-run
   mean squared error (all runs of a setting have the same number of epochs).
