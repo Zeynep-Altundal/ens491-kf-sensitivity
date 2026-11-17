@@ -14,6 +14,7 @@ neural error-state Kalman filters (ESKF) for inertial navigation without GNSS.
 | `analysis/dataset_char/` | IMU characterisation of the KITTI and EuRoC datasets. |
 | `synthetic/` | Scenario generator: noise, bias drift, outliers, dropout and motion profiles. |
 | `experiments/` | Experiment code and results. |
+| `experiments/linear_kf/` | Linear Kalman filter mis-tuning study on a linear Gaussian model (Layer A). |
 | `experiments/eskf_sensitivity/` | One-parameter-at-a-time sensitivity sweeps (Q, R, P0, bias, dropout, gating) and plots. |
 
 ## Setup
