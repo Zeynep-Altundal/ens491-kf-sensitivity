@@ -163,6 +163,171 @@ Fixed before running; not changed after seeing results.
 * References for the scaled unscented transform and the iterated EKF as a Gauss-Newton method:
   OPEN.
 
+## Adaptive-R diagnosis protocol (`adaptive_r.py`)
+
+Fixed before any of these runs; not changed after seeing results. Purpose: explain the behaviour
+of `AdaptiveEKF` when the true measurement covariance is constant and the filter is given the true
+Q and R (the nominal closure reports a mean NEES of 4.36 [4.17, 4.56] against an expected 4 on the
+range-bearing benchmark).
+
+### Configurations
+
+| Configuration | Model | Steps T | Steady-state segment |
+|---------------|-------|---------|----------------------|
+| `linear_T400` | `linear_cv_model()` (`dt = 0.1 s`, `q = 1`, `r = 1 m^2`) | 400 | steps 201..400 |
+| `rb_T400` | `range_bearing_model()` (nominal) | 400 | steps 201..400 |
+| `rb_T60` | `range_bearing_model()` (nominal; the benchmark of the earlier closure) | 60 | not used |
+
+* Monte Carlo **N = 100** runs per configuration, simulation seed **0**, generated with
+  `models.simulate`. All variants of a configuration run on the same trajectories and
+  measurements.
+* True Q and R are given to every variant; the adaptive filter starts from the true R.
+* The longer runs (T = 400) are added because a window of W steps leaves the filter non-adaptive
+  for the first W updates; with T = 60, windows of 100 and 200 never fill and the adaptive filter
+  is then identical to the non-adaptive one. `rb_T60` is kept only to connect with the earlier
+  closure result; its windows 100 and 200 are reported but are by construction equal to "off".
+  On the 400-step range-bearing runs the noise-free target reaches a range of about 405 m at the
+  end (closest approach about 36 m at t = 36 s); the geometry is therefore not the same as in the
+  60-step benchmark.
+
+### Variants
+
+* **off**: `AdaptiveEKF(adapt=False)` (identical to the EKF; to the KF on the linear model).
+* **on, W**: `AdaptiveEKF(adapt=True, window=W)` for **W = 5, 10, 20, 50, 100, 200**.
+
+### Metrics (per run, then over runs)
+
+* Position RMSE (linear model: the position component; range-bearing: 2D position), mean NEES
+  (full state; expected value n = 2 for the linear model, 4 for range-bearing), mean NIS (expected
+  m = 1, 2), each computed over **all steps** and, for the T = 400 configurations, also over the
+  **steady-state segment**.
+* Divergence as defined in the sensitivity protocol (numerical error, non-finite estimate, or final
+  position error above 10 times the single-fix error; for the linear model the single-fix error is
+  `sqrt(r)`). Runs in which any variant of a configuration diverges are excluded from that
+  configuration's paired analysis and their number is reported.
+* Intervals: bootstrap over whole runs as in `experiments/common/README.md` (B = 10 000, 95 %
+  percentile, resampling seed 2026).
+
+### Analyses
+
+a) **Adaptation off vs on**: paired differences (on minus off) in position RMSE, mean NEES and
+   mean NIS for every window, with 95 % intervals, plus the per-variant values with intervals.
+b) **Window sweep**: the same quantities as a function of W = 5, 10, 20, 50, 100, 200.
+c) **Estimated R over time**: for each window, the R used at each update (`R_history`),
+   normalised element-wise by the true diagonal, `R_hat_ii(k) / R_true_ii`; per step the mean,
+   standard deviation and 5 % / 95 % quantiles over runs. **Steady-state bias** per diagonal
+   element: per run, the mean of `R_hat_ii(k) / R_true_ii - 1` over the steady-state segment; then
+   the mean over runs with a bootstrap interval. For range-bearing the steady-state mean of the
+   off-diagonal correlation coefficient `R_hat_12 / sqrt(R_hat_11 R_hat_22)` is also reported.
+   **Open-loop diagnostic**: the same windowed estimator evaluated on the residuals of the "off"
+   filter (no feedback of the estimate into the filter), to separate a bias of the estimator itself
+   from an effect of feeding the estimate back.
+d) **Estimator documentation and checks**: the exact estimator as implemented (see the
+   `AdaptiveEKF` description above), restated with the residual form, the treatment of the
+   `H P H^T` term and the presence or absence of a positive-semidefinite projection. Counted over
+   all adaptive updates: the number of estimates with a negative eigenvalue (the implementation has
+   no projection, so this count is what a projection would act on). As a diagnostic only (not used
+   by any filter), the innovation-form estimate `(1/W) sum nu_j nu_j^T - H P- H^T` is evaluated on
+   the closed-loop innovations of the same runs, and the fraction of updates at which it has a
+   negative eigenvalue is reported.
+
+**Question answered**: whether the over-confidence (mean NEES above its expected value) decreases
+with window length. Primary evidence: steady-state mean NEES of `rb_T400` and `linear_T400` versus
+W; secondary: all-steps mean NEES of `rb_T60`. "Decreases" is called supported when the paired
+difference of mean NEES between successive windows (larger minus smaller W) has an interval
+entirely below zero; the result is stated per pair of successive windows.
+
+Outputs: `results/adaptive_r_summary.csv`, `results/adaptive_r_paired.csv`,
+`results/adaptive_r_bias.csv`, `results/adaptive_r_window_pairs.csv`,
+`results/adaptive_r_psd.csv`, `results/adaptive_r_time.csv`; figures
+`figures/adaptive_r_window.png`, `figures/adaptive_r_estimate_<configuration>.png`.
+
+## Time-varying measurement noise benchmark protocol (`time_varying_r.py`)
+
+Fixed before any of these runs; not changed after seeing results.
+
+### Set-up
+
+* Models: `linear_cv_model()` and `range_bearing_model()` (nominal), **T = 400** steps, Monte
+  Carlo **N = 100**, simulation seed **0**. Q is true and fixed throughout.
+* True measurement covariance `R_true(k) = c(k) R_nom` for k = 1..T, with `R_nom` the model's
+  nominal R (for range-bearing both the range and the bearing variance are scaled by `c(k)`).
+* Simulation: the same draw order as `models.simulate` (initial state, process noise, measurement
+  noise); the standard-normal measurement draws are scaled by `sqrt(c(k))`. The same
+  standard-normal draws are used for every pattern (common random numbers), and every filter of a
+  pattern runs on the same trajectories and measurements.
+
+### Patterns `c(k)` (fixed in advance)
+
+* **step**: `c(k) = 1` for k <= 200, `c(k) = 10` for k > 200.
+* **ramp**: `c(k) = 1 + 9 (k - 1) / (T - 1)`, i.e. linear from 1 at k = 1 to 10 at k = T.
+* **burst**: `c(k) = 25` inside bursts, 1 elsewhere. Four bursts of 10 steps per run; the run is
+  divided into four blocks of 100 steps and in each block the burst start is drawn uniformly from
+  the first 91 steps of the block (so bursts never overlap or leave the block). Start times are
+  drawn independently per run from a separate generator seeded with **1**, so they do not change
+  the noise draws. The time average of `c` is `1 + 24 * 40 / 400 = 3.4` for every run.
+
+### Filters (EKF; on the linear model this is the KF)
+
+* **fixed nominal**: R = `R_nom`.
+* **fixed average (hindsight reference)**: R = `c_bar R_nom`, with `c_bar` the time average of
+  `c(k)` over the run (step 5.5, ramp 5.5, burst 3.4). It uses the true mean of `R_true(k)`, which
+  is known only in hindsight; it is a reference, not a filter available in practice.
+* **true-covariance filter**: R = `R_true(k)` at every update. It is the reference filter that
+  knows the measurement covariance; it is not guaranteed to be best on every metric (for example,
+  on a nonlinear model the EKF with the true R need not have the lowest RMSE or a NEES equal to
+  its expected value).
+* **adaptive, W**: `AdaptiveEKF` with W = 5, 10, 20, 50, 100, 200, starting from `R_nom`.
+
+### Metrics (over all steps of a run, then over runs)
+
+* Position RMSE, mean NEES, mean NIS, as in the adaptive-R protocol.
+* Gaussian innovation negative log-likelihood per step,
+  `0.5 (nu^T S^-1 nu + ln det S + m ln 2 pi)`, averaged over steps.
+* **R tracking error**: per step and diagonal element, `ln(R_filter_ii(k) / R_true_ii(k))`, where
+  `R_filter(k)` is the R used at update k. Reported as the mean absolute log-ratio (averaged over
+  diagonal elements and steps; scale-free, zero for the true-covariance filter) and the mean signed log-ratio
+  (bias; negative means the filter assumes less noise than present).
+* Divergence as in the adaptive-R protocol (single-fix error evaluated with `R_true(T)`).
+* Paired differences **filter minus true-covariance filter** for position RMSE, mean NEES, mean NIS and innovation
+  NLL, resampling runs jointly; runs in which any filter of the pattern diverged are excluded from
+  the paired analysis of that pattern and their number is reported. Intervals as above.
+
+Outputs: `results/tv_r_summary.csv`, `results/tv_r_paired.csv`, `results/tv_r_time.csv`;
+figures `figures/tv_r_<model>_<pattern>.png`.
+
+### Amendments (reviewer, after the first results)
+
+These amendments were requested by a reviewer after the first results of this benchmark had been
+seen. They do not change the data, the patterns, the filters or the metrics above; the filter
+names below replace the earlier names (`oracle` became `true_covariance`, `fixed_average` became
+`fixed_average_hindsight`) in code, CSV files and figures.
+
+* **A1.** The filter given `R_true(k)` is called the **true-covariance filter**; it need not win
+  on every metric.
+* **A2.** The fixed-average filter is labelled a **hindsight reference** that uses the true mean
+  of `R_true(k)` and is not available in practice.
+* **A3. Window selection on validation runs.** For each model and pattern, the adaptive filter is
+  run with every window W on separate **validation runs** (N = 100, simulation seed **1000**,
+  burst start seed **1001**; same patterns and filter settings). The window with the lowest mean
+  innovation NLL (mean over runs of the per-run mean over steps, non-diverged runs) is selected
+  and reported on the evaluation runs (seed 0) as `adaptive_selected`, alongside the full sweep.
+  Output: `results/tv_r_window_selection.csv`.
+* **A4.** The innovation NLL is `0.5 (nu^T S^-1 nu + ln det S + m ln 2 pi)` with `S` the filter's
+  innovation covariance `H P- H^T + R` at that update (checked by a test against the Gaussian
+  log-density).
+* **A5. Identifiability of the R estimate** (Q true and fixed). For the R used at update k >= W,
+  `R_hat(k) = A(k) + B(k)` with the residual part `A(k) = (1/W) sum e e^T` and `B(k) = H P+ H^T`
+  of update k - 1. Per run and diagonal element, over the steps that use an estimate:
+  the share of the temporal variance of `R_hat` carried by B, `Cov(R_hat, B) / Var(R_hat)` (the
+  shares of A and B add to one); the correlation of `log R_hat` with `log R_true`; the correlation
+  of `log R_hat` with `log B`; the mean of `B / R_hat`. Means over runs with bootstrap intervals.
+  Rule: **follows R_true** if the interval of the B share lies below 0.5 and the interval of the
+  correlation with `log R_true` lies above 0; **follows H P H^T** if the interval of the B share
+  lies above 0.5; otherwise **not separated**. As a control the same analysis is run with
+  constant R (`c(k) = 1`, evaluation seed 0), where any variation of `R_hat` is unrelated to a
+  change of `R_true`. Output: `results/tv_r_identifiability.csv`.
+
 ## Files
 
 | File | Purpose |
@@ -172,6 +337,8 @@ Fixed before running; not changed after seeing results.
 | `run.py` | Nominal Monte Carlo comparison on the range-bearing benchmark; writes `results/`. |
 | `sweep.py` | One-parameter-at-a-time sensitivity study (protocol above); writes `results/sweep_<name>.csv`. |
 | `closure.py` | Statistical closure: bootstrap intervals, paired filter differences, seed spread. |
+| `adaptive_r.py` | Adaptive-R diagnosis under constant true R (protocol above). |
+| `time_varying_r.py` | Time-varying measurement noise benchmark (protocol above). |
 | `plots.py` | Writes figures to `figures/`. |
 | `tests/` | Equivalence, adaptation, Jacobian and wrap-around tests. |
 
@@ -183,6 +350,8 @@ python -m experiments.filter_family.run
 python -m experiments.filter_family.sweep
 python -m experiments.filter_family.closure
 python -m experiments.filter_family.plots
+python -m experiments.filter_family.adaptive_r
+python -m experiments.filter_family.time_varying_r
 ```
 
 Runtime per step is wall-clock time of `predict` + `update` in pure Python/numpy on the machine

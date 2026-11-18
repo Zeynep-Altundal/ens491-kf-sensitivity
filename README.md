@@ -17,6 +17,7 @@ neural error-state Kalman filters (ESKF) for inertial navigation without GNSS.
 | `experiments/common/` | Shared bootstrap utilities for confidence intervals over Monte Carlo runs. |
 | `experiments/linear_kf/` | Linear Kalman filter mis-tuning study on a linear Gaussian model (Layer A). |
 | `experiments/filter_family/` | KF, EKF, IEKF, UKF and adaptive filter behind one interface; equivalence tests and a range-bearing comparison. |
+| `experiments/neural_r/` | Evaluation protocol for a future learned time-varying measurement covariance (protocol only). |
 | `experiments/eskf_sensitivity/` | One-parameter-at-a-time sensitivity sweeps (Q, R, P0, bias, dropout, gating) and plots. |
 
 ## Setup

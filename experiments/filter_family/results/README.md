@@ -11,3 +11,14 @@ CSV output of `run.py` (range-bearing benchmark, N = 100 runs, 60 steps, seed 0,
 | `closure_summary.csv` | Per setting and filter: divergence count, position RMSE, mean NEES and mean NIS with 95 % bootstrap intervals. |
 | `closure_paired.csv` | Paired differences between every pair of filters (position RMSE, mean NEES) with intervals. |
 | `closure_seeds.csv` | Nominal metrics per filter for five master seeds. |
+| `adaptive_r_summary.csv` | Adaptive-R diagnosis: per configuration (`linear_T400`, `rb_T400`, `rb_T60`), segment (`all`, `steady`) and variant (`off`, `W5` ... `W200`): divergence count, position RMSE, mean NEES, mean NIS with 95 % intervals and the expected NEES and NIS. |
+| `adaptive_r_paired.csv` | Paired differences adaptation on minus off per window, metric and segment. |
+| `adaptive_r_window_pairs.csv` | Paired differences of mean NEES between successive windows (larger minus smaller W); `primary` marks the segment used to answer the window question. |
+| `adaptive_r_bias.csv` | Steady-state bias of the estimated R (`R_ii / R_true_ii - 1`, and the off-diagonal correlation for range-bearing), closed loop and open loop, with intervals. |
+| `adaptive_r_psd.csv` | Number of updates using an estimate, negative-eigenvalue counts of the implemented (post-fit) estimate and of the innovation-form diagnostic. |
+| `adaptive_r_time.csv` | Per step: mean, standard deviation, 5 % and 95 % quantiles over runs of `R_hat_ii / R_true_ii`. |
+| `tv_r_summary.csv` | Time-varying R benchmark: per model, pattern and filter (`fixed_nominal`, `fixed_average_hindsight`, `true_covariance`, `adaptive_W<W>`, `adaptive_selected` with its `selected_window`): divergence count, position RMSE, mean NEES, mean NIS, innovation NLL, R tracking error (absolute and signed log-ratio) with intervals. |
+| `tv_r_paired.csv` | Paired differences filter minus true-covariance filter (position RMSE, NEES, NIS, NLL) with intervals. |
+| `tv_r_time.csv` | Per step: position RMSE over runs, mean and run-0 filter R (first diagonal element, relative to nominal) and the true scale factor. |
+| `tv_r_window_selection.csv` | Validation runs (seed 1000, burst seed 1001): mean innovation NLL per window with intervals; `selected` marks the window reported as `adaptive_selected`. |
+| `tv_r_identifiability.csv` | Per model, pattern (including the constant-R control) and window: variance share of the `H P+ H^T` term in the estimated R, correlations of `log R_hat` with `log R_true` and with `log H P+ H^T`, mean `H P+ H^T / R_hat`, with intervals, and the verdict of amendment A5. |
