@@ -22,3 +22,6 @@ CSV output of `run.py` (range-bearing benchmark, N = 100 runs, 60 steps, seed 0,
 | `tv_r_time.csv` | Per step: position RMSE over runs, mean and run-0 filter R (first diagonal element, relative to nominal) and the true scale factor. |
 | `tv_r_window_selection.csv` | Validation runs (seed 1000, burst seed 1001): mean innovation NLL per window with intervals; `selected` marks the window reported as `adaptive_selected`. |
 | `tv_r_identifiability.csv` | Per model, pattern (including the constant-R control) and window: variance share of the `H P+ H^T` term in the estimated R, correlations of `log R_hat` with `log R_true` and with `log H P+ H^T`, mean `H P+ H^T / R_hat`, with intervals, and the verdict of amendment A5. |
+| `lorenz_summary.csv` | Lorenz-attractor benchmark: per setting (`full`, `mismatch_J2`), `1/r^2` and filter: failed runs, MSE in dB with 95 % interval and the paper-style spread, RMSE, mean NEES, mean NIS with intervals. |
+| `lorenz_paper_values.csv` | EKF and UKF MSE [dB] transcribed from Tables V and VII of arXiv:2107.10043v3, with table, setting and spread. |
+| `lorenz_comparison.csv` | This study's MSE [dB] next to the transcribed paper values, difference and whether the paper value lies inside this study's interval. |

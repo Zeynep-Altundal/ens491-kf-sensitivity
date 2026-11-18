@@ -1,0 +1,23 @@
+source,setting,filter,inv_r2_dB,mse_dB,spread_dB
+Table V,full,EKF,0,-10.45,
+Table V,full,EKF,10,-20.37,
+Table V,full,EKF,20,-30.4,
+Table V,full,EKF,30,-40.39,
+Table V,full,EKF,40,-49.89,
+Table V,full,UKF,0,-5.62,
+Table V,full,UKF,10,-12.04,
+Table V,full,UKF,20,-20.45,
+Table V,full,UKF,30,-30.05,
+Table V,full,UKF,40,-40,
+Table VII,full,EKF,10,-20.37,0.25
+Table VII,full,EKF,20,-30.4,0.24
+Table VII,full,EKF,30,-40.39,0.24
+Table VII,full,EKF,40,-49.89,0.2
+Table VII,mismatch_J2,EKF,10,-19.47,0.25
+Table VII,mismatch_J2,EKF,20,-23.63,0.11
+Table VII,mismatch_J2,EKF,30,-33.51,0.18
+Table VII,mismatch_J2,EKF,40,-41.15,0.12
+Table VII,mismatch_J2,UKF,10,-11.95,0.87
+Table VII,mismatch_J2,UKF,20,-20.45,0.27
+Table VII,mismatch_J2,UKF,30,-30.05,0.09
+Table VII,mismatch_J2,UKF,40,-39.98,0.09
