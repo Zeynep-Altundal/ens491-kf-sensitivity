@@ -1,0 +1,21 @@
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Real sequences compared with the synthetic profiles (full characterisation in Table~\ref{tab:ds_summary}). Source: \texttt{analysis/dataset\_char/results/summary.csv}, \texttt{analysis/dataset\_char/results/synthetic\_profiles.csv}.}\label{tab:main_ds}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lll}
+\toprule
+Quantity & KITTI drive 0016 & EuRoC V1\_01\_easy \\
+\midrule
+Measured IMU rate [Hz] & 100 & 200 \\
+Longest static segment [s] & 0 & 0 \\
+Noise density, bias instability & not identifiable & not identifiable \\
+Speed median / max [m/s] & 13.7 / 15.7 & 0.397 / 1.06 \\
+$|\omega|$ median / max [rad/s] & 0.0152 / 0.0899 & 0.231 / 0.938 \\
+Fraction of time turning & 0 & 0.844 \\
+synthetic \texttt{straight}: speed max, $|\omega|$ max, turning & 4.00, 0, 0 &  \\
+synthetic \texttt{turning}: speed max, $|\omega|$ max, turning & 5.92, 0.664, 0.822 &  \\
+synthetic \texttt{aggressive}: speed max, $|\omega|$ max, turning & 4.93, 4.10, 1.00 &  \\
+\bottomrule
+\end{tabular}}
+\end{table}

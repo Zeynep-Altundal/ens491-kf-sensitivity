@@ -1,0 +1,20 @@
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Identifiability of the adaptive R estimate (rule of amendment A5): number of (window, element) cases per verdict. Source: \texttt{experiments/filter\_family/results/tv\_r\_identifiability.csv}.}\label{tab:tv_ident}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lllllll}
+\toprule
+Model & Pattern & Cases & Follows $R_{\mathrm{true}}$ & Follows $HPH^\top$ & Not separated & Windows following $R_{\mathrm{true}}$ \\
+\midrule
+linear & constant & 6 & 0 & 0 & 6 & -- \\
+linear & step & 6 & 5 & 0 & 1 & 5, 10, 20, 50, 100 \\
+linear & ramp & 6 & 6 & 0 & 0 & 5, 10, 20, 50, 100, 200 \\
+linear & burst & 6 & 3 & 0 & 3 & 5, 10, 20 \\
+rb & constant & 12 & 0 & 0 & 12 & -- \\
+rb & step & 12 & 10 & 0 & 2 & 5/e1, 5/e2, 10/e1, 10/e2, 20/e1, 20/e2, 50/e1, 50/e2, 100/e1, 100/e2 \\
+rb & ramp & 12 & 12 & 0 & 0 & 5/e1, 5/e2, 10/e1, 10/e2, 20/e1, 20/e2, 50/e1, 50/e2, 100/e1, 100/e2, 200/e1, 200/e2 \\
+rb & burst & 12 & 7 & 0 & 5 & 5/e1, 5/e2, 10/e1, 10/e2, 20/e1, 20/e2, 50/e2 \\
+\bottomrule
+\end{tabular}}
+\end{table}

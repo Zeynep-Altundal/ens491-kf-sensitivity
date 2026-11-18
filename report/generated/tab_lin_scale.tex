@@ -1,0 +1,19 @@
+\begin{table}[htbp]
+\centering
+\small
+\caption{Common-scale identity on data: configurations that differ by a common factor of all filter covariances give identical RMSE, and NEES and NIS scaled by the inverse factor (T = 200, all steps). The gain-convergence step uses a 1\,\% threshold. Source: \texttt{experiments/linear\_kf/results/open\_point.csv}.}\label{tab:lin_scale}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{llllllll}
+\toprule
+Configuration & $Q$ scale & $R$ scale & $P_0$ scale & Pos. RMSE & NEES & NIS & Gain conv. step \\
+\midrule
+truth & 1.00 & 1.00 & 1.00 & 0.4823 & 2.040 & 1.011 & 22 \\
+Q x 0.001 & 0.00100 & 1.00 & 1.00 & 2.704 & 783.4 & 8.554 & 129 \\
+R x 1000 & 1.00 & 1000 & 1.00 & 3.512 & 1.365 & 0.01377 & 140 \\
+R x 1000, P0 x 1000 & 1.00 & 1000 & 1000 & 2.704 & 0.7834 & 0.008554 & 129 \\
+Q x 1000 & 1000 & 1.00 & 1.00 & 0.8199 & 1.134 & 0.6529 & 4 \\
+R x 0.001 & 1.00 & 0.00100 & 1.00 & 0.8227 & 1136 & 648.6 & 5 \\
+R x 0.001, P0 x 0.001 & 1.00 & 0.00100 & 0.00100 & 0.8199 & 1134 & 652.9 & 4 \\
+\bottomrule
+\end{tabular}}
+\end{table}

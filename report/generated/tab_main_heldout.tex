@@ -1,0 +1,15 @@
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Bursts (in-distribution and held-out): mean innovation NLL and paired NLL difference of the learned models to the burst-selected adaptive window (gate G1 uses the two held-out sets). Source: \texttt{experiments/neural\_r/results/neural\_r\_summary.csv}, \texttt{experiments/neural\_r/results/neural\_r\_paired.csv}.}\label{tab:main_heldout}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lllllll}
+\toprule
+Test set & true cov. & adaptive (burst sel.) & GRU & MLP & GRU $-$ adaptive & MLP $-$ adaptive \\
+\midrule
+burst & 1.71 & 2.13 & 1.93 & 2.00 & -0.206 [-0.225, -0.188] & -0.137 [-0.156, -0.121] \\
+ho\_burst\_short & 1.60 & 2.22 & 1.93 & 1.96 & -0.291 [-0.328, -0.256] & -0.259 [-0.292, -0.227] \\
+ho\_burst\_long & 2.17 & 2.58 & 2.48 & 2.69 & -0.106 [-0.126, -0.0888] & 0.109 [0.0906, 0.126] \\
+\bottomrule
+\end{tabular}}
+\end{table}

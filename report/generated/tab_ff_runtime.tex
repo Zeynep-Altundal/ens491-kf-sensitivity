@@ -1,0 +1,16 @@
+\begin{table}[htbp]
+\centering
+\small
+\caption{Nominal range-bearing comparison (N = 100, 60 steps) with the wall-clock time per predict and update step in pure Python and NumPy (relative comparison only). Source: \texttt{experiments/filter\_family/results/nominal\_comparison.csv}.}\label{tab:ff_runtime}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{llllll}
+\toprule
+Filter & Pos. RMSE [m] & NEES & NIS & Time per step [$\mu$s] & Mean IEKF iterations \\
+\midrule
+EKF & 1.61 & 4.10 & 2.04 & 18.5 & -- \\
+IEKF & 1.60 & 4.03 & 2.03 & 125 & 6.79 \\
+UKF & 1.61 & 4.03 & 2.02 & 35.3 & -- \\
+AdaptiveEKF & 1.63 & 4.36 & 2.23 & 31.7 & -- \\
+\bottomrule
+\end{tabular}}
+\end{table}

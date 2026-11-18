@@ -1,0 +1,17 @@
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Over-confidence of the adaptive filter with $W = 5$ under constant true $R$: control runs, steady-state mean NEES differences; $^{\dagger}$ interval contains zero (W = 20 and 100 in Table~\ref{tab:ar_decomp}). Source: \texttt{experiments/neural\_r/results/diag\_decomposition.csv}.}\label{tab:main_decomp}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lll}
+\toprule
+Term & Linear model & Range-bearing \\
+\midrule
+total: closed - off & 0.926 [0.837, 1.02] & 4.12 [3.73, 4.55] \\
+feedback: closed - open\_replay & 0.475 [0.418, 0.538] & 2.38 [2.10, 2.71] \\
+own-data correlation: open\_replay - indep\_open\_replay & 0.0516 [-0.0199, 0.122]$^{\dagger}$ & 0.170 [-0.0633, 0.402]$^{\dagger}$ \\
+fluctuation: indep\_open\_replay - off & 0.399 [0.345, 0.453] & 1.57 [1.40, 1.74] \\
+closed-loop statistics: indep\_closed\_replay - off & 0.794 [0.694, 0.898] & 3.73 [3.41, 4.08] \\
+\bottomrule
+\end{tabular}}
+\end{table}

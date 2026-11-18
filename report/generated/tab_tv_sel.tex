@@ -1,0 +1,18 @@
+\begin{table}[htbp]
+\centering
+\small
+\caption{Window selected on validation runs (seed 1000, burst seed 1001) by mean innovation NLL. Source: \texttt{experiments/filter\_family/results/tv\_r\_window\_selection.csv}.}\label{tab:tv_sel}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{llll}
+\toprule
+Model & Pattern & Selected W & Validation NLL [95\,\% CI] \\
+\midrule
+linear & step & 20 & 2.159 [2.151, 2.167] \\
+linear & ramp & 50 & 2.312 [2.304, 2.321] \\
+linear & burst & 10 & 2.146 [2.114, 2.181] \\
+rb & step & 20 & 0.7931 [0.7802, 0.8061] \\
+rb & ramp & 50 & 1.044 [1.033, 1.056] \\
+rb & burst & 10 & 0.9150 [0.8674, 0.9661] \\
+\bottomrule
+\end{tabular}}
+\end{table}

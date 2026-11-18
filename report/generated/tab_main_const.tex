@@ -1,0 +1,15 @@
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Constant true $R$: mean NEES of the non-adaptive filter (off) and of the adaptive filter for selected windows, with 95\,\% intervals (all windows in Table~\ref{tab:ar_summary}). Source: \texttt{experiments/filter\_family/results/adaptive\_r\_summary.csv}.}\label{tab:main_const}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{llllllll}
+\toprule
+Configuration & Segment & Expected & off & W5 & W20 & W100 & W200 \\
+\midrule
+linear\_T400 & steady & 2 & 1.99 [1.91, 2.07] & 2.92 [2.78, 3.05] & 2.12 [2.04, 2.21] & 1.99 [1.91, 2.08] & 1.98 [1.90, 2.07] \\
+rb\_T400 & steady & 4 & 4.24 [4.09, 4.39] & 8.36 [7.93, 8.83] & 4.72 [4.57, 4.88] & 4.33 [4.18, 4.49] & 4.30 [4.15, 4.45] \\
+rb\_T60 & all & 4 & 4.10 [3.93, 4.28] & 6.44 [6.09, 6.84] & 4.36 [4.17, 4.56] & 4.10 [3.93, 4.28] & 4.10 [3.93, 4.28] \\
+\bottomrule
+\end{tabular}}
+\end{table}

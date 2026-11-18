@@ -1,0 +1,22 @@
+\begin{table}[htbp]
+\centering
+\small
+\caption{Time-varying measurement noise: mean innovation NLL (lower is better) per filter and pattern, N = 100. \texttt{adaptive\_selected} uses the window chosen on validation runs. Source: \texttt{experiments/filter\_family/results/tv\_r\_summary.csv}.}\label{tab:tv_nll}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lllllll}
+\toprule
+Filter & lin. step & lin. ramp & lin. burst & rb step & rb ramp & rb burst \\
+\midrule
+fixed\_nominal & 3.68 & 3.67 & 2.66 & 3.63 & 3.62 & 1.77 \\
+fixed\_average\_hindsight & 2.36 & 2.36 & 2.12 & 1.12 & 1.11 & 0.683 \\
+true\_covariance & 2.10 & 2.29 & 1.71 & 0.617 & 0.983 & -0.146 \\
+adaptive\_W5 & 2.27 & 2.45 & 2.17 & 1.30 & 1.61 & 1.28 \\
+adaptive\_W10 & 2.18 & 2.36 & 2.13 & 0.913 & 1.22 & 0.956 \\
+adaptive\_W20 & 2.16 & 2.32 & 2.20 & 0.801 & 1.09 & 0.990 \\
+adaptive\_W50 & 2.18 & 2.31 & 2.32 & 0.802 & 1.05 & 1.16 \\
+adaptive\_W100 & 2.22 & 2.35 & 2.33 & 0.893 & 1.13 & 1.15 \\
+adaptive\_W200 & 2.33 & 2.59 & 2.41 & 1.10 & 1.57 & 1.27 \\
+adaptive\_selected & 2.16 & 2.31 & 2.13 & 0.801 & 1.05 & 0.956 \\
+\bottomrule
+\end{tabular}}
+\end{table}

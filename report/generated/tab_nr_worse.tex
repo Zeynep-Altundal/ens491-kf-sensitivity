@@ -1,0 +1,22 @@
+\begin{table}[htbp]
+\centering
+\small
+\caption{Number of test sets on which the learned model is worse with a supported paired difference (higher RMSE, NLL, tracking error or recovery time) / number of test sets evaluated. Source: \texttt{experiments/neural\_r/results/neural\_r\_paired.csv}.}\label{tab:nr_worse}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{llllll}
+\toprule
+Model & Baseline & Pos. RMSE & NLL & Tracking & Recovery \\
+\midrule
+GRU & fixed\_nominal & 2 / 9 & 1 / 9 & 3 / 9 & 3 / 3 \\
+GRU & fixed\_average\_hindsight & 7 / 9 & 2 / 9 & 2 / 9 & 0 / 3 \\
+GRU & true\_covariance & 9 / 9 & 9 / 9 & 9 / 9 & 3 / 3 \\
+GRU & adaptive\_burst\_sel & 0 / 9 & 2 / 9 & 3 / 9 & 0 / 3 \\
+GRU & adaptive\_pooled\_sel & 3 / 9 & 3 / 9 & 3 / 9 & 0 / 3 \\
+MLP & fixed\_nominal & 2 / 9 & 1 / 9 & 3 / 9 & 3 / 3 \\
+MLP & fixed\_average\_hindsight & 7 / 9 & 5 / 9 & 3 / 9 & 0 / 3 \\
+MLP & true\_covariance & 9 / 9 & 9 / 9 & 9 / 9 & 3 / 3 \\
+MLP & adaptive\_burst\_sel & 1 / 9 & 5 / 9 & 6 / 9 & 1 / 3 \\
+MLP & adaptive\_pooled\_sel & 5 / 9 & 5 / 9 & 6 / 9 & 1 / 3 \\
+\bottomrule
+\end{tabular}}
+\end{table}

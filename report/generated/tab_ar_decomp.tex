@@ -1,0 +1,44 @@
+{\scriptsize
+\begin{longtable}{lllll}
+\caption{Control runs for the over-confidence of the adaptive filter (steady state, constant true R): exact decomposition of the excess mean NEES into feedback, own-data correlation and fluctuation, and the replay of a closed-loop R sequence of another run. Source: \texttt{experiments/neural\_r/results/diag\_decomposition.csv}.}\label{tab:ar_decomp}\\
+\toprule
+Model & W & Term & NEES difference [95\,\% CI] & Supported \\
+\midrule
+\endfirsthead
+\toprule
+Model & W & Term & NEES difference [95\,\% CI] & Supported \\
+\midrule
+\endhead
+linear & 5 & total: closed - off & 0.926 [0.837, 1.02] & True \\
+linear & 5 & feedback: closed - open\_replay & 0.475 [0.418, 0.538] & True \\
+linear & 5 & own-data correlation: open\_replay - indep\_open\_replay & 0.0516 [-0.0199, 0.122] & False \\
+linear & 5 & fluctuation: indep\_open\_replay - off & 0.399 [0.345, 0.453] & True \\
+linear & 5 & closed-loop statistics: indep\_closed\_replay - off & 0.794 [0.694, 0.898] & True \\
+linear & 20 & total: closed - off & 0.130 [0.102, 0.159] & True \\
+linear & 20 & feedback: closed - open\_replay & 0.0618 [0.0517, 0.0727] & True \\
+linear & 20 & own-data correlation: open\_replay - indep\_open\_replay & 0.00779 [-0.0225, 0.0387] & False \\
+linear & 20 & fluctuation: indep\_open\_replay - off & 0.0606 [0.0413, 0.0802] & True \\
+linear & 20 & closed-loop statistics: indep\_closed\_replay - off & 0.123 [0.0937, 0.153] & True \\
+linear & 100 & total: closed - off & 0.00200 [-0.0178, 0.0225] & False \\
+linear & 100 & feedback: closed - open\_replay & 0.00415 [-0.00142, 0.0101] & False \\
+linear & 100 & own-data correlation: open\_replay - indep\_open\_replay & 0.00358 [-0.0179, 0.0253] & False \\
+linear & 100 & fluctuation: indep\_open\_replay - off & -0.00573 [-0.0213, 0.0101] & False \\
+linear & 100 & closed-loop statistics: indep\_closed\_replay - off & -0.00127 [-0.0229, 0.0209] & False \\
+rb & 5 & total: closed - off & 4.12 [3.73, 4.55] & True \\
+rb & 5 & feedback: closed - open\_replay & 2.38 [2.10, 2.71] & True \\
+rb & 5 & own-data correlation: open\_replay - indep\_open\_replay & 0.170 [-0.0633, 0.402] & False \\
+rb & 5 & fluctuation: indep\_open\_replay - off & 1.57 [1.40, 1.74] & True \\
+rb & 5 & closed-loop statistics: indep\_closed\_replay - off & 3.73 [3.41, 4.08] & True \\
+rb & 20 & total: closed - off & 0.482 [0.416, 0.550] & True \\
+rb & 20 & feedback: closed - open\_replay & 0.252 [0.223, 0.281] & True \\
+rb & 20 & own-data correlation: open\_replay - indep\_open\_replay & -0.0564 [-0.156, 0.0351] & False \\
+rb & 20 & fluctuation: indep\_open\_replay - off & 0.287 [0.215, 0.367] & True \\
+rb & 20 & closed-loop statistics: indep\_closed\_replay - off & 0.554 [0.459, 0.661] & True \\
+rb & 100 & total: closed - off & 0.0926 [0.0569, 0.130] & True \\
+rb & 100 & feedback: closed - open\_replay & 0.0440 [0.0290, 0.0596] & True \\
+rb & 100 & own-data correlation: open\_replay - indep\_open\_replay & $-9.14\times10^{-4}$ [-0.0339, 0.0325] & False \\
+rb & 100 & fluctuation: indep\_open\_replay - off & 0.0495 [0.0287, 0.0708] & True \\
+rb & 100 & closed-loop statistics: indep\_closed\_replay - off & 0.0933 [0.0617, 0.126] & True \\
+\bottomrule
+\end{longtable}
+}

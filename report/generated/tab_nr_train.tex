@@ -1,0 +1,24 @@
+\begin{table}[htbp]
+\centering
+\small
+\caption{Learned R: the six configurations per candidate (equal budget), best pooled validation NLL and iteration, training time and selection. Source: \texttt{experiments/neural\_r/results/training\_summary.csv}.}\label{tab:nr_train}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lllllll}
+\toprule
+Configuration & Status & Best val. NLL & Iteration & Time [s] & Parameters & Selected \\
+\midrule
+gru\_lr0.001\_wd0 & completed & 2.0441 & 400 & 109 & 1025 & False \\
+gru\_lr0.001\_wd0.0001 & completed & 2.0449 & 400 & 86.4 & 1025 & False \\
+gru\_lr0.003\_wd0 & completed & 2.0046 & 400 & 112 & 1025 & False \\
+gru\_lr0.003\_wd0.0001 & completed & 2.0056 & 400 & 86.5 & 1025 & False \\
+gru\_lr0.01\_wd0 & completed & 1.9938 & 400 & 87.2 & 1025 & True \\
+gru\_lr0.01\_wd0.0001 & completed & 1.9944 & 400 & 112 & 1025 & False \\
+mlp\_lr0.001\_wd0 & completed & 2.0778 & 400 & 85.9 & 3041 & False \\
+mlp\_lr0.001\_wd0.0001 & completed & 2.0783 & 400 & 85.2 & 3041 & False \\
+mlp\_lr0.003\_wd0 & completed & 2.0438 & 300 & 84.7 & 3041 & False \\
+mlp\_lr0.003\_wd0.0001 & completed & 2.0418 & 375 & 84.5 & 3041 & True \\
+mlp\_lr0.01\_wd0 & completed & 2.0958 & 375 & 111 & 3041 & False \\
+mlp\_lr0.01\_wd0.0001 & completed & 2.1379 & 75 & 85.4 & 3041 & False \\
+\bottomrule
+\end{tabular}}
+\end{table}

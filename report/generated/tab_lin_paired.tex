@@ -1,0 +1,16 @@
+\begin{table}[htbp]
+\centering
+\small
+\caption{Linear KF: paired differences (A minus B) on the same runs. Source: \texttt{experiments/linear\_kf/results/closure\_paired.csv}.}\label{tab:lin_paired}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lllll}
+\toprule
+A & B & Metric & Difference [95\,\% CI] & Supported \\
+\midrule
+Q x 1000 & R x 0.001 & pos\_rmse & -0.00282 [-0.00333, -0.00233] & True \\
+Q x 0.001 & R x 1000 & pos\_rmse & -0.808 [-0.933, -0.688] & True \\
+P0 x 0.001 & nominal & pos\_rmse & 0.0342 [0.0268, 0.0421] & True \\
+P0 x 1000 & nominal & pos\_rmse & 0.0166 [0.0141, 0.0191] & True \\
+\bottomrule
+\end{tabular}}
+\end{table}

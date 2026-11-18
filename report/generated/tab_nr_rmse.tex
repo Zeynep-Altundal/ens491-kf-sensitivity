@@ -1,0 +1,21 @@
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Learned R evaluation (linear model, N = 100 per set): position RMSE per test set and filter. \texttt{ho\_} marks held-out sets. Source: \texttt{experiments/neural\_r/results/neural\_r\_summary.csv}.}\label{tab:nr_rmse}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{llllllll}
+\toprule
+Test set & fixed nom. & fixed avg. (hindsight) & true cov. & adaptive W10 (burst sel.) & adaptive W20 (pooled sel.) & GRU & MLP \\
+\midrule
+constant & 0.473 & 0.473 & 0.473 & 0.489 & 0.478 & 0.476 & 0.487 \\
+step & 1.000 & 0.914 & 0.870 & 0.931 & 0.898 & 0.907 & 0.914 \\
+ramp & 0.999 & 0.913 & 0.900 & 0.943 & 0.915 & 0.931 & 0.930 \\
+burst & 0.787 & 0.753 & 0.535 & 1.12 & 0.964 & 0.778 & 0.771 \\
+ho\_step & 1.59 & 1.31 & 1.25 & 1.39 & 1.31 & 1.34 & 1.37 \\
+ho\_ramp & 1.64 & 1.36 & 1.33 & 1.39 & 1.35 & 1.39 & 1.42 \\
+ho\_burst\_short & 0.691 & 0.670 & 0.478 & 1.69 & 1.21 & 0.849 & 0.812 \\
+ho\_burst\_long & 1.40 & 1.20 & 0.975 & 1.53 & 1.37 & 1.20 & 1.23 \\
+ho\_sine & 0.897 & 0.833 & 0.804 & 0.863 & 0.853 & 0.845 & 0.851 \\
+\bottomrule
+\end{tabular}}
+\end{table}

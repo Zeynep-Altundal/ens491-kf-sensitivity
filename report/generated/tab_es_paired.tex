@@ -1,0 +1,62 @@
+{\small
+\begin{longtable}{llll}
+\caption{ESKF: paired differences to the nominal setting (same run indices). Source: \texttt{experiments/eskf\_sensitivity/results/closure\_paired.csv}.}\label{tab:es_paired}\\
+\toprule
+Setting & Metric & Minus nominal [95\,\% CI] & Supported \\
+\midrule
+\endfirsthead
+\toprule
+Setting & Metric & Minus nominal [95\,\% CI] & Supported \\
+\midrule
+\endhead
+q\_imu 0.01 & pos\_rmse & 0.00133 [$-5.07\times10^{-8}$, 0.00267] & False \\
+q\_imu 0.01 & mean\_nees\_pos & 0.145 [0.0989, 0.191] & True \\
+q\_imu 100 & pos\_rmse & 0.0174 [0.0149, 0.0198] & True \\
+q\_imu 100 & mean\_nees\_pos & -0.241 [-0.302, -0.182] & True \\
+q\_bias 0.01 & pos\_rmse & 0.0539 [0.0395, 0.0690] & True \\
+q\_bias 0.01 & mean\_nees\_pos & 4.96 [3.67, 6.42] & True \\
+q\_bias 100 & pos\_rmse & 0.0372 [0.0338, 0.0406] & True \\
+q\_bias 100 & mean\_nees\_pos & -0.337 [-0.429, -0.250] & True \\
+r 0.01 & pos\_rmse & 0.0679 [0.0628, 0.0725] & True \\
+r 0.01 & mean\_nees\_pos & 263 [255, 270] & True \\
+r 100 & pos\_rmse & 0.488 [0.450, 0.526] & True \\
+r 100 & mean\_nees\_pos & -2.38 [-2.49, -2.26] & True \\
+p0 0.01 & pos\_rmse & 0.291 [0.258, 0.323] & True \\
+p0 0.01 & mean\_nees\_pos & 29.0 [24.7, 33.4] & True \\
+p0 100 & pos\_rmse & 0.0326 [0.0283, 0.0368] & True \\
+p0 100 & mean\_nees\_pos & -0.0386 [-0.119, 0.0494] & False \\
+bias\_estimation 0 (enabled) & pos\_rmse & -0.0229 [-0.0260, -0.0197] & True \\
+bias\_estimation 0 (enabled) & mean\_nees\_pos & -0.0466 [-0.113, 0.0211] & False \\
+bias\_estimation 0 (disabled) & pos\_rmse & 0.631 [0.465, 0.789] & True \\
+bias\_estimation 0 (disabled) & mean\_nees\_pos & 174 [110, 248] & True \\
+bias\_estimation 10 (enabled) & pos\_rmse & 0.0242 [0.0205, 0.0282] & True \\
+bias\_estimation 10 (enabled) & mean\_nees\_pos & 0.118 [0.0228, 0.229] & True \\
+bias\_estimation 10 (disabled) & pos\_rmse & 24.6 [19.9, 28.9] & True \\
+bias\_estimation 10 (disabled) & mean\_nees\_pos & $1.17\times10^{5}$ [72086, $1.69\times10^{5}$] & True \\
+dropout 0 & pos\_rmse & 0 [0, 0] & False \\
+dropout 0 & mean\_nees\_pos & 0 [0, 0] & False \\
+dropout 40 & pos\_rmse & 26.6 [23.1, 29.9] & True \\
+dropout 40 & mean\_nees\_pos & 0.174 [-0.193, 0.548] & False \\
+outliers 0 (gate off) & pos\_rmse & 0 [0, 0] & False \\
+outliers 0 (gate off) & mean\_nees\_pos & 0 [0, 0] & False \\
+outliers 0 (gate on) & pos\_rmse & $9.96\times10^{-4}$ [$7.26\times10^{-5}$, 0.00226] & True \\
+outliers 0 (gate on) & mean\_nees\_pos & 0.0180 [-0.00206, 0.0410] & False \\
+outliers 0.2 (gate off) & pos\_rmse & 0.399 [0.383, 0.414] & True \\
+outliers 0.2 (gate off) & mean\_nees\_pos & 17.6 [16.6, 18.6] & True \\
+outliers 0.2 (gate on) & pos\_rmse & 0.0276 [0.0229, 0.0323] & True \\
+outliers 0.2 (gate on) & mean\_nees\_pos & -0.00388 [-0.103, 0.0909] & False \\
+imu\_spikes 0 & pos\_rmse & 0 [0, 0] & False \\
+imu\_spikes 0 & mean\_nees\_pos & 0 [0, 0] & False \\
+imu\_spikes 0.01 & pos\_rmse & 0.393 [0.330, 0.463] & True \\
+imu\_spikes 0.01 & mean\_nees\_pos & 20.4 [15.8, 26.1] & True \\
+profile straight & pos\_rmse & -0.00833 [-0.0119, -0.00470] & True \\
+profile straight & mean\_nees\_pos & 0.00221 [-0.0899, 0.0989] & False \\
+profile aggressive & pos\_rmse & -0.0102 [-0.0134, -0.00709] & True \\
+profile aggressive & mean\_nees\_pos & 0.00424 [-0.0912, 0.0988] & False \\
+meas\_rate 1 & pos\_rmse & 0.406 [0.385, 0.427] & True \\
+meas\_rate 1 & mean\_nees\_pos & -0.0956 [-0.320, 0.141] & False \\
+meas\_rate 20 & pos\_rmse & -0.0593 [-0.0634, -0.0553] & True \\
+meas\_rate 20 & mean\_nees\_pos & 0.0250 [-0.119, 0.172] & False \\
+\bottomrule
+\end{longtable}
+}

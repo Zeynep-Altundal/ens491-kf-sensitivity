@@ -1,0 +1,39 @@
+{\scriptsize
+\begin{longtable}{lll}
+\caption{ESKF sensitivity, same settings as Table~\ref{tab:es_closure}: mean position NEES and mean NIS with 95\,\% intervals (expected 3 each). Source: \texttt{experiments/eskf\_sensitivity/results/closure\_summary.csv}.}\label{tab:es_closure_cons}\\
+\toprule
+Setting & Pos. NEES & NIS \\
+\midrule
+\endfirsthead
+\toprule
+Setting & Pos. NEES & NIS \\
+\midrule
+\endhead
+nominal & 3.02 [2.90, 3.14] & 2.97 [2.95, 3.00] \\
+q\_imu 0.01 & 3.16 [3.02, 3.31] & 2.98 [2.96, 3.01] \\
+q\_imu 100 & 2.78 [2.68, 2.87] & 2.95 [2.92, 2.98] \\
+q\_bias 0.01 & 7.98 [6.66, 9.45] & 3.13 [3.08, 3.18] \\
+q\_bias 100 & 2.68 [2.60, 2.76] & 2.93 [2.90, 2.96] \\
+r 0.01 & 266 [258, 273] & 291 [288, 293] \\
+r 100 & 0.640 [0.573, 0.706] & 0.0513 [0.0489, 0.0536] \\
+p0 0.01 & 32.0 [27.7, 36.4] & 4.01 [3.88, 4.15] \\
+p0 100 & 2.98 [2.86, 3.10] & 2.95 [2.92, 2.98] \\
+bias\_estimation 0 (enabled) & 2.97 [2.84, 3.11] & 2.97 [2.94, 3.00] \\
+bias\_estimation 0 (disabled) & 177 [113, 251] & 6.01 [4.92, 7.26] \\
+bias\_estimation 10 (enabled) & 3.14 [2.96, 3.31] & 2.98 [2.95, 3.01] \\
+bias\_estimation 10 (disabled) & $1.17\times10^{5}$ [72089, $1.69\times10^{5}$] & 2528 [1681, 3493] \\
+dropout 0 & 3.02 [2.90, 3.14] & 2.97 [2.95, 3.00] \\
+dropout 40 & 3.19 [2.82, 3.59] & 2.97 [2.91, 3.02] \\
+outliers 0 (gate off) & 3.02 [2.90, 3.14] & 2.97 [2.95, 3.00] \\
+outliers 0 (gate on) & 3.04 [2.90, 3.17] & 2.96 [2.93, 2.99] \\
+outliers 0.2 (gate off) & 20.6 [19.6, 21.6] & 22.3 [21.7, 22.9] \\
+outliers 0.2 (gate on) & 3.01 [2.87, 3.16] & 2.98 [2.95, 3.01] \\
+imu\_spikes 0 & 3.02 [2.90, 3.14] & 2.97 [2.95, 3.00] \\
+imu\_spikes 0.01 & 23.4 [18.8, 29.1] & 4.47 [4.14, 4.88] \\
+profile straight & 3.02 [2.89, 3.17] & 2.98 [2.95, 3.01] \\
+profile aggressive & 3.02 [2.87, 3.18] & 2.98 [2.95, 3.00] \\
+meas\_rate 1 & 2.92 [2.72, 3.14] & 2.95 [2.86, 3.04] \\
+meas\_rate 20 & 3.04 [2.89, 3.22] & 2.98 [2.96, 3.00] \\
+\bottomrule
+\end{longtable}
+}

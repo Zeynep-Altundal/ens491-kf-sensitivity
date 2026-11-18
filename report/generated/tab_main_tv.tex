@@ -1,0 +1,20 @@
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Time-varying measurement noise: mean innovation NLL for selected filters (all windows and RMSE/NEES in Tables~\ref{tab:tv_nll} and \ref{tab:tv_rmse}). The last row gives the window selected on validation runs (post-result amendment A3). Source: \texttt{experiments/filter\_family/results/tv\_r\_summary.csv}.}\label{tab:main_tv}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lllllll}
+\toprule
+Filter & lin. step & lin. ramp & lin. burst & rb step & rb ramp & rb burst \\
+\midrule
+fixed\_nominal & 3.68 & 3.67 & 2.66 & 3.63 & 3.62 & 1.77 \\
+fixed\_average\_hindsight & 2.36 & 2.36 & 2.12 & 1.12 & 1.11 & 0.683 \\
+true\_covariance & 2.10 & 2.29 & 1.71 & 0.617 & 0.983 & -0.146 \\
+adaptive\_W5 & 2.27 & 2.45 & 2.17 & 1.30 & 1.61 & 1.28 \\
+adaptive\_W20 & 2.16 & 2.32 & 2.20 & 0.801 & 1.09 & 0.990 \\
+adaptive\_W200 & 2.33 & 2.59 & 2.41 & 1.10 & 1.57 & 1.27 \\
+adaptive\_selected & 2.16 & 2.31 & 2.13 & 0.801 & 1.05 & 0.956 \\
+selected window & 20 & 50 & 10 & 20 & 50 & 10 \\
+\bottomrule
+\end{tabular}}
+\end{table}

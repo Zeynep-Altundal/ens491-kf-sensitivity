@@ -1,0 +1,16 @@
+\begin{table}[htbp]
+\centering
+\small
+\caption{Fixed misalignment about the body $x$ axis, \texttt{turning}, N = 50 paired runs; NEES computed against the true body attitude. Chi-square intervals: full [13.5, 16.6], 3-dof [2.36, 3.72]. Source: \texttt{experiments/eskf\_sensitivity/results/misalignment\_summary.csv}.}\label{tab:es_misalign}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lllllll}
+\toprule
+Angle [deg] & Pos. RMSE [m] & Att. RMSE [deg] & Full NEES & Att. NEES & Gyro-bias NEES & NIS \\
+\midrule
+0 & 0.246 [0.242, 0.251] & 0.967 [0.880, 1.06] & 15.0 [14.3, 15.6] & 2.94 [2.69, 3.20] & 2.99 [2.65, 3.37] & 2.98 [2.96, 3.00] \\
+1.00 & 0.248 [0.243, 0.252] & 1.39 [1.33, 1.46] & 1570 [1565, 1575] & 203 [201, 205] & 3.10 [2.74, 3.49] & 2.99 [2.96, 3.01] \\
+3.00 & 0.264 [0.259, 0.268] & 3.12 [3.09, 3.15] & 14002 [13988, 14016] & 1808 [1803, 1813] & 3.91 [3.45, 4.39] & 3.03 [3.00, 3.05] \\
+5.00 & 0.294 [0.289, 0.300] & 5.03 [5.00, 5.05] & 38865 [38842, 38888] & 5020 [5012, 5029] & 5.51 [4.91, 6.13] & 3.11 [3.08, 3.13] \\
+\bottomrule
+\end{tabular}}
+\end{table}

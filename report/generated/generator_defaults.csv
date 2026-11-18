@@ -1,0 +1,7 @@
+parameter,value,unit
+imu_rate,200.0,Hz
+meas_rate,10.0,Hz
+gyro_noise_density,0.0002,rad/s/sqrt(Hz)
+accel_noise_density,0.002,m/s^2/sqrt(Hz)
+gyro_bias_rw,2e-05,rad/s^2/sqrt(Hz)
+accel_bias_rw,0.003,m/s^3/sqrt(Hz)

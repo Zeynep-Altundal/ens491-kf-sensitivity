@@ -1,0 +1,18 @@
+\begin{table}[htbp]
+\centering
+\small
+\caption{GNSS availability (\texttt{turning}, N = 50): S0 position at 10\,Hz, S1 outage from 20\,s, S2 no position measurement; S1 also with misalignment. Source: \texttt{experiments/eskf\_sensitivity/results/gnss\_summary.csv}.}\label{tab:es_gnss}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lllll}
+\toprule
+Case & Final pos. error [m] & Max over runs [m] & Full NEES in outage & Full NEES outside \\
+\midrule
+S0 & 0.195 [0.174, 0.218] & 0.421 & -- & 15.0 [14.3, 15.6] \\
+S1 & 55.2 [47.0, 64.2] & 160 & 14.9 [13.5, 16.5] & 15.5 [14.6, 16.4] \\
+S2 & 263 [233, 295] & 523 & 16.1 [14.8, 17.6] & -- [, ] \\
+S1 at 1 deg & 56.9 [48.6, 65.9] & 163 & 1247 [1240, 1254] & 1096 [1088, 1105] \\
+S1 at 3 deg & 68.3 [59.3, 77.7] & 173 & 11076 [11055, 11097] & 9732 [9706, 9758] \\
+S1 at 5 deg & 88.7 [79.3, 98.4] & 189 & 30729 [30688, 30772] & 26990 [26947, 27032] \\
+\bottomrule
+\end{tabular}}
+\end{table}

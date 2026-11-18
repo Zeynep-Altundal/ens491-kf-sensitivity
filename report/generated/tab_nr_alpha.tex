@@ -1,0 +1,22 @@
+\begin{table}[htbp]
+\centering
+\small
+\caption{$\alpha_t$ versus the true factor $c$ on settled steps ($c$ at its level for at least 10 steps), factors of at least 10. Source: \texttt{experiments/neural\_r/results/saturation\_alpha\_vs\_factor.csv}.}\label{tab:nr_alpha}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lllllll}
+\toprule
+Model & Set & True $c$ & Steps & Median $\alpha$ & 95\,\% $\alpha$ & Max $\alpha$ \\
+\midrule
+GRU & step & 10.0 & 19000 & 8.39 & 11.3 & 12.5 \\
+GRU & ho\_step & 20.0 & 27000 & 9.89 & 12.1 & 12.6 \\
+GRU & ho\_burst\_long & 25.0 & 12000 & 10.2 & 12.3 & 12.6 \\
+GRU & training\_batches\_0\_9 & 10.0 & 2804 & 8.29 & 11.3 & 12.3 \\
+GRU & training\_batches\_0\_9 & 25.0 & 640 & 10.3 & 12.2 & 12.6 \\
+MLP & step & 10.0 & 19000 & 5.17 & 7.27 & 8.38 \\
+MLP & ho\_step & 20.0 & 27000 & 6.42 & 7.96 & 8.55 \\
+MLP & ho\_burst\_long & 25.0 & 12000 & 6.78 & 8.09 & 8.59 \\
+MLP & training\_batches\_0\_9 & 10.0 & 2804 & 5.02 & 7.17 & 8.27 \\
+MLP & training\_batches\_0\_9 & 25.0 & 640 & 6.88 & 8.09 & 8.50 \\
+\bottomrule
+\end{tabular}}
+\end{table}

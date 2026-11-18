@@ -1,0 +1,47 @@
+{\scriptsize
+\begin{longtable}{llllllll}
+\caption{Scale factor: change of the gyro-bias error relative to $s = 0$ and its ratio to the rate-equivalent $s\,\overline{\omega}$ over the preceding 10\,s (rows with a non-zero rate-equivalent only). Source: \texttt{experiments/eskf\_sensitivity/results/scale\_factor\_bias.csv}.}\label{tab:es_sf_bias}\\
+\toprule
+Profile & Scen. & $s$ [\%] & Time & Axis & $s\,\overline{\omega}$ [rad/s] & Bias-error change [rad/s] & Ratio \\
+\midrule
+\endfirsthead
+\toprule
+Profile & Scen. & $s$ [\%] & Time & Axis & $s\,\overline{\omega}$ [rad/s] & Bias-error change [rad/s] & Ratio \\
+\midrule
+\endhead
+turning & S0 & 0.500 & t60 & z & 0.00157 & $-1.16\times10^{-4}$ [$-1.17\times10^{-4}$, $-1.15\times10^{-4}$] & -0.0738 \\
+turning & S0 & 1.00 & t60 & z & 0.00314 & $-2.32\times10^{-4}$ [$-2.34\times10^{-4}$, $-2.30\times10^{-4}$] & -0.0738 \\
+turning & S0 & 2.00 & t60 & z & 0.00628 & $-4.64\times10^{-4}$ [$-4.68\times10^{-4}$, $-4.61\times10^{-4}$] & -0.0739 \\
+turning & S1 & 0.500 & t60 & z & 0.00157 & $-8.35\times10^{-4}$ [$-8.40\times10^{-4}$, $-8.31\times10^{-4}$] & -0.532 \\
+turning & S1 & 1.00 & t60 & z & 0.00314 & -0.00167 [-0.00168, -0.00166] & -0.531 \\
+turning & S1 & 2.00 & t60 & z & 0.00628 & -0.00332 [-0.00334, -0.00330] & -0.529 \\
+aggressive & S0 & 0.500 & t60 & x & $1.96\times10^{-4}$ & $8.66\times10^{-4}$ [$8.52\times10^{-4}$, $8.79\times10^{-4}$] & 4.41 \\
+aggressive & S0 & 0.500 & t60 & y & $-1.80\times10^{-4}$ & -0.00164 [-0.00165, -0.00164] & 9.15 \\
+aggressive & S0 & 0.500 & t60 & z & 0.00132 & 0.00200 [0.00200, 0.00200] & 1.52 \\
+aggressive & S0 & 1.00 & t60 & x & $3.93\times10^{-4}$ & 0.00172 [0.00169, 0.00175] & 4.37 \\
+aggressive & S0 & 1.00 & t60 & y & $-3.59\times10^{-4}$ & -0.00339 [-0.00341, -0.00338] & 9.45 \\
+aggressive & S0 & 1.00 & t60 & z & 0.00263 & 0.00402 [0.00401, 0.00402] & 1.52 \\
+aggressive & S0 & 2.00 & t60 & x & $7.86\times10^{-4}$ & 0.00338 [0.00332, 0.00344] & 4.30 \\
+aggressive & S0 & 2.00 & t60 & y & $-7.18\times10^{-4}$ & -0.00719 [-0.00722, -0.00716] & 10.0 \\
+aggressive & S0 & 2.00 & t60 & z & 0.00527 & 0.00811 [0.00811, 0.00812] & 1.54 \\
+aggressive & S1 & 0.500 & t20 & x & $1.96\times10^{-4}$ & $1.72\times10^{-4}$ [$1.68\times10^{-4}$, $1.77\times10^{-4}$] & 0.878 \\
+aggressive & S1 & 0.500 & t20 & y & $-1.80\times10^{-4}$ & $-1.04\times10^{-4}$ [$-1.08\times10^{-4}$, $-1.00\times10^{-4}$] & 0.579 \\
+aggressive & S1 & 0.500 & t20 & z & 0.00132 & 0.00120 [0.00119, 0.00120] & 0.911 \\
+aggressive & S1 & 0.500 & t60 & x & $1.96\times10^{-4}$ & $1.72\times10^{-4}$ [$1.68\times10^{-4}$, $1.77\times10^{-4}$] & 0.878 \\
+aggressive & S1 & 0.500 & t60 & y & $-1.80\times10^{-4}$ & $-1.04\times10^{-4}$ [$-1.08\times10^{-4}$, $-1.00\times10^{-4}$] & 0.579 \\
+aggressive & S1 & 0.500 & t60 & z & 0.00132 & 0.00120 [0.00119, 0.00120] & 0.911 \\
+aggressive & S1 & 1.00 & t20 & x & $3.93\times10^{-4}$ & $3.58\times10^{-4}$ [$3.49\times10^{-4}$, $3.68\times10^{-4}$] & 0.912 \\
+aggressive & S1 & 1.00 & t20 & y & $-3.59\times10^{-4}$ & $-2.03\times10^{-4}$ [$-2.10\times10^{-4}$, $-1.96\times10^{-4}$] & 0.566 \\
+aggressive & S1 & 1.00 & t20 & z & 0.00263 & 0.00242 [0.00241, 0.00243] & 0.917 \\
+aggressive & S1 & 1.00 & t60 & x & $3.93\times10^{-4}$ & $3.58\times10^{-4}$ [$3.49\times10^{-4}$, $3.68\times10^{-4}$] & 0.912 \\
+aggressive & S1 & 1.00 & t60 & y & $-3.59\times10^{-4}$ & $-2.03\times10^{-4}$ [$-2.10\times10^{-4}$, $-1.96\times10^{-4}$] & 0.566 \\
+aggressive & S1 & 1.00 & t60 & z & 0.00263 & 0.00242 [0.00241, 0.00243] & 0.917 \\
+aggressive & S1 & 2.00 & t20 & x & $7.86\times10^{-4}$ & $7.70\times10^{-4}$ [$7.51\times10^{-4}$, $7.88\times10^{-4}$] & 0.980 \\
+aggressive & S1 & 2.00 & t20 & y & $-7.18\times10^{-4}$ & $-3.86\times10^{-4}$ [$-4.01\times10^{-4}$, $-3.71\times10^{-4}$] & 0.538 \\
+aggressive & S1 & 2.00 & t20 & z & 0.00527 & 0.00490 [0.00488, 0.00492] & 0.930 \\
+aggressive & S1 & 2.00 & t60 & x & $7.86\times10^{-4}$ & $7.70\times10^{-4}$ [$7.51\times10^{-4}$, $7.88\times10^{-4}$] & 0.980 \\
+aggressive & S1 & 2.00 & t60 & y & $-7.18\times10^{-4}$ & $-3.86\times10^{-4}$ [$-4.01\times10^{-4}$, $-3.71\times10^{-4}$] & 0.538 \\
+aggressive & S1 & 2.00 & t60 & z & 0.00527 & 0.00490 [0.00488, 0.00492] & 0.930 \\
+\bottomrule
+\end{longtable}
+}

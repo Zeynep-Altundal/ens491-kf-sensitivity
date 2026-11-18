@@ -1,0 +1,21 @@
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Learned R evaluation (linear model, N = 100 per set): mean NEES (expected 2) per test set and filter. \texttt{ho\_} marks held-out sets. Source: \texttt{experiments/neural\_r/results/neural\_r\_summary.csv}.}\label{tab:nr_nees}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{llllllll}
+\toprule
+Test set & fixed nom. & fixed avg. (hindsight) & true cov. & adaptive W10 (burst sel.) & adaptive W20 (pooled sel.) & GRU & MLP \\
+\midrule
+constant & 2.01 & 2.01 & 2.01 & 2.34 & 2.14 & 1.89 & 1.89 \\
+step & 6.59 & 2.02 & 2.03 & 2.51 & 2.30 & 2.25 & 2.60 \\
+ramp & 6.59 & 2.02 & 2.03 & 2.44 & 2.25 & 2.25 & 2.60 \\
+burst & 4.38 & 2.01 & 2.02 & 3.75 & 3.31 & 2.37 & 2.58 \\
+ho\_step & 15.7 & 1.99 & 1.96 & 2.66 & 2.39 & 2.99 & 3.83 \\
+ho\_ramp & 16.7 & 2.04 & 2.05 & 2.55 & 2.36 & 3.09 & 3.97 \\
+ho\_burst\_short & 3.50 & 1.99 & 1.98 & 5.13 & 4.13 & 2.78 & 3.01 \\
+ho\_burst\_long & 12.2 & 2.07 & 1.97 & 3.97 & 3.65 & 2.98 & 3.64 \\
+ho\_sine & 5.38 & 1.99 & 1.97 & 2.50 & 2.54 & 2.08 & 2.45 \\
+\bottomrule
+\end{tabular}}
+\end{table}

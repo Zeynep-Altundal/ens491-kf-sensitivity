@@ -1,0 +1,23 @@
+\begin{table}[htbp]
+\centering
+\small
+\caption{Gates fixed before training (details in Table~\ref{tab:nr_gates}). Source: \texttt{experiments/neural\_r/results/neural\_r\_gates.csv}.}\label{tab:main_gates}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lll}
+\toprule
+Gate & Model & Outcome \\
+\midrule
+G1 & gru & passed \\
+G2 & gru & passed (reported) \\
+G3 & gru & failed \\
+G4 & gru & evaluated \\
+G5 & gru & evaluated \\
+G1 & mlp & failed \\
+G2 & mlp & passed (reported) \\
+G3 & mlp & failed \\
+G4 & mlp & evaluated \\
+G5 & mlp & evaluated \\
+G6 & gru vs mlp & evaluated \\
+\bottomrule
+\end{tabular}}
+\end{table}

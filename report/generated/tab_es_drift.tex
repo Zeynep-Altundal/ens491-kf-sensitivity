@@ -1,0 +1,17 @@
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Drift: RMS position error / $3\sqrt{\overline{\mathrm{tr}\,P_{p}}}$ [m] at elapsed outage time (S2 measured from t = 0). Source: \texttt{experiments/eskf\_sensitivity/results/gnss\_drift.csv}.}\label{tab:es_drift}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lllllllll}
+\toprule
+Case & 0\,s & 1.00\,s & 2.00\,s & 5.00\,s & 10.0\,s & 20.0\,s & 30.0\,s & 40.0\,s \\
+\midrule
+S1 & 0.291 / 0.869 & 0.538 / 1.55 & 0.896 / 2.56 & 2.66 / 7.55 & 7.55 / 21.4 & 20.4 / 57.6 & 37.3 / 105 & 63.3 / 177 \\
+S2 & 0.873 / 2.60 & 0.878 / 2.66 & 0.962 / 2.97 & 2.43 / 7.34 & 8.62 / 26.6 & 32.4 / 100 & 67.5 / 210 & 121 / 371 \\
+S1 at 1 deg & 0.295 / 0.869 & 0.546 / 1.55 & 0.913 / 2.56 & 2.72 / 7.54 & 7.69 / 21.3 & 20.8 / 57.6 & 38.1 / 105 & 64.7 / 176 \\
+S1 at 3 deg & 0.324 / 0.869 & 0.630 / 1.55 & 1.08 / 2.56 & 3.26 / 7.54 & 9.19 / 21.3 & 24.8 / 57.4 & 44.8 / 104 & 75.9 / 176 \\
+S1 at 5 deg & 0.377 / 0.868 & 0.775 / 1.55 & 1.35 / 2.56 & 4.19 / 7.53 & 11.8 / 21.3 & 31.6 / 57.3 & 56.3 / 104 & 95.1 / 175 \\
+\bottomrule
+\end{tabular}}
+\end{table}

@@ -1,0 +1,21 @@
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Negative results of the learned models: negative control with constant true $R$ (gate G3, against the non-adaptive filter), held-out step and ramp, and the tracking error on the long held-out bursts. Paired differences learned minus baseline. Source: \texttt{experiments/neural\_r/results/neural\_r\_paired.csv}.}\label{tab:main_limits}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lllll}
+\toprule
+Test set & Baseline & Metric & GRU & MLP \\
+\midrule
+constant & fixed\_nominal & pos\_rmse & 0.00297 [0.00164, 0.00432] & 0.0141 [0.0115, 0.0167] \\
+constant & fixed\_nominal & mean\_nees & -0.124 [-0.137, -0.111] & -0.121 [-0.139, -0.103] \\
+constant & fixed\_nominal & mean\_nis & -0.120 [-0.129, -0.110] & -0.171 [-0.180, -0.162] \\
+constant & fixed\_nominal & mean\_nll & 0.0114 [0.0103, 0.0124] & 0.0325 [0.0304, 0.0346] \\
+ho\_step & adaptive\_burst\_sel & mean\_nll & 0.0659 [0.0571, 0.0746] & 0.298 [0.286, 0.309] \\
+ho\_step & adaptive\_burst\_sel & r\_abs\_logratio & 0.226 [0.217, 0.234] & 0.510 [0.503, 0.518] \\
+ho\_ramp & adaptive\_burst\_sel & mean\_nll & 0.100 [0.0942, 0.106] & 0.338 [0.328, 0.349] \\
+ho\_ramp & adaptive\_burst\_sel & r\_abs\_logratio & 0.232 [0.225, 0.239] & 0.558 [0.550, 0.565] \\
+ho\_burst\_long & adaptive\_burst\_sel & r\_abs\_logratio & 0.0744 [0.0612, 0.0872] & 0.287 [0.276, 0.299] \\
+\bottomrule
+\end{tabular}}
+\end{table}

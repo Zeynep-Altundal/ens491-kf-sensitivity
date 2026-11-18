@@ -1,0 +1,16 @@
+\begin{table}[htbp]
+\centering
+\small
+\caption{Attitude NEES against the true body attitude and against the true sensor attitude (same error definition and tangent frame, same covariance block). Source: \texttt{experiments/eskf\_sensitivity/results/attitude\_reference\_summary.csv}.}\label{tab:es_attref}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{llllll}
+\toprule
+Angle [deg] & Reference & Mean att. NEES [95\,\% CI] & $\chi^2$ interval & Epochs inside & Att. RMS error [deg] \\
+\midrule
+0 & body & 2.94 [2.69, 3.20] & [2.36, 3.72] & 0.937 & 0.967 \\
+0 & sensor & 2.94 [2.69, 3.20] & [2.36, 3.72] & 0.937 & 0.967 \\
+5.00 & body & 5020 [5012, 5029] & [2.36, 3.72] & 0.0266 & 5.03 \\
+5.00 & sensor & 8.10 [7.62, 8.58] & [2.36, 3.72] & 0.621 & 1.52 \\
+\bottomrule
+\end{tabular}}
+\end{table}

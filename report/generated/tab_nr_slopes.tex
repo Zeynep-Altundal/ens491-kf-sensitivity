@@ -1,0 +1,14 @@
+\begin{table}[htbp]
+\centering
+\small
+\caption{Training-curve slopes of the selected configurations over the last 50 iterations. Source: \texttt{experiments/neural\_r/results/saturation\_curve\_slopes.csv}.}\label{tab:nr_slopes}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lllllll}
+\toprule
+Model & Configuration & Train slope / iteration & Val. slope / iteration & Val. 350 & Val. 375 & Val. 400 \\
+\midrule
+GRU & gru\_lr0.01\_wd0 & $7.55\times10^{-5}$ $\pm$ $4.44\times10^{-4}$ & $-4.18\times10^{-5}$ & 1.9959 & 1.9943 & 1.9938 \\
+MLP & mlp\_lr0.003\_wd0.0001 & $2.19\times10^{-4}$ $\pm$ $5.30\times10^{-4}$ & 0.00286 & 2.0484 & 2.0418 & 2.1914 \\
+\bottomrule
+\end{tabular}}
+\end{table}

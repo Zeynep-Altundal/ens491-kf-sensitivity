@@ -1,0 +1,32 @@
+{\small
+\begin{longtable}{llllllll}
+\caption{ESKF full-state and sub-block NEES, N = 50 runs, covariance reset on: mean over runs and epochs with 95\,\% bootstrap interval, the 95\,\% chi-square interval of the N-run average at one epoch, and the fractions of epochs inside, above and below it. Source: \texttt{experiments/eskf\_sensitivity/results/consistency\_summary.csv}.}\label{tab:es_consistency}\\
+\toprule
+Profile & Block & Dof & Mean NEES [95\,\% CI] & $\chi^2$ interval & Inside & Above & Below \\
+\midrule
+\endfirsthead
+\toprule
+Profile & Block & Dof & Mean NEES [95\,\% CI] & $\chi^2$ interval & Inside & Above & Below \\
+\midrule
+\endhead
+straight & full & 15 & 14.7 [14.0, 15.5] & [13.5, 16.6] & 0.955 & 0 & 0.0449 \\
+straight & position & 3 & 3.03 [2.92, 3.15] & [2.36, 3.72] & 0.972 & 0.0166 & 0.0116 \\
+straight & velocity & 3 & 3.06 [2.93, 3.18] & [2.36, 3.72] & 0.950 & 0.0183 & 0.0316 \\
+straight & attitude & 3 & 3.04 [2.65, 3.48] & [2.36, 3.72] & 0.988 & 0 & 0.0116 \\
+straight & gyro\_bias & 3 & 2.92 [2.61, 3.25] & [2.36, 3.72] & 0.983 & 0 & 0.0166 \\
+straight & accel\_bias & 3 & 3.01 [2.63, 3.43] & [2.36, 3.72] & 1.00 & 0 & 0 \\
+turning & full & 15 & 15.0 [14.3, 15.6] & [13.5, 16.6] & 0.923 & 0.0416 & 0.0349 \\
+turning & position & 3 & 2.99 [2.89, 3.10] & [2.36, 3.72] & 0.972 & 0.0116 & 0.0166 \\
+turning & velocity & 3 & 2.94 [2.82, 3.06] & [2.36, 3.72] & 0.920 & 0.0200 & 0.0599 \\
+turning & attitude & 3 & 2.94 [2.69, 3.20] & [2.36, 3.72] & 0.937 & 0.0216 & 0.0416 \\
+turning & gyro\_bias & 3 & 2.99 [2.65, 3.37] & [2.36, 3.72] & 0.957 & 0.0283 & 0.0150 \\
+turning & accel\_bias & 3 & 3.03 [2.82, 3.24] & [2.36, 3.72] & 0.965 & 0.0349 & 0 \\
+aggressive & full & 15 & 14.8 [14.1, 15.5] & [13.5, 16.6] & 0.987 & 0 & 0.0133 \\
+aggressive & position & 3 & 3.02 [2.89, 3.14] & [2.36, 3.72] & 0.980 & 0.0183 & 0.00166 \\
+aggressive & velocity & 3 & 3.00 [2.87, 3.13] & [2.36, 3.72] & 0.965 & 0 & 0.0349 \\
+aggressive & attitude & 3 & 2.90 [2.51, 3.33] & [2.36, 3.72] & 0.980 & 0.0200 & 0 \\
+aggressive & gyro\_bias & 3 & 2.83 [2.40, 3.29] & [2.36, 3.72] & 1.00 & 0 & 0 \\
+aggressive & accel\_bias & 3 & 3.02 [2.64, 3.44] & [2.36, 3.72] & 1.00 & 0 & 0 \\
+\bottomrule
+\end{longtable}
+}

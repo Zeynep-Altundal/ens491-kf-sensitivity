@@ -1,0 +1,30 @@
+\begin{table}[htbp]
+\centering
+\small
+\caption{Spread of the R estimate: mean over runs of the standard deviation over steady-state steps of $\ln \hat R_{ii}$, closed loop and open loop. Source: \texttt{experiments/neural\_r/results/diag\_spread.csv}.}\label{tab:ar_spread}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lllll}
+\toprule
+Model & W & Estimate & Element & Mean sd of $\ln \hat R$ [95\,\% CI] \\
+\midrule
+linear & 5 & closed & 1 & 0.658 [0.644, 0.673] \\
+linear & 5 & open\_replay & 1 & 0.478 [0.470, 0.486] \\
+linear & 20 & closed & 1 & 0.315 [0.301, 0.329] \\
+linear & 20 & open\_replay & 1 & 0.239 [0.230, 0.248] \\
+linear & 100 & closed & 1 & 0.100 [0.0927, 0.109] \\
+linear & 100 & open\_replay & 1 & 0.0813 [0.0754, 0.0876] \\
+rb & 5 & closed & 1 & 0.611 [0.592, 0.629] \\
+rb & 5 & closed & 2 & 0.678 [0.661, 0.694] \\
+rb & 5 & open\_replay & 1 & 0.305 [0.299, 0.311] \\
+rb & 5 & open\_replay & 2 & 0.593 [0.581, 0.605] \\
+rb & 20 & closed & 1 & 0.283 [0.270, 0.296] \\
+rb & 20 & closed & 2 & 0.293 [0.282, 0.304] \\
+rb & 20 & open\_replay & 1 & 0.152 [0.146, 0.158] \\
+rb & 20 & open\_replay & 2 & 0.267 [0.257, 0.277] \\
+rb & 100 & closed & 1 & 0.0890 [0.0811, 0.0970] \\
+rb & 100 & closed & 2 & 0.0928 [0.0872, 0.0987] \\
+rb & 100 & open\_replay & 1 & 0.0514 [0.0474, 0.0556] \\
+rb & 100 & open\_replay & 2 & 0.0860 [0.0809, 0.0913] \\
+\bottomrule
+\end{tabular}}
+\end{table}

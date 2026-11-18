@@ -1,0 +1,795 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[margin=2.3cm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{booktabs,longtable,array}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage[hidelinks]{hyperref}
+\usepackage{caption}
+
+% Figures are read from the repository (compilation inside report/) or, in the Overleaf archive,
+% from figures/ (see package.py).
+\graphicspath{{../experiments/}{../analysis/}{figures/}}
+
+\newcommand{\todo}[1]{\textcolor{red}{[#1]}}
+\newcommand{\obs}{\textsc{[Observed]}}
+\newcommand{\hyp}{\textsc{[Hypothesized]}}
+\newcommand{\ver}{\textsc{[Verified]}}
+\newcommand{\openlbl}{\textsc{[OPEN]}}
+\newcommand{\status}[1]{\hfill\textit{Status: #1}}
+\newcommand{\tp}{^{\top}}
+\newcommand{\Ex}{\mathbb{E}}
+\newtheorem{proposition}{Proposition}
+
+\input{generated/numbers.tex}
+
+\title{Classical, Adaptive and Learning-Assisted Kalman Filtering under Measurement-Noise
+Variation, Inertial-Model Mismatch and GNSS-Denied Conditions}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+This report investigates the behavior of classical, adaptive, and learning-assisted Kalman
+filtering approaches under measurement-noise variation, inertial-model mismatch, and GNSS-denied
+conditions. Using controlled synthetic experiments and real-world inertial data characterization,
+we examine estimation accuracy, statistical consistency, covariance adaptation, and the
+limitations of commonly used filtering assumptions. A recurrent neural covariance estimator
+demonstrates improvements under selected transient-noise conditions, while negative controls and
+held-out evaluations reveal limitations in calibration and generalization. These findings
+provide an evidence-based foundation for determining which filtering components may benefit from
+learning and which require explicit physical modeling or calibration.
+\end{abstract}
+
+%==================================================================================================
+\section{Scope and research questions}\label{sec:scope}
+%==================================================================================================
+
+The advisor asked four questions: (Q1) what assumptions the members of the Kalman filter family
+make and where each breaks; (Q2) how sensitive the classical error-state Kalman filter (ESKF) for
+inertial navigation with low-rate position updates is to tuning, model mismatch and loss of
+position updates; (Q3) which filter component, if any, is a reasonable target for learning; and
+(Q4) what real inertial datasets can and cannot determine about these questions.
+
+The report answers these questions with controlled synthetic experiments, in which the data are
+generated from the filter's model family with one property changed at a time, and with a
+characterisation of one KITTI and one EuRoC sequence. \textbf{The learned estimator is a prototype on
+a linear two-state model; it is not integrated into the ESKF} and has not been evaluated on the
+nonlinear benchmark, on inertial data or on real data. The report does not claim that any filter, or
+the learned estimator, is better in general, and it does not identify the noise parameters of the
+real sensors.
+
+\paragraph{Conventions.} Measured quantities in tables and prose are produced by
+\texttt{report/make\_tables.py} from CSV files of the repository; the source file is named in every
+table caption, and numbers in the prose are generated macros. Protocol parameters (numbers of runs,
+horizons, grids, seeds, thresholds and architecture sizes) are quoted from the protocol sections of
+the READMEs, fixed before the runs; Appendix~\ref{app:grids} lists them. Explanatory statements
+carry the labels of the READMEs: \obs{} read from the data, \hyp{} not tested, \ver{} confirmed by a
+named computation or control run. Unresolved items are collected in Appendix~\ref{app:open}.
+Analyses requested after results were seen are marked as post-result amendments and kept apart
+from the pre-registered primary experiments.
+
+%==================================================================================================
+\section{The Kalman filter family by methodological category}\label{sec:family}
+%==================================================================================================
+
+The state $x_k\in\mathbb R^n$ evolves as $x_{k+1}=f(x_k)+w_k$ and is observed as $z_k=h(x_k)+v_k$
+with $w_k\sim\mathcal N(0,Q)$ and $v_k\sim\mathcal N(0,R)$. The innovation $\nu_k$ has covariance
+$S_k$; a filter is consistent when its errors have the covariance it reports
+\citep{barshalom2001,sarkka2013}. Full equations of every method are in Appendix~\ref{app:equations}.
+Each method has one status: \emph{Implemented and Tested} (code and validation tests in the
+repository), \emph{Implemented Only} (code without its own validation as a filter), or
+\emph{Literature Review Only}.
+
+\subsection{Linear-Gaussian estimation}
+\textbf{Kalman filter (KF)} \citep{kalman1960}: exact for linear $f$, $h$ with Gaussian noise and
+known $Q$, $R$; the covariance update is used in the Joseph form.\status{Implemented and Tested}\\
+\textbf{Information filter}: propagates $P^{-1}$; additive measurement updates, expensive
+prediction.\status{Literature Review Only}\\
+\textbf{Square-root forms} \citep{bierman1977}: propagate a factor of $P$ for numerical robustness;
+the implementations here use the Joseph form instead.\status{Literature Review Only}
+
+\subsection{Nonlinear Gaussian approximation}
+\textbf{EKF}: first-order linearisation at the estimate.\status{Implemented and Tested}\\
+\textbf{Iterated EKF (IEKF)}: Gauss--Newton iterations of the update \citep{bell1993}.\status{Implemented and Tested}\\
+\textbf{ESKF} \citep{sola2017}: an \emph{error-state parameterisation} rather than a different
+approximation: a nominal state is propagated with the nonlinear kinematics and an EKF runs on the
+small error state; the attitude error is a local rotation vector.\status{Implemented and Tested}\\
+\textbf{UKF} \citep{julier2004}: a different \emph{nonlinear approximation} (deterministic sigma
+points instead of Jacobians); it can be applied to a full state or to an error state, so ESKF and UKF
+are not direct alternatives.\status{Implemented and Tested}\\
+\textbf{Cubature KF (CKF)} \citep{arasaratnam2009}: a third-degree cubature rule with $2n$ equally
+weighted points.\status{Literature Review Only}
+
+\paragraph{Core ESKF equations (as implemented).} Nominal state $(p,v,q,b_g,b_a)$, error state
+$\delta x=[\delta p,\delta v,\delta\theta,\delta b_g,\delta b_a]$ with
+$q_{\mathrm{true}}=\hat q\otimes\mathrm{Exp}(\delta\theta)$. The continuous error dynamics
+\begin{equation}
+\dot{\delta p}=\delta v,\quad
+\dot{\delta v}=-R[\tilde f]_\times\delta\theta-R\,\delta b_a-R\,n_a,\quad
+\dot{\delta\theta}=-[\tilde\omega]_\times\delta\theta-\delta b_g-n_g,\quad
+\dot{\delta b_g}=n_{bg},\quad \dot{\delta b_a}=n_{ba},
+\end{equation}
+with $\tilde\omega$, $\tilde f$ the bias-corrected IMU signals, are discretised as
+$F=I+A\,\Delta t+(A\,\Delta t)^2/2$, $P\leftarrow FPF\tp+Q_d$. A position measurement
+$z=p+v$, $H=[I\ 0\ 0\ 0\ 0]$, is processed with the Joseph-form update; the error is injected into the
+nominal state and the covariance is reset, $P\leftarrow GPG\tp$,
+$G=\mathrm{blkdiag}(I_6,\,I-[\delta\theta/2]_\times,\,I_6)$.
+
+\subsection{Geometry-aware estimation}
+\textbf{Invariant EKF} \citep{barrau2017}: the error is defined on a Lie group so that, for
+group-affine dynamics, its linearised dynamics do not depend on the estimate; IMU biases break this
+property.\status{Literature Review Only}
+
+\subsection{Sampling-based estimation}
+\textbf{Ensemble KF} \citep{evensen1994}: sample covariance of a propagated ensemble.\status{Literature Review Only}\\
+\textbf{Particle filter} \citep{gordon1993}: weighted samples without Gaussian assumption; a
+non-Kalman reference.\status{Literature Review Only}
+
+\subsection{Adaptive and learned estimation}
+\textbf{Residual-based adaptive KF} \citep{mehra1970,mohamed1999}: $\hat R$ from a window of
+post-fit residuals plus $HP^+H\tp$ (Equation~\eqref{eq:adaptive} in Appendix~\ref{app:equations}),
+positive semidefinite by construction.\status{Implemented and Tested}\\
+\textbf{Innovation-based adaptive estimate}: $\hat R$ from a window of innovations minus
+$HP^-H\tp$; computed only as a diagnostic of positive semidefiniteness, never used as a filter.\status{Implemented Only}\\
+\textbf{Learned measurement covariance $R_t$}: a network outputs $R_t$ inside an unchanged KF,
+trained through the differentiable filter \citep{haarnoja2016}; linear model only
+(Section~\ref{sec:which}).\status{Implemented and Tested}\\
+\textbf{Learned process noise $Q_t$} \todo{citation needed: learned process noise for inertial
+navigation}.\status{Literature Review Only}\\
+\textbf{Learned gain} \citep{revach2022}: a network replaces the gain computation; no covariance
+with a probabilistic meaning is carried.\status{Literature Review Only}
+
+\begin{table}[htbp]
+\centering\small
+\caption{Unified comparison of the methods. Costs are per step and asymptotic; measured times of the
+implemented range-bearing filters are in Table~\ref{tab:ff_runtime}.}\label{tab:family}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{p{0.12\linewidth}p{0.16\linewidth}p{0.2\linewidth}p{0.24\linewidth}p{0.14\linewidth}p{0.14\linewidth}}
+\toprule
+Category & Method & Key assumption & Breaks when & Cost per step & Status\\
+\midrule
+Linear-Gaussian & KF & linear, Gaussian, known $Q,R$ & model or noise mis-specified & $O(n^3+m^3)$ & Implemented and Tested\\
+ & Information filter & as KF, invertible $Q$ & singular $Q$ & $O(n^3)$ & Literature Review Only\\
+ & Square-root forms & as KF & -- (numerically more robust) & $O(n^3)$ & Literature Review Only\\
+Nonlinear Gaussian & EKF & local linearity & large spread or curvature & KF + Jacobians & Implemented and Tested\\
+ & IEKF & local linearity at the MAP & poor prediction, no convergence & update $\times$ iterations & Implemented and Tested\\
+ & ESKF (parameterisation) & small error state, correct IMU model & IMU model mismatch & 15-state EKF & Implemented and Tested\\
+ & UKF & sigma points capture the moments & multimodal or very wide priors & $2n+1$ evaluations & Implemented and Tested\\
+ & CKF & cubature rule exact to degree 3 & as UKF & $2n$ evaluations & Literature Review Only\\
+Geometry-aware & Invariant EKF & group-affine dynamics & biases break invariance & as EKF & Literature Review Only\\
+Sampling-based & Ensemble KF & ensemble covariance adequate & small ensembles & $N_e$ evaluations & Literature Review Only\\
+ & Particle filter & enough particles & degeneracy in high dimension & $N_p$ evaluations & Literature Review Only\\
+Adaptive and learned & Residual-based adaptive & $R$ stationary within a window & fast changes, feedback & $+O(m^2)$ & Implemented and Tested\\
+ & Innovation-based adaptive & as above & indefinite estimate & $+O(m^2)$ & Implemented Only\\
+ & Learned $R_t$ & training data representative & distribution shift, miscalibration & network & Implemented and Tested (linear model)\\
+ & Learned $Q_t$ & as above & as above & network & Literature Review Only\\
+ & Learned gain & as above & distribution shift, no covariance & network & Literature Review Only\\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+%==================================================================================================
+\section{Experimental method}\label{sec:method}
+%==================================================================================================
+
+\paragraph{Test beds.} (i) A \emph{linear} two-state constant-velocity model with position
+measurements; (ii) a \emph{range-bearing} benchmark with a planar constant-velocity target observed
+from a fixed sensor; (iii) a 15-state \emph{ESKF} on synthetic inertial data with position updates.
+
+\paragraph{Synthetic IMU generator.} ENU world frame, gravity along $-z$, Hamilton quaternions
+(scalar first) for the body-to-world rotation, a gyroscope measuring the body rate and an
+accelerometer measuring the specific force $f_b=R_{wb}\tp(a_w-g_w)$. Each sensor output is
+$y=\mathrm{clean}+b+n+o$ (white noise, turn-on bias, bias random walk, optional spikes), each term
+from its own random stream; position measurements carry white noise with optional dropouts and
+outliers. Motion profiles: \texttt{straight} (constant attitude), \texttt{turning} (planar
+figure-eight) and \texttt{aggressive} (3D Lissajous with fast rotation), all in closed form. Options
+for the mismatch studies are a fixed sensor-to-body rotation and a gyroscope scale factor; with
+zero values the generator is reproduced bit for bit (tests).
+
+\paragraph{Pre-registration.} Every study has a protocol in its README, written before its runs and
+not changed afterwards. The grids are listed in Appendix~\ref{app:grids}.
+
+\paragraph{Metrics.} RMSE over runs and epochs; NEES $e\tp P^{-1}e$ (expected $n$); NIS
+$\nu\tp S^{-1}\nu$ (expected $m$); the Gaussian innovation negative log-likelihood
+\begin{equation}\label{eq:nll}
+\mathrm{NLL}_k=\tfrac12\big(\nu_k\tp S_k^{-1}\nu_k+\ln\det S_k+m\ln2\pi\big)
+\end{equation}
+with the filter's innovation covariance $S_k$ (checked by a test against the Gaussian density); and,
+for adaptive and learned covariances, the tracking error $|\ln(R_{ii}/R_{\mathrm{true},ii})|$ and the
+recovery time after a burst.
+
+\paragraph{Statistics.} Percentile bootstrap intervals (10\,000 resamples, 95\,\%, fixed seed) that
+resample whole Monte Carlo runs, never epochs \citep{efron1979}. Paired differences resample the same
+run indices for both settings; a difference is \emph{supported} when its interval excludes zero.
+For $N$ independent runs of a consistent filter the run-averaged NEES at one epoch satisfies
+$N\,\overline{\mathrm{NEES}}\sim\chi^2_{nN}$, giving the 95\,\% acceptance interval
+$[\chi^2_{nN}(0.025),\chi^2_{nN}(0.975)]/N$ \citep{barshalom2001}.
+
+\paragraph{Linear baseline and the common-scale identity.}
+\begin{proposition}\label{prop:scale}
+Running a KF with $(cQ,cR,cP_0)$, $c>0$, instead of $(Q,R,P_0)$ leaves all gains and estimates
+unchanged, multiplies all covariances by $c$ and multiplies NEES and NIS by $1/c$.
+\end{proposition}
+The proof (Appendix~\ref{app:proof}) is an induction on $P_k$. Estimates therefore depend only on
+the ratios $Q/R$ and $P_0/R$; the absolute scale is visible only in consistency measures and in the
+NLL. \ver{} On data, two configurations that differ by a common factor have equal RMSE
+(\LinScaleRMSEa{} and \LinScaleRMSEb) and NEES in the inverse ratio (\LinScaleNEESa{} and
+\LinScaleNEESb; Table~\ref{tab:lin_scale}). \obs{} With the true parameters the linear KF has mean
+NEES \LinNomNEES{} (expected 2) and NIS \LinNomNIS{} (expected 1); mis-scaled covariances degrade
+accuracy and consistency in both directions (Table~\ref{tab:lin_closure}).
+
+%==================================================================================================
+\section{Results}\label{sec:results}
+%==================================================================================================
+
+\subsection{Classical versus adaptive filtering under constant and time-varying measurement noise}\label{sec:adaptive}
+
+\input{generated/tab_main_const.tex}
+
+\paragraph{Constant noise.} \obs{} With the true $R$, the window-based adaptive filter is more
+over-confident than the non-adaptive filter, and the excess decreases with the window length; each
+step to a longer window lowers the steady-state NEES with a supported difference
+(Table~\ref{tab:main_const}, Figure~\ref{fig:adaptwindow}). \obs{} On the range-bearing model the
+non-adaptive EKF is itself above its expected NEES in the 400-step steady state, so long windows
+approach that level, not the expected value. \obs{} In the nominal 60-step benchmark the adaptive
+filter (window 20) has NEES \FFAdaptNomNEES{} against an expected value of 4 and higher RMSE and NEES
+than EKF, IEKF and UKF (Appendix~\ref{app:tables}).
+
+\begin{figure}[htbp]\centering
+\includegraphics[width=0.85\linewidth]{filter_family/figures/adaptive_r_window.png}
+\caption{Constant true $R$: RMSE, NEES and NIS of the adaptive filter versus the window, with the
+non-adaptive filter as a band. Source: \texttt{experiments/filter\_family/figures/adaptive\_r\_window.png}.}\label{fig:adaptwindow}
+\end{figure}
+
+\paragraph{Time-varying noise.} With $R_{\mathrm{true}}(t)$ following a step, a ramp or bursts,
+\obs{} every adaptive window has a lower NLL than the fixed nominal $R$, and no filter has a supported
+advantage over the true-covariance filter in any of the \TVPairedTotal{} paired comparisons
+(\TVPairedWorse{} are supported differences with a higher RMSE, NEES, NIS or NLL than the reference,
+none with a lower one; Table~\ref{tab:main_tv}). The true-covariance filter
+is a reference that knows $R$, not a performance bound. \obs{} The fixed-average filter, a hindsight
+reference that uses the true mean of $R_{\mathrm{true}}(t)$ and is not available in practice, has a
+lower NLL than every adaptive window on the burst patterns. \obs{} Short windows follow changes
+quickly with large fluctuations, long windows are stable but lag (Figure~\ref{fig:tvburst}); the
+window chosen on validation runs depends on the pattern. The window selection on validation runs and
+the identifiability analysis (Table~\ref{tab:tv_ident}) are post-result amendments of that
+benchmark.
+
+\input{generated/tab_main_tv.tex}
+
+\begin{figure}[htbp]\centering
+\includegraphics[width=0.8\linewidth]{filter_family/figures/tv_r_rb_burst.png}
+\caption{Range-bearing, burst pattern: filter $R$ against $R_{\mathrm{true}}$ (run 0 and mean) and
+RMSE over time. Source: \texttt{experiments/filter\_family/figures/tv\_r\_rb\_burst.png}.}\label{fig:tvburst}
+\end{figure}
+
+\subsection{The over-confidence mechanism of the $W=5$ window}\label{sec:mechanism}
+
+\input{generated/tab_main_decomp.tex}
+
+Control runs under constant $R_{\mathrm{true}}$ separate three hypotheses
+(Table~\ref{tab:main_decomp}): the total excess NEES equals feedback (closed loop against the same
+estimator on a frozen non-adaptive trajectory) plus own-data correlation (frozen-trajectory estimate
+of the same run against that of another run) plus fluctuation (estimate of another run against the
+true $R$). \obs{} (1) The spread of $\ln\hat R$ is high for short windows and decreases with $W$
+(Table~\ref{tab:ar_spread}). \ver{} (2) Feedback through the post-fit residual raises the NEES
+(linear model \DiagLinFiveFeedback). \ver{} (3) Fluctuations of the estimate alone, independent of
+the current data and without feedback, raise the NEES through the gain (linear model
+\DiagLinFiveFluct). \obs{} The own-data correlation term is not supported. \obs{} Replaying a
+closed-loop $R$ sequence of another run reproduces \DiagLinFiveClosedStats{} of the linear-model
+total \DiagLinFiveTotal: feedback acts mainly by enlarging the fluctuations of $\hat R$. \obs{} The
+implemented post-fit estimate is never indefinite, whereas the innovation-form estimate is for short
+windows (Table~\ref{tab:ar_psd}).
+
+\subsection{The learned $R_t$ estimator: frozen primary experiment}\label{sec:learnedarch}
+
+The design was frozen before training (\texttt{experiments/neural\_r/README.md}; SHA-256 and time
+stamp in \texttt{DESIGN\_FREEZE.txt}). A GRU and, as a control without recurrent memory, an MLP on a
+fixed window output a diagonal $R_t=\mathrm{diag}(\alpha_t)R_{\mathrm{base}}$ from causal innovation
+features; the loss is the innovation NLL back-propagated through a differentiable linear KF that
+reproduces the NumPy KF to rounding precision (test). The mathematical interface is given in
+Section~\ref{sec:interface} and Figure~\ref{fig:diagram}. Each candidate and the adaptive baseline
+had six configurations selected by validation NLL only (Table~\ref{tab:nr_train}); the gates were
+fixed in advance (Table~\ref{tab:main_gates}).
+
+\input{generated/tab_main_gates.tex}
+
+\subsection{Performance on held-out bursts}\label{sec:heldout}
+
+\input{generated/tab_main_heldout.tex}
+
+\obs{} On both held-out burst sets the GRU has a lower NLL than the burst-selected adaptive window
+(gate G1 passed for the GRU). \obs{} The MLP is lower on the short held-out bursts and higher on the
+long ones (G1 failed for the MLP). \obs{} The true-covariance reference has a lower NLL than both
+learned models on all burst sets (Table~\ref{tab:main_heldout}, Figure~\ref{fig:holong}). \obs{} The
+GRU has a lower NLL than the MLP on every test set (G6), so recurrent memory beyond the fixed window
+contributed under this budget.
+
+\begin{figure}[htbp]\centering
+\includegraphics[width=0.8\linewidth]{neural_r/figures/eval_ho_burst_long.png}
+\caption{Long held-out bursts: $R$ used by the true-covariance filter, the adaptive window, GRU and
+MLP (run 0), and RMSE over runs. Source: \texttt{experiments/neural\_r/figures/eval\_ho\_burst\_long.png}.}\label{fig:holong}
+\end{figure}
+
+\subsection{Negative results and generalisation limits}\label{sec:negative}
+
+\input{generated/tab_main_limits.tex}
+
+\paragraph{Constant-$R$ control.} \obs{} Gate G3 failed for both models: with constant
+$R_{\mathrm{true}}$ the learned filters have a higher RMSE and a lower NEES and NIS than the
+non-adaptive filter, i.e.\ they are under-confident where no adaptation is needed
+(Table~\ref{tab:main_limits}).
+
+\paragraph{Held-out step and ramp.} \obs{} On the held-out step and ramp both learned models have a
+higher NLL and a higher tracking error than the burst-selected adaptive window. Under G2 the GRU has
+\GTwoGRU{} and the MLP \GTwoMLP{} cases in which its NEES or NIS is farther from the expected value
+than that of a baseline; all are listed in \texttt{neural\_r\_g2\_cases.csv}, with the summary counts in
+Table~\ref{tab:nr_worse}.
+
+\paragraph{Saturation (post-result amendment 1).} This inspection was added after the results and
+is kept apart from the frozen experiment; it uses forward passes of the saved models only.
+\ver{} No explicit clamp exists, but the architecture bounds $\alpha_t$: the GRU hidden state lies in
+$(-1,1)$, hence $\alpha_t\le\mathrm{softplus}(\sum|W|+b)+\varepsilon$, which is \BoundGRU{} for the
+GRU (\BoundMLP{} for the MLP), and the attained maxima are close to it (Table~\ref{tab:nr_bound}).
+\ver{} The bound does not coincide with the largest training factor, \TrainMaxFactor{}: at that factor
+the GRU's median $\alpha$ on settled steps is \GRUalphaAtTwentyFive{} on the long held-out bursts and
+\GRUalphaTrainTwentyFive{} on training batches (Figure~\ref{fig:sat}). \obs{} The GRU has a lower NLL
+than the adaptive window on the long held-out bursts but a higher tracking error there
+(Table~\ref{tab:main_limits}): \textbf{a lower predictive likelihood did not imply a better
+calibrated covariance}. \hyp{} The bound reflects the end of the training budget (the GRU
+validation NLL was still decreasing, Table~\ref{tab:nr_slopes}) or an NLL trade-off under uncertainty
+about the end of a burst (\openlbl).
+
+\begin{figure}[htbp]\centering
+\includegraphics[width=0.8\linewidth]{neural_r/figures/saturation_alpha_vs_factor.png}
+\caption{$\alpha_t$ versus the true factor on settled steps with the architectural bound. Source:
+\texttt{experiments/neural\_r/figures/saturation\_alpha\_vs\_factor.png}.}\label{fig:sat}
+\end{figure}
+
+\paragraph{Structural mismatch: NIS versus NEES.}
+\input{generated/tab_main_mismatch.tex}
+\obs{} A fixed sensor-to-body misalignment and a gyroscope scale factor, with the filter otherwise
+matched, raise the full-state NEES by up to orders of magnitude with supported differences, while the
+mean NIS changes by at most \MisNISmaxchange{} (misalignment) and \SFNISmaxchange{} (scale factor)
+(Table~\ref{tab:main_mismatch}). The innovation statistics, on which adaptive and learned
+covariances are trained, therefore carry little signal of these errors.
+
+\subsection{Supporting evidence}\label{sec:support}
+
+\paragraph{ESKF sensitivity and consistency.} \obs{} With the true parameters the full-state and all
+sub-block NEES of the ESKF lie inside their bootstrap intervals around the expected values for three
+profiles (Table~\ref{tab:es_consistency}); underestimated $R$ or $P_0$, disabled bias estimation,
+long dropouts, ungated outliers, IMU spikes and a low measurement rate are among the settings with
+supported effects (Tables~\ref{tab:es_closure}, \ref{tab:es_paired}). \ver{} The reset Jacobian and the
+attitude columns of the transition matrix agree with finite differences (tests).
+
+\paragraph{Structural mismatch.} \obs{} Against the true body attitude the attitude NEES under a
+5-degree misalignment is far outside its interval; against the true sensor attitude, with the same
+error definition and covariance block, it averages \AttRefSensorEarly{} over the first 10\,s and
+\AttRefSensorLate{} over 30--60\,s (Table~\ref{tab:es_attref}). \hyp{} The early excess comes from the
+initialisation around the body attitude (\openlbl). \obs{} Under a scale factor the change of the gyro-bias error has the
+sign of the rate-equivalent error $s\,\bar\omega$ on \texttt{aggressive}, but not on the $z$ axis of
+\texttt{turning} (Table~\ref{tab:es_sf_bias}); absorption as a mechanism is \openlbl.
+
+\paragraph{GNSS scenarios S0, S1, S2.} \obs{} With a matched model the full NEES stays near its
+expected value inside and outside the outage and the RMS position error grows below the $3\sigma$
+bound; with misalignment the error after the outage grows with the angle, and under a 2\,\% scale
+factor on \texttt{aggressive} it exceeds $3\sigma$ late in the outage (Tables~\ref{tab:es_gnss},
+\ref{tab:es_drift}, Figure~\ref{fig:sfagg}).
+
+\paragraph{Real data.}
+\input{generated/tab_main_ds.tex}
+The characterisation relates the synthetic profiles to real motion and identifies what the data
+cannot determine; it is not a validation of the filters. \obs{} KITTI drives at nearly constant speed
+with angular rates below the turning threshold, closest to \texttt{straight} but several times
+faster; EuRoC rotates most of the time at low speed, closest to \texttt{turning} in rotation but much
+slower (Table~\ref{tab:main_ds}, Figure~\ref{fig:motion}). \obs{} Neither sequence has a static
+segment, so noise densities, bias instability and bias random walk are not identifiable; the KITTI
+inertial data come from an integrated GPS/inertial unit whose ground truth is its own navigation
+solution, and the EuRoC ground truth is a batch estimate that uses the IMU (Appendix~\ref{app:data}).
+
+%==================================================================================================
+\section{Which component to learn, and the interface of the learned estimator}\label{sec:which}
+%==================================================================================================
+
+\paragraph{Evidence.} \obs{} With a correct model and the true parameters the linear KF and the ESKF
+are consistent; mis-specified covariances degrade the estimates through ratios only
+(Proposition~\ref{prop:scale}). \obs{} When the measurement noise is nonstationary, adapting $R$
+improves the NLL over a fixed $R$, and the GRU estimate improved it further on bursts, including
+held-out bursts; it failed the constant-$R$ control, generalised worse to held-out steps and ramps and
+saturated below the largest factor of its training data. \obs{} Structural IMU errors raise the NEES while
+leaving the NIS nearly unchanged. \hyp{} An innovation-driven adaptation or learned $R_t$ therefore
+would not detect such errors; this has not been tested, because no adaptive or learned ESKF was run
+(\openlbl). The evidence supports learning or adapting $R_t$ only for genuinely nonstationary
+measurement noise, with calibration gates as part of the acceptance, and not as a remedy for IMU
+model errors, which require explicit states or calibration.
+
+\paragraph{Mathematical interface (as implemented)}\label{sec:interface}
+for the linear model with $m=1$, $R_{\mathrm{base}}$ the nominal $R$.
+\begin{itemize}
+\item \emph{Causal inputs.} After the update at step $j$ the feature vector is
+\begin{equation}\label{eq:features}
+\phi_j=\Big[\,\frac{\nu_j}{\sqrt{R_{\mathrm{base}}}},\ \frac{\nu_j}{\sqrt{S_j}},\ \ln\frac{S_j}{R_{\mathrm{base}}}\,\Big],
+\end{equation}
+with $\nu_j$ the innovation and $S_j$ its covariance. The GRU uses $h_t=\mathrm{GRU}(\phi_{t-1},h_{t-1})$
+with $\phi_0=0$, $h_0=0$ (hidden size 16); the MLP uses
+$[\phi_{t-20},\dots,\phi_{t-1}]$, zero-padded, with two tanh layers of 32 units.
+$R_{\mathrm{true}}$ is never an input and never a label.
+\item \emph{Covariance parameterisation.} $\alpha_t=\mathrm{softplus}(w\tp h_t+b)+\varepsilon$,
+$\varepsilon=10^{-3}$, $R_t=\mathrm{diag}(\alpha_t)\,R_{\mathrm{base}}$; since $\alpha_t\ge\varepsilon>0$
+and $R_{\mathrm{base}}\succ0$ is diagonal, $R_t\succ0$ by construction. The output bias is
+initialised so that $\alpha_t\approx1$.
+\item \emph{Entry into the Kalman update.} At step $t$: prediction
+$\hat x^-_t=F\hat x_{t-1}$, $P^-_t=FP_{t-1}F\tp+Q$; then $R_t$ from the history up to $t-1$; then
+$S_t=HP^-_tH\tp+R_t$, $K_t=P^-_tH\tp S_t^{-1}$, $\hat x_t=\hat x^-_t+K_t\nu_t$ and the Joseph update
+$P_t=(I-K_tH)P^-_t(I-K_tH)\tp+K_tR_tK_t\tp$; finally $\phi_t$ is formed.
+\item \emph{Training objective.} The mean of the innovation NLL~\eqref{eq:nll} over steps and
+trajectories, back-propagated through the full recursion (400 steps, no truncation), Adam with
+gradient clipping; the checkpoint with the lowest pooled validation NLL is kept.
+\item \emph{Training versus inference.} In training, gradients flow through $R_t$, $S_t$, $K_t$ and
+the state recursion; in inference the parameters are fixed and the same causal recursion runs
+without gradients. $R_{\mathrm{true}}$ enters only the evaluation metrics (tracking error) and the
+true-covariance reference.
+\item \emph{GRU versus MLP control.} Same features, parameterisation, loss and budget; the MLP sees
+only a fixed 20-step window, so a difference isolates recurrent memory (gate G6).
+\end{itemize}
+
+\begin{figure}[htbp]\centering
+\begin{tikzpicture}[node distance=1.0cm and 0.8cm, every node/.style={font=\small},
+  box/.style={draw, rounded corners, align=center, minimum height=1.1cm, inner sep=4pt},
+  arr/.style={-{Stealth[length=2.5mm]}, thick}]
+\node[box] (hist) {innovation history\\$\phi_j$, $j\le t-1$};
+\node[box, right=of hist] (gru) {GRU\\$h_t=\mathrm{GRU}(\phi_{t-1},h_{t-1})$};
+\node[box, right=of gru] (par) {covariance parameterisation\\$\alpha_t=\mathrm{softplus}(w\tp h_t+b)+\varepsilon$\\$R_t=\mathrm{diag}(\alpha_t)R_{\mathrm{base}}\succ0$};
+\node[box, below=1.4cm of par] (kf) {Kalman update\\$S_t=HP^-_tH\tp+R_t$, $K_t=P^-_tH\tp S_t^{-1}$\\Joseph form with $R_t$};
+\node[box, left=of kf] (loss) {training only:\\$\mathcal L=\overline{\mathrm{NLL}}(\nu_t,S_t)$,\\backpropagation through time};
+\node[below=0.9cm of kf, align=center] (z) {measurement $z_t$};
+\draw[arr] (hist) -- (gru);
+\draw[arr] (gru) -- (par);
+\draw[arr] (par) -- (kf);
+\draw[arr] (z) -- (kf);
+\draw[arr, dashed] (kf) -- (loss);
+\draw[arr] (kf.south west) -| node[pos=0.25, below]{$\nu_t,S_t\rightarrow\phi_t$ (used from step $t+1$)} (hist.south);
+\end{tikzpicture}
+\caption{Interface of the learned covariance estimator as implemented (GRU candidate; the MLP
+replaces the GRU by a fixed-window network). $R_{\mathrm{true}}$ is neither an input nor a
+label.}\label{fig:diagram}
+\end{figure}
+
+%==================================================================================================
+\section{Limitations and next steps}\label{sec:limits}
+%==================================================================================================
+
+\paragraph{Limitations.}
+(i) \emph{Model-matched synthetic validation}: the filters are evaluated on data from their own model
+family with one property changed at a time. (ii) \emph{Single real sequences}: one KITTI and one
+EuRoC sequence, without static segments. (iii) \emph{Small $N$}: between 30 and 200 runs per
+setting; intervals are wide for heavy-tailed quantities. (iv) \emph{Non-independent ground truth}:
+the KITTI reference is the unit's own navigation solution and the EuRoC estimate uses the IMU.
+(v) \emph{Unverified explanations}: statements labelled \hyp{} and Appendix~\ref{app:open}.
+(vi) \emph{Linear-model-only prototype}: the learned $R_t$ was trained and evaluated on the linear
+model only and is not integrated into the ESKF.
+
+\paragraph{Next steps.}
+(1) Run the adaptive and the learned $R_t$ inside the ESKF under misalignment and scale factor, to
+test the hypothesis of Section~\ref{sec:which}. (2) Repeat the learned-$R_t$ protocol on the
+range-bearing benchmark, and address the bound on $\alpha_t$ in a new pre-registered design, without
+changing the existing results. (3) Run the attitude-reference control initialised around the sensor
+attitude. (4) Obtain static IMU recordings for an Allan analysis \citep{allan1966} and evaluate on
+several sequences per dataset. (5) Resolve the open citation items and the match of the implemented
+adaptive rule with the cited estimator.
+
+\bibliographystyle{plainnat}
+\bibliography{refs}
+
+%==================================================================================================
+\clearpage
+\appendix
+\section{Detailed equations of all approaches}\label{app:equations}
+%==================================================================================================
+
+\paragraph{KF.} $\hat x^-_k=F\hat x_{k-1}$, $P^-_k=FP_{k-1}F\tp+Q$, $S_k=HP^-_kH\tp+R$,
+$K_k=P^-_kH\tp S_k^{-1}$, $\hat x_k=\hat x^-_k+K_k(z_k-H\hat x^-_k)$,
+$P_k=(I-K_kH)P^-_k(I-K_kH)\tp+K_kRK_k\tp$ \citep{kalman1960}. Cost $O(n^3+m^3)$.
+
+\paragraph{Information filter.} With $Y=P^{-1}$, $y=P^{-1}\hat x$: update
+$Y_k=Y^-_k+H\tp R^{-1}H$, $y_k=y^-_k+H\tp R^{-1}z_k$; the prediction requires
+$Y^-_k=(FY_{k-1}^{-1}F\tp+Q)^{-1}$ or an equivalent form \citep{barshalom2001}.
+
+\paragraph{Square-root forms.} Propagate $L$ with $P=LL\tp$ (or $UDU\tp$) through orthogonal
+transformations of the stacked factors of $FPF\tp+Q$ and of the update, preserving symmetry and
+positive definiteness under rounding \citep{bierman1977}.
+
+\paragraph{EKF.} $\hat x^-_k=f(\hat x_{k-1})$, $F_k=\partial f/\partial x|_{\hat x_{k-1}}$,
+$P^-_k=F_kP_{k-1}F_k\tp+Q$; $H_k=\partial h/\partial x|_{\hat x^-_k}$, $\nu_k=z_k-h(\hat x^-_k)$ (with
+angle wrapping where needed), followed by the Joseph update with $H_k$.
+
+\paragraph{IEKF.} From $x_0=\hat x^-$ iterate $H_i=H(x_i)$,
+$r_i=z-h(x_i)-H_i(\hat x^--x_i)$, $K_i=P^-H_i\tp(H_iP^-H_i\tp+R)^{-1}$, $x_{i+1}=\hat x^-+K_ir_i$ until
+$\|x_{i+1}-x_i\|\le\mathrm{tol}$; the covariance uses the last $K_i$, $H_i$ \citep{bell1993}. The
+reported innovation and $S$ are those at the prior.
+
+\paragraph{ESKF.} Nominal propagation with $\omega_i=\omega_{m,i}-b_g$,
+$\phi=\tfrac{\Delta t}{2}(\omega_0+\omega_1)+\tfrac{\Delta t^2}{12}(\omega_0\times\omega_1)$,
+$q_1=q_0\otimes\mathrm{Exp}(\phi)$, $a_i=R(q_i)(f_{m,i}-b_a)+g$,
+$p_1=p_0+v_0\Delta t+\Delta t^2(a_0/3+a_1/6)$, $v_1=v_0+\tfrac{\Delta t}{2}(a_0+a_1)$. Error dynamics
+as in Section~\ref{sec:family} with non-zero blocks $A_{p,v}=I$, $A_{v,\theta}=-R[\tilde f]_\times$,
+$A_{v,b_a}=-R$, $A_{\theta,\theta}=-[\tilde\omega]_\times$, $A_{\theta,b_g}=-I$;
+$Q_d=\mathrm{diag}(0,\sigma_a^2\Delta t I,\sigma_g^2\Delta t I,\sigma_{bg}^2\Delta t I,\sigma_{ba}^2\Delta t I)$;
+optional innovation gate on $\chi^2_3$. Injection $p\mathrel{+}=\delta p$, $v\mathrel{+}=\delta v$,
+$q\leftarrow q\otimes\mathrm{Exp}(\delta\theta)$, $b\mathrel{+}=\delta b$, then the reset
+$P\leftarrow GPG\tp$ \citep{sola2017}.
+
+\paragraph{UKF.} $\lambda=\alpha^2(n+\kappa)-n$; sigma points $\hat x$, $\hat x\pm\sqrt{n+\lambda}\,L_i$;
+weights $W^m_0=\lambda/(n+\lambda)$, $W^c_0=W^m_0+1-\alpha^2+\beta$, $W^m_i=W^c_i=1/(2(n+\lambda))$;
+$S=\sum W^c_i(Z_i-\hat z)(Z_i-\hat z)\tp+R$, $P_{xz}=\sum W^c_i(X_i-\hat x)(Z_i-\hat z)\tp$,
+$K=P_{xz}S^{-1}$, $P\leftarrow P-KSK\tp$ \citep{julier2004}. The implementation uses $\alpha=1$,
+$\beta=2$, $\kappa=0$ and a circular mean for the bearing. Reference for the scaled transform:
+\todo{citation needed: scaled unscented transformation}.
+
+\paragraph{CKF.} Points $\hat x\pm\sqrt n\,L_i$, $i=1,\dots,n$, weights $1/(2n)$
+\citep{arasaratnam2009}.
+
+\paragraph{Invariant EKF.} For a state on a matrix Lie group $\chi$ and group-affine dynamics, the
+right- or left-invariant error $\eta=\hat\chi\chi^{-1}$ (or $\chi^{-1}\hat\chi$) satisfies an
+autonomous error equation, whose linearisation $\xi$ with $\eta=\exp(\xi^\wedge)$ is used in the
+filter \citep{barrau2017}.
+
+\paragraph{Ensemble KF.} Ensemble $\{x^{(i)}\}$, sample covariance $\hat P$, update with
+$K=\hat PH\tp(H\hat PH\tp+R)^{-1}$ applied to each member with perturbed observations
+\citep{evensen1994}.
+
+\paragraph{Particle filter.} Propagate $x^{(i)}_k\sim p(x_k|x^{(i)}_{k-1})$, weight
+$w^{(i)}\propto w^{(i)}p(z_k|x^{(i)}_k)$, resample when the effective sample size is small
+\citep{gordon1993}.
+
+\paragraph{Adaptive estimates.} Residual-based (implemented),
+\begin{equation}\label{eq:adaptive}
+\hat R_{k+1}=\frac1W\sum_{j=k-W+1}^{k}e_je_j\tp+H(\hat x^+_k)P^+_kH(\hat x^+_k)\tp,\qquad e_j=z_j-h(\hat x^+_j),
+\end{equation}
+from $\Ex[ee\tp]=R-HP^+H\tp$ for an optimal linear filter; innovation-based (diagnostic only),
+$\hat R=\frac1W\sum\nu_j\nu_j\tp-HP^-H\tp$, from $\Ex[\nu\nu\tp]=HP^-H\tp+R$
+\citep{mehra1970,mohamed1999}. Whether the implemented rule matches the cited estimator exactly is
+\openlbl.
+
+\paragraph{Learned variants.} Learned $R_t$: Section~\ref{sec:interface}. Learned gain: a recurrent
+network maps innovation features to $K_t$ \citep{revach2022}. Learned noise covariances through a
+differentiable filter: \citep{haarnoja2016}; learned $R_t$ from sensor data in navigation:
+\todo{citation needed: learned measurement covariance in visual-inertial or GNSS/INS filtering}.
+
+%==================================================================================================
+\section{Proof of the common-scale identity}\label{app:proof}
+%==================================================================================================
+\begin{proof}[Proof of Proposition~\ref{prop:scale}]
+Let $P^{(c)}$ be the covariances of the filter run with $(cQ,cR,cP_0)$ and assume
+$P^{(c)}_{k-1}=cP_{k-1}$, which holds for $k-1=0$. Then
+$P^{-(c)}_k=F\,cP_{k-1}F\tp+cQ=cP^-_k$ and $S^{(c)}_k=H\,cP^-_kH\tp+cR=cS_k$, so
+$K^{(c)}_k=cP^-_kH\tp(cS_k)^{-1}=K_k$. With equal gains and equal initial means, estimates and
+innovations coincide at every step. The Joseph update gives
+$P^{(c)}_k=(I-K_kH)\,cP^-_k(I-K_kH)\tp+K_k\,cR\,K_k\tp=cP_k$, which completes the induction. Hence
+$e\tp(cP)^{-1}e=\mathrm{NEES}/c$ and $\nu\tp(cS)^{-1}\nu=\mathrm{NIS}/c$. The innovation NLL changes by
+$\tfrac12(1/c-1)\,\mathrm{NIS}+\tfrac m2\ln c$.
+\end{proof}
+The identity is tested in \texttt{test\_common\_scale\_invariance} and visible in
+Table~\ref{tab:lin_scale}.
+
+%==================================================================================================
+\section{Parameter grids}\label{app:grids}
+%==================================================================================================
+Quoted from the protocol sections of the READMEs.
+\begin{itemize}
+\item \textbf{Linear KF}: scale $s\in\mathrm{logspace}(-3,3,13)$ of $Q$, $R$ or $P_0$; $N=200$, $T=200$;
+ratio study with $T=2000$ (steady state $k\ge1000$) and a $13\times13$ grid of $Q$ and $R$ scales.
+\item \textbf{Range-bearing}: $N=100$, 60 steps; $s\in\mathrm{logspace}(-2,2,9)$ for $Q$, $R$, $P_0$;
+bearing noise 0.005--0.5\,rad; initial position standard deviation 0.5--40\,m; closest approach
+1--100\,m; adaptive window 20.
+\item \textbf{ESKF sweeps}: \texttt{turning}, 60\,s, IMU 200\,Hz, position 10\,Hz, $N=30$;
+$s\in\mathrm{logspace}(-2,2,7)$ for IMU noise, bias random walk, $R$, $P_0$; bias scale 0--10 with
+and without bias estimation; dropout 0--40\,s from 15\,s; outlier probability 0--0.2 with gate off
+and on (threshold at probability 0.999); IMU spike probability 0--0.01; profile; measurement rate
+1--20\,Hz. Consistency study $N=50$ on three profiles with and without reset.
+\item \textbf{Mismatch and GNSS}: misalignment 0, 1, 3, 5\,deg about body $x$; gyroscope scale factor
+0, 0.5, 1, 2\,\% on \texttt{turning} and \texttt{aggressive}; S0 (10\,Hz), S1 (outage from 20\,s),
+S2 (no position); $N=50$ paired runs.
+\item \textbf{Adaptive $R$}: windows 5, 10, 20, 50, 100, 200; constant $R$ on the linear model and
+range-bearing ($T=400$ and 60); patterns step ($\times10$ at mid-run), ramp (1 to 10), bursts
+($\times25$, four of 10 steps); $N=100$; validation seeds for window selection (amendment A3).
+\item \textbf{Learned $R_t$}: training patterns burst 40\,\%, step 20\,\%, ramp 20\,\%, constant 20\,\%;
+six configurations per candidate (learning rate $\{10^{-3},3\cdot10^{-3},10^{-2}\}\times$ weight decay
+$\{0,10^{-4}\}$); batch 32, 400 iterations; test sets constant, step, ramp, burst and held-out step,
+ramp, short and long bursts and sine; recovery threshold a factor of two.
+\item \textbf{Real data}: static criterion (1\,s window, $|\omega|$ standard deviation below
+0.01\,rad/s, $|f|$ below 0.05\,m/s$^2$, speed below 0.05\,m/s), minimum static length 10\,s, spike
+criterion 6 robust scales from an 11-sample running median, turning threshold 0.1\,rad/s.
+\end{itemize}
+
+%==================================================================================================
+\section{Secondary figures}\label{app:figures}
+%==================================================================================================
+\begin{figure}[htbp]\centering
+\includegraphics[width=0.7\linewidth]{linear_kf/figures/rmse_vs_s.png}
+\caption{Linear KF: RMSE versus the scale factor. Source: \texttt{experiments/linear\_kf/figures/rmse\_vs\_s.png}.}
+\end{figure}
+\begin{figure}[htbp]\centering
+\includegraphics[width=0.7\linewidth]{linear_kf/figures/nees_nis_vs_s.png}
+\caption{Linear KF: NEES and NIS versus the scale factor. Source: \texttt{experiments/linear\_kf/figures/nees\_nis\_vs\_s.png}.}
+\end{figure}
+\begin{figure}[htbp]\centering
+\includegraphics[width=0.75\linewidth]{filter_family/figures/sweep_bearing_noise.png}
+\caption{Filter family: RMSE and NEES versus bearing noise. Source: \texttt{experiments/filter\_family/figures/sweep\_bearing\_noise.png}.}
+\end{figure}
+\begin{figure}[htbp]\centering
+\includegraphics[width=0.8\linewidth]{eskf_sensitivity/figures/consistency_turning.png}
+\caption{ESKF, \texttt{turning}: run-averaged NEES with chi-square bounds. Source: \texttt{experiments/eskf\_sensitivity/figures/consistency\_turning.png}.}
+\end{figure}
+\begin{figure}[htbp]\centering
+\includegraphics[width=0.8\linewidth]{eskf_sensitivity/figures/attitude_reference.png}
+\caption{Attitude NEES against body and sensor attitude. Source: \texttt{experiments/eskf\_sensitivity/figures/attitude\_reference.png}.}
+\end{figure}
+\begin{figure}[htbp]\centering
+\includegraphics[width=0.85\linewidth]{eskf_sensitivity/figures/scale_factor_aggressive.png}
+\caption{Scale factor, \texttt{aggressive}: position error with $3\sigma$ and full NEES for S0 and S1.
+Source: \texttt{experiments/eskf\_sensitivity/figures/scale\_factor\_aggressive.png}.}\label{fig:sfagg}
+\end{figure}
+\begin{figure}[htbp]\centering
+\includegraphics[width=0.85\linewidth]{neural_r/figures/eval_nll_differences.png}
+\caption{Paired NLL differences of GRU and MLP against three baselines. Source: \texttt{experiments/neural\_r/figures/eval\_nll\_differences.png}.}
+\end{figure}
+\begin{figure}[htbp]\centering
+\includegraphics[width=0.8\linewidth]{neural_r/figures/training_curves.png}
+\caption{Training and validation NLL of the twelve configurations. Source: \texttt{experiments/neural\_r/figures/training\_curves.png}.}
+\end{figure}
+\begin{figure}[htbp]\centering
+\includegraphics[width=\linewidth]{dataset_char/figures/motion_comparison.png}
+\caption{Speed, angular rate, acceleration and turning fraction of the real sequences and synthetic
+profiles. Source: \texttt{analysis/dataset\_char/figures/motion\_comparison.png}.}\label{fig:motion}
+\end{figure}
+
+%==================================================================================================
+\section{Long tables}\label{app:tables}
+%==================================================================================================
+\subsection*{Linear KF}
+\input{generated/tab_lin_closure.tex}
+\input{generated/tab_lin_scale.tex}
+\input{generated/tab_lin_paired.tex}
+\subsection*{Filter family}
+\input{generated/tab_ff_runtime.tex}
+\input{generated/tab_ff_closure.tex}
+\input{generated/tab_ff_paired.tex}
+\subsection*{ESKF}
+\input{generated/tab_es_closure.tex}
+\input{generated/tab_es_closure_cons.tex}
+\input{generated/tab_es_paired.tex}
+\input{generated/tab_es_consistency.tex}
+\input{generated/tab_es_misalign.tex}
+\input{generated/tab_es_misalign_paired.tex}
+\input{generated/tab_es_attref.tex}
+\input{generated/tab_es_gnss.tex}
+\input{generated/tab_es_drift.tex}
+\input{generated/tab_es_sf.tex}
+\input{generated/tab_es_sf_paired.tex}
+\input{generated/tab_es_sf_bias.tex}
+\subsection*{Adaptive $R$}
+\input{generated/tab_ar_summary.tex}
+\input{generated/tab_ar_decomp.tex}
+\input{generated/tab_ar_spread.tex}
+\input{generated/tab_ar_psd.tex}
+\input{generated/tab_tv_nll.tex}
+\input{generated/tab_tv_rmse.tex}
+\input{generated/tab_tv_sel.tex}
+\input{generated/tab_tv_ident.tex}
+\subsection*{Learned $R_t$: frozen primary experiment}
+\input{generated/tab_nr_train.tex}
+\input{generated/tab_nr_gates.tex}
+\input{generated/tab_nr_nll.tex}
+\input{generated/tab_nr_paired.tex}
+\input{generated/tab_nr_worse.tex}
+\input{generated/tab_nr_nees.tex}
+\input{generated/tab_nr_rmse.tex}
+\input{generated/tab_nr_track.tex}
+\input{generated/tab_nr_recovery.tex}
+\subsection*{Learned $R_t$: post-result amendment 1 (saturation inspection)}
+\input{generated/tab_nr_bound.tex}
+\input{generated/tab_nr_alpha.tex}
+\input{generated/tab_nr_slopes.tex}
+\subsection*{Real data}
+\input{generated/tab_ds_summary.tex}
+\input{generated/tab_ds_generator.tex}
+
+%==================================================================================================
+\section{Reproducibility}\label{app:repro}
+%==================================================================================================
+All commands run from the repository root; the learned-$R$ scripts need PyTorch
+(\texttt{experiments/neural\_r/requirements.txt}).
+\begin{verbatim}
+python -m pytest
+python -m experiments.linear_kf.sweep
+python -m experiments.linear_kf.ratio_study
+python -m experiments.linear_kf.closure
+python -m experiments.filter_family.run
+python -m experiments.filter_family.sweep
+python -m experiments.filter_family.closure
+python -m experiments.filter_family.adaptive_r
+python -m experiments.filter_family.time_varying_r
+python -m experiments.eskf_sensitivity.run
+OMP_NUM_THREADS=1 \
+    python -m experiments.eskf_sensitivity.sweep
+OMP_NUM_THREADS=1 \
+    python -m experiments.eskf_sensitivity.closure
+OMP_NUM_THREADS=1 \
+    python -m experiments.eskf_sensitivity.consistency
+OMP_NUM_THREADS=1 \
+    python -m experiments.eskf_sensitivity.misalignment
+OMP_NUM_THREADS=1 \
+    python -m experiments.eskf_sensitivity.clarify
+OMP_NUM_THREADS=1 \
+    python -m experiments.eskf_sensitivity.attitude_reference
+OMP_NUM_THREADS=1 \
+    python -m experiments.eskf_sensitivity.scale_factor
+python -m experiments.neural_r.diagnostics
+python -m experiments.neural_r.train
+python -m experiments.neural_r.evaluate
+python -m experiments.neural_r.inspect_saturation
+python -m analysis.dataset_char.characterise
+python report/make_tables.py
+python report/check_tex.py
+python report/package.py
+\end{verbatim}
+Commits of the working branch that produced the results (newest first):
+\input{generated/commits.tex}
+
+%==================================================================================================
+\section{Dataset provenance}\label{app:data}
+%==================================================================================================
+\textbf{KITTI} \citep{geiger2013}: one sequence, \texttt{2011\_09\_30\_drive\_0016\_extract}, with the
+\texttt{oxts} folder only (data files, \texttt{timestamps.txt}, \texttt{dataformat.txt}) and three
+calibration files. The inertial fields are part of the records of an integrated GPS/inertial unit
+that also contain position, attitude, velocity, satellite count and GPS modes; whether they are raw or
+processed, the model of the unit and the nominal rate are not stated (\openlbl). The ground truth is
+the unit's own navigation solution. \texttt{dataformat.txt} labels the $z$ acceleration as
+\texttt{ay} and describes \texttt{pos\_accuracy} as a velocity accuracy; fields are read by position.
+
+\textbf{EuRoC} \citep{burri2016}: \texttt{V1\_01\_easy} with \texttt{imu0}, \texttt{vicon0} and
+\texttt{state\_groundtruth\_estimate0}. The IMU is described in \texttt{imu0/sensor.yaml} as a sensor
+(ADIS16448), with stated noise and random-walk parameters; its outputs are quantised. The ground
+truth is described as a nonlinear least-squares batch solution over the Vicon pose and the IMU
+measurements and contains estimated biases; it is therefore not independent of the IMU. The
+generator's accelerometer noise and random-walk defaults equal the values in that file and its
+gyroscope defaults are close to them (\texttt{synthetic/README.md}).
+
+Neither sequence contains a static segment under the stated criterion; no Allan deviation was
+computed and the noise parameters are not identifiable. The raw data were read from their local
+locations and are not part of the repository.
+
+%==================================================================================================
+\section{Open items}\label{app:open}
+%==================================================================================================
+\begin{longtable}{p{0.1\linewidth}p{0.55\linewidth}p{0.28\linewidth}}
+\toprule
+Section & Item & Needed to resolve\\
+\midrule\endhead
+\ref{sec:family}, \ref{app:equations} & Whether the implemented residual-based rule matches the estimator of the cited adaptive
+INS/GPS paper exactly; volume and pages of that reference. & Check against the paper.\\
+\ref{sec:family}, \ref{app:equations} & References for the scaled unscented transform, learned $Q$ and learned $R_t$ in navigation. & Literature check.\\
+\ref{app:tables} & Cause of the UKF disadvantage at $P_0\times100$ on the range-bearing benchmark. & Control run with a smaller sigma-point spread.\\
+\ref{sec:support} & Cause of the early sensor-referenced attitude NEES excess at 5 degrees. & Run initialised around the sensor attitude.\\
+\ref{sec:support} & Whether the gyro-bias states absorb the scale-factor error as a mechanism. & Augmented scale-factor state or observability analysis.\\
+\ref{sec:negative} & Why the learned $\alpha_t$ settled at its architectural bound. & New pre-registered design (output scaling, longer budget).\\
+\ref{sec:negative} & Architecture, features and loss beyond the frozen prototype. & New design document.\\
+\ref{app:data} & Raw or processed KITTI inertial fields; model of the unit; nominal rate. & Dataset or unit documentation.\\
+\ref{app:data} & Internal processing of the EuRoC sensor; cause of its vibration level. & Sensor documentation, static recording.\\
+\ref{app:data} & Cause of the KITTI mismatch between finite-difference position and reported velocity. & Ellipsoidal conversion, timing analysis.\\
+\ref{sec:which} & Whether innovation-based adaptation detects structural IMU mismatch. & Adaptive or learned ESKF under misalignment and scale factor.\\
+\bottomrule
+\end{longtable}
+
+\end{document}

@@ -1,0 +1,27 @@
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Structural IMU mismatch: paired change of the full-state NEES (expected 15) and of the mean NIS (expected 3) relative to the matched model. Source: \texttt{experiments/eskf\_sensitivity/results/misalignment\_paired.csv}, \texttt{experiments/eskf\_sensitivity/results/scale\_factor\_paired.csv}.}\label{tab:main_mismatch}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{llll}
+\toprule
+Mismatch & Profile, scenario & $\Delta$ full NEES & $\Delta$ NIS \\
+\midrule
+misalignment 1.00\,deg & turning S0 & 1555 [1550, 1560] & 0.00437 [0.00289, 0.00585] \\
+misalignment 3.00\,deg & turning S0 & 13987 [13973, 14001] & 0.0436 [0.0391, 0.0481] \\
+misalignment 5.00\,deg & turning S0 & 38850 [38827, 38873] & 0.124 [0.117, 0.132] \\
+scale factor 0.500\,\% & turning S0 & 8.97 [8.21, 9.74] & 0.00806 [0.00605, 0.0101] \\
+scale factor 1.00\,\% & turning S0 & 33.9 [32.4, 35.5] & 0.0301 [0.0261, 0.0342] \\
+scale factor 2.00\,\% & turning S0 & 132 [129, 135] & 0.117 [0.108, 0.125] \\
+scale factor 0.500\,\% & turning S1 & 6.53 [5.75, 7.33] & 0.00316 [0.00163, 0.00467] \\
+scale factor 1.00\,\% & turning S1 & 24.1 [22.5, 25.7] & 0.00954 [0.00649, 0.0126] \\
+scale factor 2.00\,\% & turning S1 & 92.5 [89.1, 95.8] & 0.0319 [0.0259, 0.0380] \\
+scale factor 0.500\,\% & aggressive S0 & 130 [127, 133] & 0.0441 [0.0400, 0.0485] \\
+scale factor 1.00\,\% & aggressive S0 & 530 [524, 536] & 0.179 [0.171, 0.188] \\
+scale factor 2.00\,\% & aggressive S0 & 2137 [2124, 2149] & 0.730 [0.713, 0.747] \\
+scale factor 0.500\,\% & aggressive S1 & 111 [108, 114] & 0.0101 [0.00585, 0.0144] \\
+scale factor 1.00\,\% & aggressive S1 & 453 [446, 459] & 0.0514 [0.0429, 0.0598] \\
+scale factor 2.00\,\% & aggressive S1 & 1824 [1812, 1836] & 0.228 [0.211, 0.245] \\
+\bottomrule
+\end{tabular}}
+\end{table}

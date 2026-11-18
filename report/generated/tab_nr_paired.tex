@@ -1,0 +1,21 @@
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Paired differences in mean innovation NLL (negative favours the first filter). Source: \texttt{experiments/neural\_r/results/neural\_r\_paired.csv}.}\label{tab:nr_paired}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{llll}
+\toprule
+Test set & GRU $-$ adaptive W10 & MLP $-$ adaptive W10 & GRU $-$ MLP \\
+\midrule
+constant & -0.0492 [-0.0524, -0.0462] & -0.0281 [-0.0316, -0.0247] & -0.0211 [-0.0226, -0.0196] \\
+step & -0.0344 [-0.0387, -0.0303] & 0.0329 [0.0274, 0.0383] & -0.0672 [-0.0709, -0.0637] \\
+ramp & -0.0266 [-0.0302, -0.0231] & 0.00754 [0.00284, 0.0121] & -0.0342 [-0.0375, -0.0308] \\
+burst & -0.206 [-0.225, -0.188] & -0.137 [-0.156, -0.121] & -0.0687 [-0.0766, -0.0612] \\
+ho\_step & 0.0659 [0.0571, 0.0746] & 0.298 [0.286, 0.309] & -0.232 [-0.239, -0.225] \\
+ho\_ramp & 0.100 [0.0942, 0.106] & 0.338 [0.328, 0.349] & -0.238 [-0.244, -0.232] \\
+ho\_burst\_short & -0.291 [-0.328, -0.256] & -0.259 [-0.292, -0.227] & -0.0318 [-0.0452, -0.0192] \\
+ho\_burst\_long & -0.106 [-0.126, -0.0888] & 0.109 [0.0906, 0.126] & -0.215 [-0.224, -0.207] \\
+ho\_sine & -0.0503 [-0.0555, -0.0452] & -0.00768 [-0.0132, -0.00246] & -0.0426 [-0.0458, -0.0396] \\
+\bottomrule
+\end{tabular}}
+\end{table}

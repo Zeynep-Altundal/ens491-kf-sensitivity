@@ -1,0 +1,73 @@
+{\small
+\begin{longtable}{llllll}
+\caption{Filter family: the 59 supported paired differences (A minus B) out of 72 computed; all others have intervals containing zero. Source: \texttt{experiments/filter\_family/results/closure\_paired.csv}.}\label{tab:ff_paired}\\
+\toprule
+Setting & A & B & Metric & Difference [95\,\% CI] & Runs \\
+\midrule
+\endfirsthead
+\toprule
+Setting & A & B & Metric & Difference [95\,\% CI] & Runs \\
+\midrule
+\endhead
+nominal & EKF & IEKF & mean\_nees & 0.0741 [0.0530, 0.0962] & 100 \\
+nominal & EKF & UKF & mean\_nees & 0.0732 [0.0551, 0.0918] & 100 \\
+nominal & EKF & AdaptiveEKF & pos\_rmse & -0.0264 [-0.0479, -0.00526] & 100 \\
+nominal & EKF & AdaptiveEKF & mean\_nees & -0.261 [-0.331, -0.193] & 100 \\
+nominal & IEKF & AdaptiveEKF & pos\_rmse & -0.0337 [-0.0566, -0.0119] & 100 \\
+nominal & IEKF & AdaptiveEKF & mean\_nees & -0.335 [-0.409, -0.266] & 100 \\
+nominal & UKF & AdaptiveEKF & pos\_rmse & -0.0265 [-0.0479, -0.00539] & 100 \\
+nominal & UKF & AdaptiveEKF & mean\_nees & -0.334 [-0.404, -0.266] & 100 \\
+initial std 40 m & EKF & IEKF & pos\_rmse & 4.86 [3.89, 5.80] & 100 \\
+initial std 40 m & EKF & IEKF & mean\_nees & 175 [108, 254] & 100 \\
+initial std 40 m & EKF & UKF & pos\_rmse & 1.52 [0.683, 2.36] & 100 \\
+initial std 40 m & EKF & UKF & mean\_nees & 175 [108, 254] & 100 \\
+initial std 40 m & EKF & AdaptiveEKF & pos\_rmse & -0.748 [-1.23, -0.338] & 100 \\
+initial std 40 m & EKF & AdaptiveEKF & mean\_nees & -1.51 [-2.98, -0.517] & 100 \\
+initial std 40 m & IEKF & UKF & pos\_rmse & -3.34 [-4.36, -2.49] & 100 \\
+initial std 40 m & IEKF & AdaptiveEKF & pos\_rmse & -5.61 [-6.79, -4.41] & 100 \\
+initial std 40 m & IEKF & AdaptiveEKF & mean\_nees & -177 [-256, -109] & 100 \\
+initial std 40 m & UKF & AdaptiveEKF & pos\_rmse & -2.27 [-3.35, -1.21] & 100 \\
+initial std 40 m & UKF & AdaptiveEKF & mean\_nees & -177 [-256, -109] & 100 \\
+bearing noise 0.5 rad & EKF & UKF & pos\_rmse & 6.80 [2.88, 12.1] & 100 \\
+bearing noise 0.5 rad & EKF & UKF & mean\_nees & 346 [66.0, 869] & 100 \\
+bearing noise 0.5 rad & EKF & AdaptiveEKF & pos\_rmse & -3.47 [-6.76, -0.0776] & 100 \\
+bearing noise 0.5 rad & EKF & AdaptiveEKF & mean\_nees & -719 [-1916, -3.25] & 100 \\
+bearing noise 0.5 rad & IEKF & UKF & pos\_rmse & 6.48 [4.57, 8.24] & 100 \\
+bearing noise 0.5 rad & IEKF & UKF & mean\_nees & 197 [127, 280] & 100 \\
+bearing noise 0.5 rad & UKF & AdaptiveEKF & pos\_rmse & -10.3 [-18.6, -3.27] & 100 \\
+bearing noise 0.5 rad & UKF & AdaptiveEKF & mean\_nees & -1065 [-2782, -72.6] & 100 \\
+R x 100 & EKF & IEKF & pos\_rmse & 0.123 [0.0513, 0.215] & 100 \\
+R x 100 & EKF & IEKF & mean\_nees & 0.0445 [0.0271, 0.0654] & 100 \\
+R x 100 & EKF & AdaptiveEKF & pos\_rmse & 1.76 [1.36, 2.23] & 100 \\
+R x 100 & EKF & AdaptiveEKF & mean\_nees & -0.845 [-1.01, -0.683] & 100 \\
+R x 100 & IEKF & UKF & pos\_rmse & -0.0602 [-0.115, -0.00499] & 100 \\
+R x 100 & IEKF & UKF & mean\_nees & -0.0434 [-0.0681, -0.0183] & 100 \\
+R x 100 & IEKF & AdaptiveEKF & pos\_rmse & 1.64 [1.27, 2.05] & 100 \\
+R x 100 & IEKF & AdaptiveEKF & mean\_nees & -0.890 [-1.05, -0.732] & 100 \\
+R x 100 & UKF & AdaptiveEKF & pos\_rmse & 1.70 [1.30, 2.14] & 100 \\
+R x 100 & UKF & AdaptiveEKF & mean\_nees & -0.846 [-1.00, -0.689] & 100 \\
+Q x 0.01 & EKF & IEKF & mean\_nees & 0.697 [0.359, 1.06] & 99 \\
+Q x 0.01 & EKF & UKF & pos\_rmse & 0.0429 [0.0206, 0.0664] & 99 \\
+Q x 0.01 & EKF & UKF & mean\_nees & 2.06 [1.56, 2.63] & 99 \\
+Q x 0.01 & EKF & AdaptiveEKF & pos\_rmse & -3.45 [-4.16, -2.72] & 99 \\
+Q x 0.01 & EKF & AdaptiveEKF & mean\_nees & -30.2 [-39.2, -22.3] & 99 \\
+Q x 0.01 & IEKF & UKF & pos\_rmse & 0.0462 [0.0218, 0.0695] & 99 \\
+Q x 0.01 & IEKF & UKF & mean\_nees & 1.36 [0.936, 1.84] & 99 \\
+Q x 0.01 & IEKF & AdaptiveEKF & pos\_rmse & -3.45 [-4.16, -2.72] & 99 \\
+Q x 0.01 & IEKF & AdaptiveEKF & mean\_nees & -30.9 [-39.9, -23.0] & 99 \\
+Q x 0.01 & UKF & AdaptiveEKF & pos\_rmse & -3.50 [-4.21, -2.76] & 99 \\
+Q x 0.01 & UKF & AdaptiveEKF & mean\_nees & -32.3 [-41.5, -24.3] & 99 \\
+P0 x 100 & EKF & IEKF & mean\_nees & 0.107 [0.0744, 0.142] & 100 \\
+P0 x 100 & EKF & UKF & pos\_rmse & -1.80 [-1.94, -1.68] & 100 \\
+P0 x 100 & EKF & UKF & mean\_nees & 0.468 [0.398, 0.541] & 100 \\
+P0 x 100 & EKF & AdaptiveEKF & pos\_rmse & -0.0247 [-0.0452, -0.00470] & 100 \\
+P0 x 100 & EKF & AdaptiveEKF & mean\_nees & -0.260 [-0.330, -0.194] & 100 \\
+P0 x 100 & IEKF & UKF & pos\_rmse & -1.81 [-1.95, -1.69] & 100 \\
+P0 x 100 & IEKF & UKF & mean\_nees & 0.362 [0.304, 0.422] & 100 \\
+P0 x 100 & IEKF & AdaptiveEKF & pos\_rmse & -0.0345 [-0.0567, -0.0135] & 100 \\
+P0 x 100 & IEKF & AdaptiveEKF & mean\_nees & -0.367 [-0.445, -0.296] & 100 \\
+P0 x 100 & UKF & AdaptiveEKF & pos\_rmse & 1.78 [1.65, 1.92] & 100 \\
+P0 x 100 & UKF & AdaptiveEKF & mean\_nees & -0.728 [-0.824, -0.635] & 100 \\
+\bottomrule
+\end{longtable}
+}

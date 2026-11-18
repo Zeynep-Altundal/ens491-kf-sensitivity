@@ -1,0 +1,13 @@
+OK       filter_family README adaptive nominal NEES 4.36: README 4.36 vs CSV 4.36133
+OK       filter_family README adaptive nominal NEES lower 4.17: README 4.17 vs CSV 4.17258
+OK       filter_family README adaptive nominal NEES upper 4.56: README 4.56 vs CSV 4.55986
+OK       eskf README '4.2 % of epochs' (turning, full, above): README 0.042 vs CSV 0.0415973
+OK       neural_r README 'about 10 times R_base' (GRU, factor 25, settled median): README 10.0 vs CSV 10.1763
+OK       dataset_char measured rate KITTI 100.007: README 100.007 vs CSV 100.007
+OK       dataset_char measured rate EuRoC 200.003: README 200.003 vs CSV 200.003
+OK       dataset_char |f| median KITTI 9.818: README 9.818 vs CSV 9.81843
+OK       dataset_char |f| median EuRoC 9.808: README 9.808 vs CSV 9.8081
+OK       dataset_char fraction turning EuRoC 0.84: README 0.84 vs CSV 0.843853
+OK       dataset_char speed max KITTI 15.7: README 15.7 vs CSV 15.7083
+OK       dataset_char gyro spikes x KITTI 135: README 135 vs CSV 135
+OK       dataset_char Vicon gaps 32: README 32 vs CSV 32

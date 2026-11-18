@@ -1,0 +1,21 @@
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Learned R evaluation (linear model, N = 100 per set): mean innovation NLL per test set and filter. \texttt{ho\_} marks held-out sets. Source: \texttt{experiments/neural\_r/results/neural\_r\_summary.csv}.}\label{tab:nr_nll}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{llllllll}
+\toprule
+Test set & fixed nom. & fixed avg. (hindsight) & true cov. & adaptive W10 (burst sel.) & adaptive W20 (pooled sel.) & GRU & MLP \\
+\midrule
+constant & 1.55 & 1.55 & 1.55 & 1.61 & 1.58 & 1.56 & 1.58 \\
+step & 3.68 & 2.36 & 2.10 & 2.18 & 2.16 & 2.15 & 2.22 \\
+ramp & 3.67 & 2.36 & 2.29 & 2.36 & 2.32 & 2.33 & 2.36 \\
+burst & 2.66 & 2.12 & 1.71 & 2.13 & 2.20 & 1.93 & 2.00 \\
+ho\_step & 7.86 & 2.82 & 2.60 & 2.72 & 2.71 & 2.78 & 3.02 \\
+ho\_ramp & 8.32 & 2.85 & 2.74 & 2.81 & 2.78 & 2.91 & 3.15 \\
+ho\_burst\_short & 2.22 & 1.97 & 1.60 & 2.22 & 2.19 & 1.93 & 1.96 \\
+ho\_burst\_long & 6.13 & 2.68 & 2.17 & 2.58 & 2.72 & 2.48 & 2.69 \\
+ho\_sine & 3.11 & 2.24 & 2.10 & 2.22 & 2.29 & 2.17 & 2.21 \\
+\bottomrule
+\end{tabular}}
+\end{table}

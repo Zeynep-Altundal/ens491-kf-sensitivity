@@ -1,0 +1,14 @@
+\begin{table}[htbp]
+\centering
+\small
+\caption{Architectural upper bound of $\alpha_t$ ($\mathrm{softplus}(\sum|W| + b) + \varepsilon$ with inputs in $(-1, 1)$) and the largest value attained on the inspected data. Source: \texttt{experiments/neural\_r/results/saturation\_bound.csv}.}\label{tab:nr_bound}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{llllll}
+\toprule
+Model & Configuration & $\sum|W| + b$ & Bound on $\alpha$ & Attained max & Attained / bound [\%] \\
+\midrule
+GRU & gru\_lr0.01\_wd0 & 12.67 & 12.68 & 12.66 & 99.85 \\
+MLP & mlp\_lr0.003\_wd0.0001 & 8.804 & 8.805 & 8.598 & 97.64 \\
+\bottomrule
+\end{tabular}}
+\end{table}

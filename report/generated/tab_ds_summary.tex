@@ -1,0 +1,40 @@
+\begin{table}[htbp]
+\centering
+\small
+\caption{Real-data characterisation (one sequence each; protocol in \texttt{analysis/dataset\_char/README.md}). Density bounds come from sample-to-sample differences over moving data and are upper bounds, not noise densities. Source: \texttt{analysis/dataset\_char/results/summary.csv}.}\label{tab:ds_summary}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lll}
+\toprule
+Quantity & KITTI 2011\_09\_30\_drive\_0016 & EuRoC V1\_01\_easy \\
+\midrule
+Samples & 2967 & 29120 \\
+Duration [s] & 29.7 & 146 \\
+Nominal IMU rate [Hz] & OPEN & 200 \\
+Measured rate [Hz] & 100 & 200 \\
+dt std [s] & $8.13\times10^{-5}$ & $1.11\times10^{-7}$ \\
+dt max [s] & 0.0103 & 0.00500 \\
+Missing samples & 0 & 0 \\
+Duplicate rows & 0 & 0 \\
+Gyro quantisation step x [rad/s] & $7.49\times10^{-11}$ & $6.98\times10^{-4}$ \\
+Accel quantisation step x [m/s$^2$] & $2.67\times10^{-8}$ & 0.00817 \\
+Median $|f|$ [m/s$^2$] & 9.82 & 9.81 \\
+Longest static segment [s] & 0 & 0 \\
+Smallest 1\,s std of $|f|$ [m/s$^2$] & 0.0709 & 0.108 \\
+Gyro density bound x [rad/s/$\sqrt{\mathrm{Hz}}$] & $1.63\times10^{-4}$ & 0.00115 \\
+Gyro density bound y & $2.58\times10^{-4}$ & 0.00389 \\
+Gyro density bound z & $5.07\times10^{-5}$ & 0.00198 \\
+Accel density bound x [m/s$^2$/$\sqrt{\mathrm{Hz}}$] & 0.00326 & 0.0988 \\
+Accel density bound y & 0.00547 & 0.0402 \\
+Accel density bound z & 0.00578 & 0.0792 \\
+White-noise density (gyro) & not identifiable & not identifiable \\
+Bias instability (gyro) & not identifiable & not identifiable \\
+Spikes gyro x & 135 & 48.0 \\
+Spikes accel x & 28.0 & 7.00 \\
+Speed median [m/s] & 13.7 & 0.397 \\
+Speed max [m/s] & 15.7 & 1.06 \\
+$|\omega|$ median [rad/s] & 0.0152 & 0.231 \\
+$|\omega|$ max [rad/s] & 0.0899 & 0.938 \\
+Fraction turning & 0 & 0.844 \\
+\bottomrule
+\end{tabular}}
+\end{table}

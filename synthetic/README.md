@@ -47,8 +47,12 @@ Position measurements (`measurements.py`): `z[j] = p_true(t_j) + v[j] + o[j]`.
 IMU switches apply to both gyroscope and accelerometer; a single sensor's error is disabled by
 setting its parameter to zero. Units: gyro noise density rad/s/sqrt(Hz), gyro bias random walk
 rad/s^2/sqrt(Hz), accelerometer noise density m/s^2/sqrt(Hz), accelerometer bias random walk
-m/s^3/sqrt(Hz). The default values in `ScenarioConfig` are illustrative, of the order of a
-MEMS-grade IMU, and are not taken from a specific sensor datasheet.
+m/s^3/sqrt(Hz). The default noise parameters in `ScenarioConfig` relate to the values shipped in the
+`imu0/sensor.yaml` of the EuRoC sequence `V1_01_easy` as follows: the accelerometer noise density
+(2.0e-3 m/s^2/sqrt(Hz)) and bias random walk (3.0e-3 m/s^3/sqrt(Hz)) are equal to the shipped
+values; the gyro noise density (2.0e-4 rad/s/sqrt(Hz)) is 1.18 times the shipped 1.6968e-4, and the
+gyro bias random walk (2.0e-5 rad/s^2/sqrt(Hz)) is 1.03 times the shipped 1.9393e-5. The turn-on
+biases, spike magnitudes and position-measurement parameters have no counterpart in that file.
 
 ## Reproducibility
 

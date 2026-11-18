@@ -1,0 +1,21 @@
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Learned R evaluation (linear model, N = 100 per set): R tracking error, mean $|\ln(R/R_{\mathrm{true}})|$ per test set and filter. \texttt{ho\_} marks held-out sets. Source: \texttt{experiments/neural\_r/results/neural\_r\_summary.csv}.}\label{tab:nr_track}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{llllllll}
+\toprule
+Test set & fixed nom. & fixed avg. (hindsight) & true cov. & adaptive W10 (burst sel.) & adaptive W20 (pooled sel.) & GRU & MLP \\
+\midrule
+constant & 0 & 0 & 0 & 0.373 & 0.252 & 0.186 & 0.335 \\
+step & 1.15 & 1.15 & 0 & 0.393 & 0.290 & 0.265 & 0.523 \\
+ramp & 1.56 & 0.477 & 0 & 0.384 & 0.276 & 0.318 & 0.419 \\
+burst & 0.322 & 1.30 & 0 & 0.790 & 0.858 & 0.618 & 0.666 \\
+ho\_step & 2.20 & 0.925 & 0 & 0.433 & 0.367 & 0.659 & 0.944 \\
+ho\_ramp & 2.52 & 0.591 & 0 & 0.384 & 0.300 & 0.616 & 0.942 \\
+ho\_burst\_short & 0.117 & 0.967 & 0 & 0.851 & 0.775 & 0.584 & 0.552 \\
+ho\_burst\_long & 1.29 & 1.76 & 0 & 0.722 & 0.899 & 0.797 & 1.01 \\
+ho\_sine & 1.15 & 0.759 & 0 & 0.485 & 0.626 & 0.435 & 0.523 \\
+\bottomrule
+\end{tabular}}
+\end{table}

@@ -1,0 +1,23 @@
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Gates fixed before training and their outcomes. Source: \texttt{experiments/neural\_r/results/neural\_r\_gates.csv}.}\label{tab:nr_gates}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lllp{0.62\linewidth}}
+\toprule
+Gate & Model & Outcome & Detail \\
+\midrule
+G1 & gru & passed & ho\_burst\_short: -0.2905 [-0.3276, -0.2561]; ho\_burst\_long: -0.1065 [-0.1260, -0.0888] \\
+G2 & gru & passed (reported) & 45 cases farther from the expected value than a baseline (listed in neural\_r\_g2\_cases.csv) \\
+G3 & gru & failed & pos\_rmse: +0.0030 [+0.0016, +0.0043]; mean\_nees: -0.1239 [-0.1368, -0.1107]; mean\_nis: -0.1198 [-0.1292, -0.1103] \\
+G4 & gru & evaluated & R tracking error per test set in neural\_r\_summary.csv and paired differences in neural\_r\_paired.csv \\
+G5 & gru & evaluated & burst: 11.24 steps (censored 0.05); ho\_burst\_short: 12.45 steps (censored 0.03); ho\_burst\_long: 11.54 steps (censored 0.07) \\
+G1 & mlp & failed & ho\_burst\_short: -0.2588 [-0.2922, -0.2270]; ho\_burst\_long: +0.1089 [+0.0906, +0.1263] \\
+G2 & mlp & passed (reported) & 57 cases farther from the expected value than a baseline (listed in neural\_r\_g2\_cases.csv) \\
+G3 & mlp & failed & pos\_rmse: +0.0141 [+0.0115, +0.0167]; mean\_nees: -0.1208 [-0.1388, -0.1027]; mean\_nis: -0.1710 [-0.1802, -0.1618] \\
+G4 & mlp & evaluated & R tracking error per test set in neural\_r\_summary.csv and paired differences in neural\_r\_paired.csv \\
+G5 & mlp & evaluated & burst: 15.94 steps (censored 0.07); ho\_burst\_short: 11.19 steps (censored 0.02); ho\_burst\_long: 22.96 steps (censored 0.17) \\
+G6 & gru vs mlp & evaluated & memory contributes (GRU - MLP NLL interval below zero) on: constant, step, ramp, burst, ho\_step, ho\_ramp, ho\_burst\_short, ho\_burst\_long, ho\_sine \\
+\bottomrule
+\end{tabular}}
+\end{table}
