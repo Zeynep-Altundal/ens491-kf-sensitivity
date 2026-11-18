@@ -273,6 +273,68 @@ elapsed time is measured from t = 0).
 * (c) Every bootstrap in this repository resamples whole Monte Carlo runs, never epochs (see
   "Bootstrap unit" below).
 
+## Attitude NEES reference protocol (`attitude_reference.py`)
+
+Fixed before running; not changed after seeing results. Uses the misalignment runs at **0 and 5
+degrees** (profile `turning`, 60 s, N = 50, run indices 0..49, S0), recomputed with the same seeds
+and code path as `misalignment.py`; the recomputed attitude NEES against the body attitude must
+equal the columns `nees_attitude_0deg` and `nees_attitude_5deg` of `results/misalignment_time.csv`.
+
+State definition and tangent frame (both references): the filter's error state
+`q_ref = q_hat ⊗ Exp(dtheta)`, i.e. a right (local) perturbation at the estimate `q_hat`,
+expressed in the frame of the estimated IMU axes; `P_att` is the attitude block of the filter
+covariance, defined for this same error. Only the reference attitude `q_ref` changes:
+
+* (i) **body reference**: `q_ref = q_WB` (the true body attitude `out["q_true"]`), as in
+  `misalignment.py`: `dtheta_B = Log(q_hat^-1 ⊗ q_WB)`.
+* (ii) **sensor reference**: `q_ref = q_WS = q_WB ⊗ q_BS` with `q_BS = Exp(dphi e_x)`, the true
+  attitude of the sensor axes, which the filter integrates (it assumes `R_BS = I`):
+  `dtheta_S = Log(q_hat^-1 ⊗ q_WS)`. Since `q_hat = q_WB ⊗ Exp(-dtheta_B)` exactly, this is
+  computed as `dtheta_S = Log(Exp(dtheta_B) ⊗ q_BS)` from the recorded errors, without another
+  filter run. At 0 degrees `q_BS` is the identity and (i) and (ii) coincide.
+
+Attitude NEES per epoch `dtheta^T P_att^-1 dtheta` (expected 3); run-averaged over the N runs with
+the two-sided 95 % interval `chi2.ppf([0.025, 0.975], 3 N) / N`; mean over runs and epochs with a
+95 % bootstrap interval over runs; fraction of epochs inside the interval. Outputs:
+`results/attitude_reference_summary.csv`, `results/attitude_reference_time.csv`,
+`figures/attitude_reference.png`.
+
+## Gyroscope scale-factor mismatch protocol (`scale_factor.py`)
+
+Fixed before running; not changed after seeing results. No filter parameter is tuned.
+
+* **Generator**: `ScenarioConfig.gyro_scale_factor = s`. The clean gyroscope signal is multiplied
+  by `(1 + s)` on all three axes before the sensor errors are added:
+  `w_m = (1 + s) w_S + b_g + n_g` (+ spikes, off here). The scale factor acts on the sensed rate,
+  as a physical scale-factor error does; applying it after the errors would also scale the noise
+  density and the bias, i.e. introduce further differences between generator and filter. With
+  `s = 0` the generator is unchanged (no operation is applied). No misalignment.
+* **Filter**: unchanged; it assumes `s = 0`. No other difference between generator and filter.
+* **Levels**: `s = 0, 0.005, 0.01, 0.02` (0, 0.5, 1, 2 %). Profiles **turning** and **aggressive**,
+  60 s, **N = 50**, run indices 0..49 at every level (paired realisations: same noise, biases and
+  initial errors).
+* **Scenarios** (reported separately): **S0** position at 10 Hz for the whole run; **S1** outage
+  from 20 s to 60 s (dropout window `[20 s, 60.1 s)`), as in the GNSS availability study.
+* **Reported** per profile, scenario and level (evaluation epochs at 10 Hz, all epochs):
+  position, velocity and attitude RMSE (3D); full-state NEES (expected 15) and the five sub-block
+  NEES (expected 3) with the mean over runs and epochs (95 % bootstrap interval), the 95 %
+  chi-square interval of the N-run average and the fraction of epochs inside it; mean NIS over
+  accepted updates (expected 3); final (t = 60 s) gyro-bias estimate, true gyro bias and their
+  difference per axis (mean over runs with intervals); paired differences to `s = 0` (position,
+  velocity, attitude RMSE, full NEES, NIS, final gyro-bias error per axis) with 95 % bootstrap
+  intervals over runs; for S1 the drift versus elapsed outage time (RMS position error and
+  `3 sqrt(mean tr P_pos)` at 0, 1, 2, 5, 10, 20, 30, 40 s after 20 s).
+* **Reference for the bias question**: the rate-equivalent of the scale-factor error,
+  `s * mean(w_S)` per axis over the last 10 s before the final epoch (S0) or before the outage
+  (S1, 10..20 s), reported next to the change of the gyro-bias error relative to `s = 0` at the
+  same time. Whether the gyro-bias states absorb part of the scale-factor error is stated as an
+  observation from these numbers, not as a verified mechanism.
+* **Test**: `gyro_scale_factor = 0` reproduces `results/turning_run0_history.csv` byte for byte,
+  and the generator with `s != 0` differs from `s = 0` exactly by `s * gyro_clean`.
+* Outputs: `results/scale_factor_summary.csv`, `results/scale_factor_paired.csv`,
+  `results/scale_factor_bias.csv`, `results/scale_factor_drift.csv`,
+  `figures/scale_factor_<profile>.png`.
+
 ### Bootstrap unit
 
 All bootstrap intervals (`closure.py` in `linear_kf`, `filter_family` and `eskf_sensitivity`,
@@ -292,6 +354,8 @@ they are correlated in time.
 | `consistency.py` | Full-state and sub-block NEES Monte Carlo, with and without covariance reset. |
 | `misalignment.py` | IMU-to-body misalignment study and GNSS availability scenarios. |
 | `clarify.py` | Clarifications on the consistency study and on the finite-difference check of F. |
+| `attitude_reference.py` | Attitude NEES against the true body attitude and against the true sensor attitude (0 and 5 degrees). |
+| `scale_factor.py` | Gyroscope scale-factor mismatch study (S0 and S1). |
 | `plots.py` | Figures of a single run, of the sweeps, of the consistency, misalignment and GNSS studies and of the clarifications. |
 | `tests/` | Validation tests. |
 | `results/` | CSV output. |
@@ -307,5 +371,7 @@ OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 python -m experiments.eskf_sensitivity.
 OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 python -m experiments.eskf_sensitivity.consistency
 OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 python -m experiments.eskf_sensitivity.misalignment
 OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 python -m experiments.eskf_sensitivity.clarify
+OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 python -m experiments.eskf_sensitivity.attitude_reference
+OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 python -m experiments.eskf_sensitivity.scale_factor
 python -m experiments.eskf_sensitivity.plots
 ```

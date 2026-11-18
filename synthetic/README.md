@@ -67,6 +67,14 @@ rotation (`R^T sigma^2 I R = sigma^2 I`). `gyro_clean`, `accel_clean`, the measu
 true biases are all expressed in the sensor frame; `R_bs` is stored with the scenario. With an
 angle of 0 no rotation is applied, so existing scenarios are reproduced bit for bit.
 
+## Gyroscope scale factor
+
+`ScenarioConfig.gyro_scale_factor = s` (default 0) multiplies the clean gyroscope signal by
+`(1 + s)` on all three axes before the sensor errors are added, `w_m = (1 + s) w_S + b_g + n_g`:
+the scale-factor error acts on the sensed rate, while the noise density, the biases and the spikes
+keep their configured values. `gyro_clean` is the ideal rate before scaling. With `s = 0` no
+operation is applied, so existing scenarios are reproduced bit for bit.
+
 ## Known discretization error
 
 The ground truth is exact: the analytic body rate, velocity and acceleration agree with central

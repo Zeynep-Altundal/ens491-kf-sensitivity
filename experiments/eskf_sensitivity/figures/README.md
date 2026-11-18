@@ -14,3 +14,5 @@ PNG figures written by `plots.py` for a single run and for the sweeps:
 | `misalignment_nees_time.png` | Run-averaged full and attitude NEES and RMS attitude error over time for 0, 1, 3, 5 degrees misalignment. |
 | `gnss_position_error.png` | RMS position error and 3-sigma bound over time for S0, S1, S2 and for S1 with misalignment. |
 | `clarify_turning_10_18s.png` | Turning consistency study around 10-18 s: NEES with bounds, attitude and gyro-bias errors with filter sigmas. |
+| `attitude_reference.png` | Run-averaged attitude NEES against the true body attitude and against the true sensor attitude, 0 and 5 degrees misalignment, with the 95 % chi-square interval. |
+| `scale_factor_<profile>.png` | Gyroscope scale-factor study (`turning`, `aggressive`): RMS position error and `3 sqrt(mean tr P_pos)`, and run-averaged full NEES, for S0 and S1 and all levels. |

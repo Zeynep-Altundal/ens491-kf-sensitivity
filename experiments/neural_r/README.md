@@ -227,6 +227,7 @@ No claim of superiority is made beyond the gate outcomes.
 | `data.py` | Training pattern generator and test-set definitions. |
 | `train.py` | Training of the GRU and MLP configurations under the budget above. |
 | `evaluate.py` | Evaluation on the test sets against the baselines; gates. |
+| `inspect_saturation.py` | Amendment 1: inspection of the saturation of the learned R (forward passes only). |
 | `requirements.txt` | Additional dependency of this folder (PyTorch, CPU build). |
 | `DESIGN_FREEZE.txt` | SHA-256 and timestamp of this document at the freeze. |
 | `results/`, `figures/` | Outputs. |
@@ -243,4 +244,34 @@ python -m experiments.neural_r.evaluate
 
 ## Post-result amendments
 
-None.
+### Amendment 1 (after the first results): inspection of the saturation of the learned R
+
+Added after the evaluation had shown that the R of the selected GRU stays at about 10 times
+`R_base` during bursts of factor 25. Inspection only: no model is retrained, no configuration is
+selected, no existing result file is overwritten and no new test-set metric is reported.
+Script: `inspect_saturation.py`; outputs `results/saturation_*.csv` and
+`figures/saturation_*.png`.
+
+* (a) **Code path from the network output to `R_t`**: every operation between the network output
+  and `R_t` in `dkf.py`, with file and line, stating whether any clamp, bound, input normalisation
+  or scaling limits `alpha_t`. In addition the bound implied by the architecture: in the GRU the
+  hidden state lies in (-1, 1), so the linear output layer gives `|W h + b| <= sum |W| + |b|` and
+  `alpha_t <= softplus(sum |W| + b) + eps`; in the MLP the last hidden layer is a tanh, so the same
+  bound applies to its output layer. The bound is computed from the saved parameters of the
+  selected configurations.
+* (b) From the saved checkpoints (forward pass only, the selected GRU and MLP, the test sets of
+  this README with their seeds): the distribution of `alpha_t` per test set (quantiles 1, 5, 25,
+  50, 75, 95, 99 % and the maximum); the largest true factor `c` in the training data (iterations
+  0..399, seeds 1100..1499, regenerated) and the fraction of training steps at each factor; `alpha_t`
+  versus the true factor: for each distinct factor of a test set (or, for the ramp and sine sets,
+  factor bins `[1, 2), [2, 5), [5, 10), [10, 20), [20, 30]`), the median and 95 % quantile of
+  `alpha_t` over the steps at least 10 steps after the factor reached its current level (settled
+  steps) and over all steps. The same is computed on 10 training batches (iterations 0..9) to show
+  `alpha_t` on data of the training distribution. Statement: whether the saturation level
+  coincides with the largest factor in the training data.
+* (c) Training NLL (per batch) and validation NLL (every 25 iterations) of the selected GRU and
+  MLP from `results/training_curves.csv`; slope over the last 50 iterations: ordinary least squares
+  of the training NLL on the iteration number for iterations 351..400 (with its standard error),
+  and of the validation NLL on the three evaluations at 350, 375 and 400.
+* Each explanation is labelled **Observed** (read from data), **Hypothesized** (not tested) or
+  **Verified** (confirmed by a computation stated next to it).

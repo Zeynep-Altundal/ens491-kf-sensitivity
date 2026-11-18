@@ -24,3 +24,9 @@ CSV output of `run.py` and `sweep.py` (protocol in `../README.md`).
 | `clarify_turning_window.csv` | Turning consistency runs, t = 5..25 s: run-averaged full, attitude and gyro-bias NEES, RMS attitude and gyro-bias errors and mean filter standard deviations. |
 | `clarify_F_step.csv` | Relative deviation of the attitude columns of F from finite differences for several step sizes. |
 | `clarify_F_magnitude.csv` | Linearisation error of the attitude columns of F for finite perturbation magnitudes. |
+| `attitude_reference_summary.csv` | Attitude NEES (mean with interval, chi-square interval, fraction of epochs inside) and RMS attitude error at 0 and 5 degrees misalignment, against the true body attitude and against the true sensor attitude; for the body reference the largest difference to `misalignment_time.csv`. |
+| `attitude_reference_time.csv` | Run-averaged attitude NEES and RMS attitude error over time for both references. |
+| `scale_factor_summary.csv` | Gyroscope scale-factor study per profile, scenario (S0, S1) and level: position, velocity, attitude RMSE, NIS, full and sub-block NEES with intervals, chi-square intervals and fraction of epochs inside. |
+| `scale_factor_paired.csv` | Paired differences to `s = 0` (position, velocity, attitude RMSE, NIS, full NEES). |
+| `scale_factor_bias.csv` | Gyro-bias estimate, truth and error per axis at t = 60 s (and t = 20 s for S1), the rate-equivalent `s * mean(w)` over the preceding 10 s, the paired change of the bias error relative to `s = 0` and its ratio to the rate-equivalent. |
+| `scale_factor_drift.csv` | S1: RMS position error and `3 sqrt(mean tr P_pos)` at elapsed outage times. |

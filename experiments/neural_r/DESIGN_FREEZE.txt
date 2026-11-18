@@ -5,3 +5,15 @@ Frozen at: 2026-11-18T19:14:43Z
 
 The design document was frozen before any diagnostic, training or evaluation run of this folder.
 Later changes are listed under "Post-result amendments" in README.md.
+
+Post-result amendments (the original record above is unchanged)
+
+Amendment 1: inspection of the saturation of the learned R (README.md, "Post-result amendments")
+  Protocol text written, before the inspection run:
+    README.md SHA-256: 2e443413252b54676e4b0e122f9c5d55ea254e08dc84dd3e47997db4d7812dea
+    Recorded at: 2026-11-18T19:50:04Z
+  Inspection run (first output written): 2026-11-18T19:50:54Z
+  After the run, one row describing inspect_saturation.py was added to the Files table; the
+  protocol text was not changed:
+    README.md SHA-256: 2eacebfb1a926ccf887ecb0c45afd245e14fb75b2254882f22146d9709f08c3e
+    Recorded at: 2026-11-18T19:56:47Z

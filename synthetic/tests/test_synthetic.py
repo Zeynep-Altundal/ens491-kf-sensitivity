@@ -153,3 +153,17 @@ def test_misalignment_rotates_clean_signals():
                        np.linalg.norm(body["accel_clean"], axis=1), atol=1e-12)
     zero = generate(dataclasses.replace(base, imu_misalignment_x_deg=0.0))
     assert np.array_equal(zero["R_bs"], np.eye(3))
+
+
+def test_gyro_scale_factor_scales_sensed_rate_only():
+    """With all errors on, (1 + s) acts on the clean rate only; noise, biases and accel unchanged."""
+    base = ScenarioConfig(profile="aggressive", duration=5.0)
+    zero = generate(base)
+    scaled = generate(dataclasses.replace(base, gyro_scale_factor=0.02))
+    assert np.array_equal(scaled["gyro_clean"], zero["gyro_clean"])
+    assert np.array_equal(scaled["gyro_bias"], zero["gyro_bias"])
+    assert np.array_equal(scaled["accel_meas"], zero["accel_meas"])
+    assert np.allclose(scaled["gyro_meas"] - zero["gyro_meas"], 0.02 * zero["gyro_clean"],
+                       rtol=0.0, atol=1e-15)
+    exact_zero = generate(dataclasses.replace(base, gyro_scale_factor=0.0))
+    assert np.array_equal(exact_zero["gyro_meas"], zero["gyro_meas"])

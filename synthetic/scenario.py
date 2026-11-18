@@ -73,6 +73,9 @@ class ScenarioConfig:
 
     # Fixed sensor-to-body misalignment: rotation R_BS about the body x axis [deg].
     imu_misalignment_x_deg: float = 0.0
+    # Gyroscope scale-factor error s: the clean gyro signal is multiplied by (1 + s) on all axes
+    # before the sensor errors are added. 0 leaves the generator unchanged.
+    gyro_scale_factor: float = 0.0
 
     # IMU error switches (apply to both gyro and accelerometer).
     enable_white_noise: bool = True
@@ -92,6 +95,8 @@ class ScenarioConfig:
     def __post_init__(self) -> None:
         if self.profile not in PROFILES:
             raise ValueError(f"unknown profile {self.profile!r}; expected one of {tuple(PROFILES)}")
+        if self.gyro_scale_factor <= -1.0:
+            raise ValueError("gyro_scale_factor must be greater than -1")
         if self.duration <= 0 or self.imu_rate <= 0 or self.meas_rate <= 0:
             raise ValueError("duration and rates must be positive")
         ratio = self.imu_rate / self.meas_rate
@@ -166,7 +171,8 @@ def generate(config: ScenarioConfig, path: str | Path | None = None) -> dict[str
         IMU time stamps and ground truth at the IMU rate.
     gyro_clean, accel_clean, gyro_meas, accel_meas
         Ideal and corrupted IMU signals in the sensor frame (equal to the body
-        frame when ``imu_misalignment_x_deg`` is 0).
+        frame when ``imu_misalignment_x_deg`` is 0). ``gyro_clean`` is the ideal
+        rate before the scale factor ``gyro_scale_factor`` is applied.
     gyro_bias, accel_bias
         True time-varying biases contained in the corrupted signals (sensor frame).
     gyro_outlier_mask, accel_outlier_mask
@@ -190,11 +196,15 @@ def generate(config: ScenarioConfig, path: str | Path | None = None) -> dict[str
         # Sensor-frame signals w_S = R_BS^T w_B and f_S = R_BS^T f_B (row vectors: x @ R_BS).
         gyro_clean = gyro_clean @ r_bs
         accel_clean = accel_clean @ r_bs
+    gyro_sensed = gyro_clean
+    if config.gyro_scale_factor != 0.0:
+        # Scale-factor error on the sensed rate: w_m = (1 + s) w_S + b_g + n_g.
+        gyro_sensed = (1.0 + config.gyro_scale_factor) * gyro_clean
 
     children = np.random.SeedSequence(config.seed).spawn(len(RNG_STREAMS))
     rng = {name: np.random.default_rng(ss) for name, ss in zip(RNG_STREAMS, children)}
 
-    gyro = corrupt_sensor(gyro_clean, dt, config.gyro_model(),
+    gyro = corrupt_sensor(gyro_sensed, dt, config.gyro_model(),
                           rng["gyro_noise"], rng["gyro_bias_rw"], rng["gyro_outliers"])
     accel = corrupt_sensor(accel_clean, dt, config.accel_model(),
                            rng["accel_noise"], rng["accel_bias_rw"], rng["accel_outliers"])

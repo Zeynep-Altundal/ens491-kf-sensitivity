@@ -17,3 +17,8 @@ CSV output of `diagnostics.py`, `train.py` and `evaluate.py` (linear model, prot
 | `neural_r_paired.csv` | Paired differences learned minus every baseline, and GRU minus MLP, with intervals. |
 | `neural_r_gates.csv` | Outcome of gates G1 to G6. |
 | `neural_r_g2_cases.csv` | Every case where the NEES or NIS point estimate of a learned model is farther from its expected value than that of a baseline. |
+| `saturation_bound.csv` | Amendment 1: architectural upper bound of alpha for the selected GRU and MLP and the largest alpha attained on the inspected data. |
+| `saturation_alpha_distribution.csv` | Quantiles and maximum of alpha per test set and on training batches 0..9. |
+| `saturation_alpha_vs_factor.csv` | Median, 95 % quantile and maximum of alpha per true factor (or factor bin), over all steps and over settled steps. |
+| `saturation_training_factors.csv` | Number and fraction of training steps at each true factor (iterations 0..399). |
+| `saturation_curve_slopes.csv` | Slopes of the training and validation NLL over the last 50 iterations of the selected configurations. |
