@@ -1,0 +1,286 @@
+dataset,section,quantity,axis,value,unit,note
+kitti,inventory,files,,2972,,
+euroc,inventory,files,,7,,
+kitti,inventory,oxts_data_files,,2967,,
+kitti,inventory,oxts_timestamps,,2967,,
+kitti,timing,samples,,2967,,
+kitti,timing,duration,,29.6594,s,
+kitti,timing,nominal_rate,,OPEN,Hz,no rate stated in the shipped files
+kitti,timing,measured_rate_1_over_median_dt,,100.007,Hz,
+kitti,timing,mean_rate,,100.002,Hz,
+kitti,timing,dt_std,,8.12924e-05,s,
+kitti,timing,dt_min,,0.00965785,s,
+kitti,timing,dt_max,,0.0103424,s,
+kitti,timing,intervals_above_1.5_median,,0,,
+kitti,timing,estimated_missing_samples,,0,,
+kitti,timing,non_monotonic_or_zero_dt,,0,,
+kitti,timing,exact_duplicate_data_rows,,0,,
+kitti,timing,imu_gt_clock,,identical records,,IMU signals and navigation solution are fields of the same OXTS records
+kitti,signal,gyro_smallest_value_step,x,7.48696e-11,rad/s,2967 distinct values
+kitti,signal,gyro_smallest_value_step,y,1.51009e-09,rad/s,2967 distinct values
+kitti,signal,gyro_smallest_value_step,z,4.15229e-09,rad/s,2967 distinct values
+kitti,signal,accel_smallest_value_step,x,2.67204e-08,m/s^2,2967 distinct values
+kitti,signal,accel_smallest_value_step,y,4.71147e-08,m/s^2,2967 distinct values
+kitti,signal,accel_smallest_value_step,z,1.33593e-07,m/s^2,2967 distinct values
+kitti,signal,rms(wz - dyaw/dt),,0.00314484,rad/s,central difference of the recorded yaw
+kitti,signal,"corr(wz, dyaw/dt)",,0.88641,,
+kitti,signal,rms(wz),,0.00613037,rad/s,
+kitti,noise,min_1s_window_std_of_gyro_norm,,0.00261095,rad/s,at t = 17.13 s (descriptive; threshold unchanged)
+kitti,noise,min_1s_window_std_of_specific_force_norm,,0.0709037,m/s^2,at t = 27.80 s (descriptive; threshold unchanged)
+kitti,noise,static_fraction_of_samples,,0,,
+kitti,noise,longest_static_segment,,0,s,none
+kitti,stats_whole,gyro_mean,x,0.000293569,rad/s,
+kitti,stats_whole,gyro_std,x,0.0183419,rad/s,
+kitti,stats_whole,gyro_min,x,-0.0851029,rad/s,
+kitti,stats_whole,gyro_max,x,0.077916,rad/s,
+kitti,stats_whole,gyro_excess_kurtosis,x,3.191,,
+kitti,stats_whole,gyro_mean,y,7.83395e-05,rad/s,
+kitti,stats_whole,gyro_std,y,0.0121874,rad/s,
+kitti,stats_whole,gyro_min,y,-0.0530605,rad/s,
+kitti,stats_whole,gyro_max,y,0.0590536,rad/s,
+kitti,stats_whole,gyro_excess_kurtosis,y,1.84808,,
+kitti,stats_whole,gyro_mean,z,-2.43955e-05,rad/s,
+kitti,stats_whole,gyro_std,z,0.00613136,rad/s,
+kitti,stats_whole,gyro_min,z,-0.0153033,rad/s,
+kitti,stats_whole,gyro_max,z,0.0214256,rad/s,
+kitti,stats_whole,gyro_excess_kurtosis,z,0.390392,,
+kitti,stats_whole,accel_mean,x,-0.0158335,m/s^2,
+kitti,stats_whole,accel_std,x,0.224571,m/s^2,
+kitti,stats_whole,accel_min,x,-0.595471,m/s^2,
+kitti,stats_whole,accel_max,x,0.504129,m/s^2,
+kitti,stats_whole,accel_excess_kurtosis,x,-0.777003,,
+kitti,stats_whole,accel_mean,y,0.416541,m/s^2,
+kitti,stats_whole,accel_std,y,0.202456,m/s^2,
+kitti,stats_whole,accel_min,y,-0.507365,m/s^2,
+kitti,stats_whole,accel_max,y,1.26102,m/s^2,
+kitti,stats_whole,accel_excess_kurtosis,y,2.03239,,
+kitti,stats_whole,accel_mean,z,9.79844,m/s^2,
+kitti,stats_whole,accel_std,z,0.213404,m/s^2,
+kitti,stats_whole,accel_min,z,8.73501,m/s^2,
+kitti,stats_whole,accel_max,z,10.8472,m/s^2,
+kitti,stats_whole,accel_excess_kurtosis,z,2.00667,,
+kitti,stats_whole,specific_force_norm_mean,,9.81193,m/s^2,reference 9.81
+kitti,stats_whole,specific_force_norm_std,,0.214993,m/s^2,
+kitti,stats_whole,specific_force_norm_median,,9.81843,m/s^2,
+kitti,noise,gyro_density_upper_bound_from_differences,x,0.000162506,rad/s/sqrt(Hz),whole sequence; includes motion and vibration
+kitti,noise,gyro_density_upper_bound_from_differences,y,0.000258304,rad/s/sqrt(Hz),whole sequence; includes motion and vibration
+kitti,noise,gyro_density_upper_bound_from_differences,z,5.06868e-05,rad/s/sqrt(Hz),whole sequence; includes motion and vibration
+kitti,noise,accel_density_upper_bound_from_differences,x,0.0032598,m/s^2/sqrt(Hz),whole sequence; includes motion and vibration
+kitti,noise,accel_density_upper_bound_from_differences,y,0.00547419,m/s^2/sqrt(Hz),whole sequence; includes motion and vibration
+kitti,noise,accel_density_upper_bound_from_differences,z,0.00578135,m/s^2/sqrt(Hz),whole sequence; includes motion and vibration
+kitti,noise,allan_deviation,,not computed,,longest static segment 0.00 s < 10.0 s
+kitti,noise,gyro_white_noise_density,,not identifiable,,no static segment of 10 s
+kitti,noise,gyro_bias_instability,,not identifiable,,no static segment of 10 s
+kitti,noise,gyro_bias_random_walk,,not identifiable,,no static segment of 10 s
+kitti,noise,accel_white_noise_density,,not identifiable,,no static segment of 10 s
+kitti,noise,accel_bias_instability,,not identifiable,,no static segment of 10 s
+kitti,noise,accel_bias_random_walk,,not identifiable,,no static segment of 10 s
+kitti,spikes,gyro_robust_scale,x,0.000676647,rad/s,
+kitti,spikes,gyro_count,x,135,,
+kitti,spikes,gyro_fraction,x,0.0455005,,
+kitti,spikes,gyro_max_abs_residual,x,0.0194237,rad/s,
+kitti,spikes,gyro_max_abs_residual_in_scales,x,28.7058,,
+kitti,spikes,gyro_robust_scale,y,0.00143609,rad/s,
+kitti,spikes,gyro_count,y,30,,
+kitti,spikes,gyro_fraction,y,0.0101112,,
+kitti,spikes,gyro_max_abs_residual,y,0.0250873,rad/s,
+kitti,spikes,gyro_max_abs_residual_in_scales,y,17.4692,,
+kitti,spikes,gyro_robust_scale,z,0.000366114,rad/s,
+kitti,spikes,gyro_count,z,5,,
+kitti,spikes,gyro_fraction,z,0.0016852,,
+kitti,spikes,gyro_max_abs_residual,z,0.00391006,rad/s,
+kitti,spikes,gyro_max_abs_residual_in_scales,z,10.6799,,
+kitti,spikes,accel_robust_scale,x,0.0260803,m/s^2,
+kitti,spikes,accel_count,x,28,,
+kitti,spikes,accel_fraction,x,0.00943714,,
+kitti,spikes,accel_max_abs_residual,x,0.332852,m/s^2,
+kitti,spikes,accel_max_abs_residual_in_scales,x,12.7626,,
+kitti,spikes,accel_robust_scale,y,0.0473123,m/s^2,
+kitti,spikes,accel_count,y,23,,
+kitti,spikes,accel_fraction,y,0.00775194,,
+kitti,spikes,accel_max_abs_residual,y,0.854388,m/s^2,
+kitti,spikes,accel_max_abs_residual_in_scales,y,18.0585,,
+kitti,spikes,accel_robust_scale,z,0.0400489,m/s^2,
+kitti,spikes,accel_count,z,37,,
+kitti,spikes,accel_fraction,z,0.0124705,,
+kitti,spikes,accel_max_abs_residual,z,0.686793,m/s^2,
+kitti,spikes,accel_max_abs_residual_in_scales,z,17.1489,,
+kitti,dynamics,speed_min,,12.4086,m/s,
+kitti,dynamics,speed_median,,13.679,m/s,
+kitti,dynamics,speed_q95,,15.6268,m/s,
+kitti,dynamics,speed_max,,15.7083,m/s,
+kitti,dynamics,angular_rate_norm_min,,0.000879344,rad/s,
+kitti,dynamics,angular_rate_norm_median,,0.0152254,rad/s,
+kitti,dynamics,angular_rate_norm_q95,,0.0426176,rad/s,
+kitti,dynamics,angular_rate_norm_max,,0.0898886,rad/s,
+kitti,dynamics,kinematic_acceleration_norm_min,,0.0252636,m/s^2,
+kitti,dynamics,kinematic_acceleration_norm_median,,0.301244,m/s^2,
+kitti,dynamics,kinematic_acceleration_norm_q95,,0.598451,m/s^2,
+kitti,dynamics,kinematic_acceleration_norm_max,,1.31859,m/s^2,
+kitti,dynamics,fraction_time_turning,,0,,|w| > 0.1 rad/s
+kitti,gt_navigation,rate_1_over_median_dt,,100.007,Hz,
+kitti,gt_navigation,samples,,2967,,
+kitti,gt_navigation,start_minus_imu_start,,0,s,
+kitti,gt_navigation,end_minus_imu_end,,0,s,
+kitti,gt_navigation,coverage_of_imu_interval,,1,,
+kitti,gt_navigation,gaps_above_1.5_median,,0,,
+kitti,gt_navigation,max_dt,,0.0103424,s,
+kitti,gt_navigation,rms_jerk_third_difference,,5664.63,m/s^3,third difference of position / median dt^3
+kitti,gt_navigation,rms_finite_difference_velocity_minus_given_velocity,,0.178661,m/s,
+kitti,gt_navigation,pos_accuracy_min,,0.099905,,
+kitti,gt_navigation,pos_accuracy_max,,0.154564,,
+kitti,gt_navigation,vel_accuracy_min,,0.0156205,,
+kitti,gt_navigation,vel_accuracy_max,,0.0374433,,
+kitti,gt_navigation,navstat_values,,4: 2967,,
+kitti,gt_navigation,numsats_values,,5: 100; 6: 150; 7: 568; 8: 1749; 9: 50; 10: 250; 11: 100,,
+kitti,gt_navigation,posmode_values,,4: 400; 5: 2417; 6: 150,,
+kitti,gt_navigation,velmode_values,,0: 20; 4: 350; 5: 2447; 6: 150,,
+kitti,gt_navigation,orimode_values,,0: 1439; 1: 50; 6: 1478,,
+euroc,timing,samples,,29120,,
+euroc,timing,duration,,145.595,s,
+euroc,timing,nominal_rate,,200,Hz,imu0/sensor.yaml rate_hz
+euroc,timing,measured_rate_1_over_median_dt,,200.003,Hz,
+euroc,timing,mean_rate,,200,Hz,
+euroc,timing,dt_std,,1.10853e-07,s,
+euroc,timing,dt_min,,0.00499994,s,
+euroc,timing,dt_max,,0.00500019,s,
+euroc,timing,intervals_above_1.5_median,,0,,
+euroc,timing,estimated_missing_samples,,0,,
+euroc,timing,non_monotonic_or_zero_dt,,0,,
+euroc,timing,exact_duplicate_data_rows,,0,,
+euroc,timing,groundtruth_fraction_timestamps_equal_to_imu,,0.770096,,
+euroc,timing,groundtruth_max_abs_offset_to_nearest_imu,,2.56e-07,s,
+euroc,timing,groundtruth_start_minus_imu_start,,1.04,s,
+euroc,timing,groundtruth_end_minus_imu_end,,-1,s,
+euroc,timing,vicon_fraction_timestamps_equal_to_imu,,0,,
+euroc,timing,vicon_max_abs_offset_to_nearest_imu,,1.55696,s,
+euroc,timing,vicon_start_minus_imu_start,,-1.55696,s,
+euroc,timing,vicon_end_minus_imu_end,,-0.869026,s,
+euroc,signal,gyro_smallest_value_step,x,0.000698132,rad/s,2060 distinct values
+euroc,signal,gyro_smallest_value_step,y,0.000698132,rad/s,1191 distinct values
+euroc,signal,gyro_smallest_value_step,z,0.000698132,rad/s,1384 distinct values
+euroc,signal,accel_smallest_value_step,x,0.00817221,m/s^2,938 distinct values
+euroc,signal,accel_smallest_value_step,y,0.00817221,m/s^2,476 distinct values
+euroc,signal,accel_smallest_value_step,z,0.00817221,m/s^2,711 distinct values
+euroc,noise,min_1s_window_std_of_gyro_norm,,0.00498321,rad/s,at t = 145.47 s (descriptive; threshold unchanged)
+euroc,noise,min_1s_window_std_of_specific_force_norm,,0.108015,m/s^2,at t = 145.60 s (descriptive; threshold unchanged)
+euroc,noise,static_fraction_of_samples,,0,,
+euroc,noise,longest_static_segment,,0,s,none
+euroc,stats_whole,gyro_mean,x,-0.00670199,rad/s,
+euroc,stats_whole,gyro_std,x,0.266905,rad/s,
+euroc,stats_whole,gyro_min,x,-0.780511,rad/s,
+euroc,stats_whole,gyro_max,x,0.793776,rad/s,
+euroc,stats_whole,gyro_excess_kurtosis,x,0.388506,,
+euroc,stats_whole,gyro_mean,y,0.0218216,rad/s,
+euroc,stats_whole,gyro_std,y,0.113404,rad/s,
+euroc,stats_whole,gyro_min,y,-0.539656,rad/s,
+euroc,stats_whole,gyro_max,y,0.651357,rad/s,
+euroc,stats_whole,gyro_excess_kurtosis,y,1.87949,,
+euroc,stats_whole,gyro_mean,z,0.0786413,rad/s,
+euroc,stats_whole,gyro_std,z,0.150928,rad/s,
+euroc,stats_whole,gyro_min,z,-0.631111,rad/s,
+euroc,stats_whole,gyro_max,z,0.837758,rad/s,
+euroc,stats_whole,gyro_excess_kurtosis,z,0.886454,,
+euroc,stats_whole,accel_mean,x,9.1912,m/s^2,
+euroc,stats_whole,accel_std,x,1.1387,m/s^2,
+euroc,stats_whole,accel_min,x,4.01255,m/s^2,
+euroc,stats_whole,accel_max,x,16.3771,m/s^2,
+euroc,stats_whole,accel_excess_kurtosis,x,0.623821,,
+euroc,stats_whole,accel_mean,y,0.0238863,m/s^2,
+euroc,stats_whole,accel_std,y,0.519805,m/s^2,
+euroc,stats_whole,accel_min,y,-4.33944,m/s^2,
+euroc,stats_whole,accel_max,y,3.37512,m/s^2,
+euroc,stats_whole,accel_excess_kurtosis,y,0.8179,,
+euroc,stats_whole,accel_mean,z,-3.30567,m/s^2,
+euroc,stats_whole,accel_std,z,0.849933,m/s^2,
+euroc,stats_whole,accel_min,z,-7.39585,m/s^2,
+euroc,stats_whole,accel_max,z,0.326888,m/s^2,
+euroc,stats_whole,accel_excess_kurtosis,z,0.245453,,
+euroc,stats_whole,specific_force_norm_mean,,9.80122,m/s^2,reference 9.81
+euroc,stats_whole,specific_force_norm_std,,1.27731,m/s^2,
+euroc,stats_whole,specific_force_norm_median,,9.8081,m/s^2,
+euroc,noise,gyro_density_upper_bound_from_differences,x,0.00114703,rad/s/sqrt(Hz),whole sequence; includes motion and vibration
+euroc,noise,gyro_density_upper_bound_from_differences,y,0.00389104,rad/s/sqrt(Hz),whole sequence; includes motion and vibration
+euroc,noise,gyro_density_upper_bound_from_differences,z,0.00197901,rad/s/sqrt(Hz),whole sequence; includes motion and vibration
+euroc,noise,accel_density_upper_bound_from_differences,x,0.0987789,m/s^2/sqrt(Hz),whole sequence; includes motion and vibration
+euroc,noise,accel_density_upper_bound_from_differences,y,0.0401804,m/s^2/sqrt(Hz),whole sequence; includes motion and vibration
+euroc,noise,accel_density_upper_bound_from_differences,z,0.079211,m/s^2/sqrt(Hz),whole sequence; includes motion and vibration
+euroc,noise,allan_deviation,,not computed,,longest static segment 0.00 s < 10.0 s
+euroc,noise,gyro_white_noise_density,,not identifiable,,no static segment of 10 s
+euroc,noise,gyro_bias_instability,,not identifiable,,no static segment of 10 s
+euroc,noise,gyro_bias_random_walk,,not identifiable,,no static segment of 10 s
+euroc,noise,accel_white_noise_density,,not identifiable,,no static segment of 10 s
+euroc,noise,accel_bias_instability,,not identifiable,,no static segment of 10 s
+euroc,noise,accel_bias_random_walk,,not identifiable,,no static segment of 10 s
+euroc,spikes,gyro_robust_scale,x,0.0186309,rad/s,
+euroc,spikes,gyro_count,x,48,,
+euroc,spikes,gyro_fraction,x,0.00164835,,
+euroc,spikes,gyro_max_abs_residual,x,0.310669,rad/s,
+euroc,spikes,gyro_max_abs_residual_in_scales,x,16.6749,,
+euroc,spikes,gyro_robust_scale,y,0.041402,rad/s,
+euroc,spikes,gyro_count,y,2,,
+euroc,spikes,gyro_fraction,y,6.86813e-05,,
+euroc,spikes,gyro_max_abs_residual,y,0.25412,rad/s,
+euroc,spikes,gyro_max_abs_residual_in_scales,y,6.13787,,
+euroc,spikes,gyro_robust_scale,z,0.0217361,rad/s,
+euroc,spikes,gyro_count,z,4,,
+euroc,spikes,gyro_fraction,z,0.000137363,,
+euroc,spikes,gyro_max_abs_residual,z,0.153589,rad/s,
+euroc,spikes,gyro_max_abs_residual_in_scales,z,7.06609,,
+euroc,spikes,accel_robust_scale,x,0.993522,m/s^2,
+euroc,spikes,accel_count,x,7,,
+euroc,spikes,accel_fraction,x,0.000240385,,
+euroc,spikes,accel_max_abs_residual,x,6.61132,m/s^2,
+euroc,spikes,accel_max_abs_residual_in_scales,x,6.65443,,
+euroc,spikes,accel_robust_scale,y,0.472529,m/s^2,
+euroc,spikes,accel_count,y,8,,
+euroc,spikes,accel_fraction,y,0.000274725,,
+euroc,spikes,accel_max_abs_residual,y,6.45604,m/s^2,
+euroc,spikes,accel_max_abs_residual_in_scales,y,13.6628,,
+euroc,spikes,accel_robust_scale,z,0.799664,m/s^2,
+euroc,spikes,accel_count,z,4,,
+euroc,spikes,accel_fraction,z,0.000137363,,
+euroc,spikes,accel_max_abs_residual,z,5.67968,m/s^2,
+euroc,spikes,accel_max_abs_residual_in_scales,z,7.10259,,
+euroc,dynamics,speed_min,,0.00025548,m/s,
+euroc,dynamics,speed_median,,0.39683,m/s,
+euroc,dynamics,speed_q95,,0.765949,m/s,
+euroc,dynamics,speed_max,,1.0649,m/s,
+euroc,dynamics,angular_rate_norm_min,,0.00636028,rad/s,
+euroc,dynamics,angular_rate_norm_median,,0.230523,rad/s,
+euroc,dynamics,angular_rate_norm_q95,,0.64149,rad/s,
+euroc,dynamics,angular_rate_norm_max,,0.938193,rad/s,
+euroc,dynamics,kinematic_acceleration_norm_min,,0.0167376,m/s^2,
+euroc,dynamics,kinematic_acceleration_norm_median,,0.639485,m/s^2,
+euroc,dynamics,kinematic_acceleration_norm_q95,,1.38926,m/s^2,
+euroc,dynamics,kinematic_acceleration_norm_max,,7.20006,m/s^2,
+euroc,dynamics,fraction_time_turning,,0.843853,,|w| > 0.1 rad/s
+euroc,gt_estimate,rate_1_over_median_dt,,200.003,Hz,
+euroc,gt_estimate,samples,,28712,,
+euroc,gt_estimate,start_minus_imu_start,,1.04,s,
+euroc,gt_estimate,end_minus_imu_end,,-1,s,
+euroc,gt_estimate,coverage_of_imu_interval,,0.985989,,
+euroc,gt_estimate,gaps_above_1.5_median,,0,,
+euroc,gt_estimate,max_dt,,0.00500019,s,
+euroc,gt_estimate,rms_jerk_third_difference,,644.928,m/s^3,third difference of position / median dt^3
+euroc,gt_estimate,rms_finite_difference_velocity_minus_given_velocity,,0.00470876,m/s,
+euroc,gt_vicon,rate_1_over_median_dt,,100.037,Hz,
+euroc,gt_vicon,samples,,14629,,
+euroc,gt_vicon,start_minus_imu_start,,-1.55696,s,
+euroc,gt_vicon,end_minus_imu_end,,-0.869026,s,
+euroc,gt_vicon,coverage_of_imu_interval,,0.994031,,
+euroc,gt_vicon,gaps_above_1.5_median,,32,,
+euroc,gt_vicon,max_dt,,0.0184077,s,
+euroc,gt_vicon,rms_jerk_third_difference,,2887.47,m/s^3,third difference of position / median dt^3
+euroc,gt_estimate,gyro_bias_in_groundtruth_mean,x,-0.00221731,rad/s,
+euroc,gt_estimate,accel_bias_in_groundtruth_mean,x,-0.0133365,m/s^2,
+euroc,gt_estimate,gyro_bias_in_groundtruth_range,x,2e-05,rad/s,
+euroc,gt_estimate,accel_bias_in_groundtruth_range,x,0.001544,m/s^2,
+euroc,gt_estimate,gyro_bias_in_groundtruth_mean,y,0.0208082,rad/s,
+euroc,gt_estimate,accel_bias_in_groundtruth_mean,y,0.549525,m/s^2,
+euroc,gt_estimate,gyro_bias_in_groundtruth_range,y,0.000183,rad/s,
+euroc,gt_estimate,accel_bias_in_groundtruth_range,y,0.004414,m/s^2,
+euroc,gt_estimate,gyro_bias_in_groundtruth_mean,z,0.0763129,rad/s,
+euroc,gt_estimate,accel_bias_in_groundtruth_mean,z,0.068375,m/s^2,
+euroc,gt_estimate,gyro_bias_in_groundtruth_range,z,7e-05,rad/s,
+euroc,gt_estimate,accel_bias_in_groundtruth_range,z,0.001729,m/s^2,
