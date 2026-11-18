@@ -11,6 +11,7 @@
 \usepackage{tikz}
 \usetikzlibrary{positioning,arrows.meta}
 \usepackage[numbers,sort&compress]{natbib}
+\usepackage{url}
 \usepackage[hidelinks]{hyperref}
 \usepackage{caption}
 
@@ -708,8 +709,8 @@ profiles. Source: \texttt{analysis/dataset\_char/figures/motion\_comparison.png}
 %==================================================================================================
 \section{Reproducibility}\label{app:repro}
 %==================================================================================================
-All commands run from the repository root; the learned-$R$ scripts need PyTorch
-(\texttt{experiments/neural\_r/requirements.txt}).
+All commands run from the repository root; the learned-$R$ scripts need PyTorch, listed in
+\path{experiments/neural_r/requirements.txt}.
 \begin{verbatim}
 python -m pytest
 python -m experiments.linear_kf.sweep

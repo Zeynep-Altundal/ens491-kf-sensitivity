@@ -85,7 +85,8 @@ def macro(name: str, value: str) -> None:
 def table(name: str, caption: str, sources: list[Path], header: list[str], rows: list[list[str]],
           align: str | None = None, size: str = "\\small", long: bool = False) -> None:
     align = align or "l" * len(header)
-    src = ", ".join(f"\\texttt{{{esc(rel(s))}}}" for s in sources)
+    # \\path (url package) allows line breaks inside the file paths of the captions.
+    src = ", ".join(f"\\path{{{rel(s)}}}" for s in sources)
     cap = f"{caption} Source: {src}."
     lines = []
     if long:
@@ -173,7 +174,8 @@ def filter_family() -> None:
             ci(r, "mean_nis")] for r in read(src)]
     table("ff_closure", "Range-bearing benchmark, N = 100 runs, 60 steps: divergence count and metrics "
           "over non-diverged runs with 95\\,\\% intervals. Expected NEES 4, NIS 2.", [src],
-          ["Setting", "Filter", "Div.", "Position RMSE [m]", "Mean NEES", "Mean NIS"], out, long=True)
+          ["Setting", "Filter", "Div.", "Position RMSE [m]", "Mean NEES", "Mean NIS"], out, long=True,
+          size="\\scriptsize")
     qd = next(r for r in read(src) if r["setting"] == "Q x 0.01" and r["filter"] == "AdaptiveEKF")
     macro("FFAdaptQdiv", qd["n_diverged"])
     nom = next(r for r in read(src) if r["setting"] == "nominal" and r["filter"] == "AdaptiveEKF")
