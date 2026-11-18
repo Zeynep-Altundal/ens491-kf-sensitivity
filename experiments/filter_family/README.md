@@ -527,6 +527,151 @@ Possible reasons for the disagreements (**OPEN**, none tested):
 6. The reference EKF uses `F(x)` as the Jacobian; this study's EKF uses the exact Jacobian (EKF-F
    reproduces the convention and differs by about 0.4 dB).
 
+## Exploratory KalmanNet baseline on the Lorenz benchmark (`lorenz_knet_baseline.py`)
+
+**Exploratory.** One setting, one training run, the reference repository's default
+hyperparameters, no tuning. Not a pre-registered comparison; no claim is derived from it beyond the
+numbers reported.
+
+### Pre-run inspection of the reference code
+
+Repository and commit as recorded above (`828a2cf529bc84f43b37d543d916fe5858054457`), run from the
+temporary clone outside this repository; no source file is copied here. Entry script
+`main_lor_DT.py` and the modules it imports (`Filters/EKF_test.py`, `Filters/EKF.py`,
+`Simulations/Extended_sysmdl.py`, `Simulations/utils.py`, `Simulations/config.py`,
+`Simulations/Lorenz_Atractor/parameters.py`, `Pipelines/Pipeline_EKF.py`, `KNet/KalmanNet_nn.py`,
+`Plot.py`):
+
+* **Network connections**: none found (no `urllib`, `requests`, `socket` or `http` use).
+* **Writes**: all paths are relative to the working directory, so with the clone root as working
+  directory every write stays inside the clone: the generated data set
+  (`Simulations/utils.py:47-49` via `main_lor_DT.py:86`), the best model
+  (`Pipelines/Pipeline_EKF.py:249`, `KNet/best-model.pt`), the pipeline object
+  (`Pipeline_EKF.py:24`, not called by the entry script), and figures of `Plot.py` (`savefig` with
+  relative names; not called by the entry script).
+* **Pickle loads**: `torch.load` of the data set generated in the same run (`main_lor_DT.py:89`) and
+  of the model saved in the same run (`Pipeline_EKF.py:271, 273`). The shipped data file
+  (`Simulations/Lorenz_Atractor/data/data_gen.pt`) is not loaded by this entry script and is not
+  used.
+* **Output of KalmanNet**: the forward pass returns the posterior state estimate only
+  (`KNet/KalmanNet_nn.py:175-198`); the hidden states of the "Sigma" and "S" recurrent units are
+  learned features, not covariances. **NEES and NIS cannot be computed for KalmanNet.**
+
+### Changes needed to run (patch kept outside this repository)
+
+A patch file `kalmannet_run.patch` (outside the repository, next to the clone) with exactly these
+changes; nothing else is modified:
+
+1. `main_lor_DT.py:41` `args.use_cuda = True` -> `False` (the installed PyTorch is a CPU build without
+   CUDA support, so the script raises otherwise; the machine has a GPU that is not used).
+2. `main_lor_DT.py:61` `switch = 'partial'` -> `'full'` (full model information, as required by this
+   protocol; the default is the observation-mismatch case).
+3. `main_lor_DT.py:140-141` the commented-out evaluation of the reference EKF with the true model
+   (`EKFTest(args, sys_model, test_input, test_target)`) is enabled.
+4. Seeds: `torch.manual_seed(0)` and `random.seed(0)` after the imports (the code sets no seed; the
+   data generation uses torch, the batch selection Python's `random`).
+5. After the data set is generated and loaded, the test inputs and targets are additionally written
+   with `numpy.save` (plain arrays, no pickle) next to the clone, so that the filters of this
+   repository can run on the same test trajectories (read with `allow_pickle=False`).
+6. `Pipelines/Pipeline_EKF.py:271, 273` `torch.load(...)` -> `torch.load(..., weights_only=False)`:
+   the installed PyTorch (2.15) refuses to load a full model object by default; the file is the model
+   saved by the same run.
+
+Environment: the project's `.venv`; `seaborn` (imported by `Plot.py`, which `Pipeline_EKF.py`
+imports) is installed into the `.venv` because it is missing; its version is recorded.
+
+### Setting (the code's default Lorenz configuration, full information)
+
+| Item | Value | Source (reference commit) |
+|------|-------|---------------------------|
+| T (train, validation) / T_test | 100 / 100 | `main_lor_DT.py:38-39` |
+| r^2, q^2 | r^2 = 0.1 (`1/r^2` = 10 dB), `nu = -20 dB`, q^2 = 0.001 | `main_lor_DT.py:64-67` |
+| Dynamics | J = 5, dt = 0.02 | `parameters.py:24, 28` |
+| Observation | `hRotate`: identity rotated by 1 deg about x, y and z (`RZ RY RX`) | `parameters.py:32-51, 140, 154-159`; `main_lor_DT.py:82` |
+| Train / validation / test sizes | 1000 / 100 / 200 | `main_lor_DT.py:35-37` |
+| Initial state | `[1, 1, 1]`, `P_0 = 0`, fixed | `parameters.py:19-20` |
+| Training | 2000 steps, batch 30, Adam, learning rate 1e-3, weight decay 1e-3, MSE loss on the state, best validation checkpoint kept | `main_lor_DT.py:42-45`; `Pipeline_EKF.py:44-50, 245-249` |
+| Network sizes | `in_mult_KNet = 5`, `out_mult_KNet = 40` | `Simulations/config.py:57-59` |
+
+### Protocol
+
+* **Time box**: training is started with a 40 min wall-clock limit. If it has not finished, it is
+  stopped; the step reached and the validation curve are reported, and the best checkpoint saved so
+  far is evaluated and labelled **not converged**.
+* **Reference evaluation** on the repository's test set: KalmanNet (`NNTest`) and the repository's
+  EKF (`EKFTest`), MSE in dB and the repository's spread `10 log10(std + mean) - mean_dB`.
+* **Filters of this repository** (EKF with exact Jacobian, EKF-F with `F(x)` as Jacobian, IEKF, UKF;
+  true `Q`, `R`, `hRotate` re-implemented here, `P_0 = 1e-10 I`), MSE in dB with the same spread and
+  a 95 % bootstrap interval over trajectories, and mean NEES and NIS:
+  (i) on the **same test trajectories** exported by the patched script (exact comparison with the
+  reference numbers), and (ii) on an **independent realisation** of 200 trajectories generated by this
+  repository's simulator with the same parameters (seed 0), which is a different realisation.
+* Recorded: commit hash, hyperparameters, seeds, hardware, PyTorch version, training time, the
+  validation curve (`results/lorenz_knet_training_curve.csv`, parsed from the training log).
+* Outputs: `results/lorenz_knet_baseline.csv`, `results/lorenz_knet_training_curve.csv`,
+  `figures/lorenz_knet_training_curve.png`.
+
+### Results (exploratory)
+
+Run on 2026-11-18 (UTC 21:18:49 to 21:20:32) on an Intel Core Ultra 9 275HX (24 cores, CPU only;
+the NVIDIA GPU of the machine is not used because the installed PyTorch 2.15.0 is a CPU build),
+Python 3.12, NumPy 1.26.4, seaborn 0.13.2, pandas 2.2.3 in the project's `.venv`. Reference commit
+`828a2cf529bc84f43b37d543d916fe5858054457` with the patch described above; seeds `torch.manual_seed(0)`,
+`random.seed(0)`; default hyperparameters (2000 steps, batch 30, Adam, learning rate 1e-3, weight
+decay 1e-3, `in_mult_KNet = 5`, `out_mult_KNet = 40`); 23 928 trainable parameters (reported by the
+script).
+
+**KalmanNet training failed.** The training MSE of the first step is finite (25.79 dB); from the
+second step on the training MSE and, from the first evaluation on, the validation MSE are `nan`
+(`results/lorenz_knet_training_curve.csv`, `figures/lorenz_knet_training_curve.png`). Because the
+validation MSE never improves on the initial value, no checkpoint (`best-model.pt`) was saved, so no
+KalmanNet test result exists. After 17 logged steps the run was stopped manually (91 s after the
+start), since parameters that have become `nan` cannot recover and the final test step would fail
+to load the missing checkpoint. The 40 min time box was therefore not reached; there is no
+"best checkpoint so far" to evaluate. The cause is **OPEN**: candidates are an incompatibility of the
+reference code (written for PyTorch 1.10.1) with PyTorch 2.15 and a numerical issue of the default
+configuration on this setting; neither was tested, and no setting was changed to make the run work.
+
+Results on the test set of the reference run (200 trajectories, T = 100) and on an independent
+realisation (200 trajectories, seed 0) (`results/lorenz_knet_baseline.csv`):
+
+| Source | Test data | Method | MSE [dB] [95 % CI] | Spread [dB] | Mean NEES (3) | Mean NIS (3) |
+|---|---|---|---|---|---|---|
+| reference repository | reference test set | EKF (reference code) | -19.66 | 1.31 | -- | -- |
+| reference repository | reference test set | observation noise floor | -10.03 | 0.36 | -- | -- |
+| this repository | same test trajectories (exported) | EKF | -20.31 [-20.49, -20.12] | 1.13 | 3.024 | 2.979 |
+| this repository | same test trajectories (exported) | EKF-F | -19.66 [-19.87, -19.45] | 1.31 | 4.354 | 3.047 |
+| this repository | same test trajectories (exported) | IEKF | -20.31 [-20.49, -20.12] | 1.13 | 3.024 | 2.979 |
+| this repository | same test trajectories (exported) | UKF | -20.31 [-20.48, -20.12] | 1.12 | 3.025 | 2.979 |
+| this repository | independent realisation (seed 0) | EKF | -20.42 [-20.59, -20.24] | 1.10 | 3.011 | 3.008 |
+| this repository | independent realisation (seed 0) | EKF-F | -19.77 [-19.98, -19.55] | 1.33 | 4.336 | 3.075 |
+| this repository | independent realisation (seed 0) | IEKF | -20.42 [-20.59, -20.24] | 1.10 | 3.011 | 3.008 |
+| this repository | independent realisation (seed 0) | UKF | -20.42 [-20.59, -20.24] | 1.10 | 3.011 | 3.008 |
+
+* \[Verified\] The EKF-F of this repository (the model re-implemented here, rotated observation,
+  `F(x)` as the Jacobian) on the exported test trajectories reproduces the reference EKF:
+  -19.659 dB with spread 1.305 dB against -19.6589 dB and 1.3055 dB. This checks the
+  re-implemented model and the exported data against the reference code.
+* \[Observed\] The EKF with the exact Jacobian, the IEKF and the UKF are about 0.65 dB lower in MSE
+  than the reference EKF on the same trajectories, and their mean NEES and NIS are close to 3; the
+  EKF-F has a mean NEES above 4.
+* \[Observed\] On the independent realisation the values differ from those on the reference test
+  set by about 0.1 dB (a different realisation; not a paired comparison).
+* KalmanNet outputs state estimates only; NEES and NIS cannot be computed for it (see the
+  inspection above).
+
+What could not be compared, and why:
+
+* KalmanNet against any filter: training produced `nan` from the second step and no checkpoint
+  exists.
+* Any published KalmanNet value for this configuration: the default script setting (rotated
+  observation, `1/r^2` = 10 dB, T = 100) is not one of the settings of the paper's Lorenz tables.
+
+Environment incident: installing `seaborn` with its dependencies first placed NumPy 2.5.5 and
+pandas 3.1.1 into the `.venv`, which broke the system-installed SciPy and Matplotlib (compiled for
+NumPy 1.x). Both were removed again and pandas 2.2.3 was installed without dependencies, so the
+`.venv` uses the system NumPy 1.26.4 again; the test suite was re-run afterwards.
+
 ## Files
 
 | File | Purpose |
@@ -539,6 +684,7 @@ Possible reasons for the disagreements (**OPEN**, none tested):
 | `adaptive_r.py` | Adaptive-R diagnosis under constant true R (protocol above). |
 | `time_varying_r.py` | Time-varying measurement noise benchmark (protocol above). |
 | `lorenz.py` | Lorenz-attractor benchmark of the KalmanNet paper (protocol above); KalmanNet is not run. |
+| `lorenz_knet_baseline.py` | Exploratory: runs the classical filters on the test set of a KalmanNet reference run and on an own realisation; collects the reference results. |
 | `plots.py` | Writes figures to `figures/`. |
 | `tests/` | Equivalence, adaptation, Jacobian and wrap-around tests. |
 

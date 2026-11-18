@@ -12,3 +12,4 @@ PNG figures written by `plots.py`:
 | `tv_r_<model>_<pattern>.png` | Time-varying R benchmark (`linear`, `rb`; `step`, `ramp`, `burst`): filter R relative to the nominal value for run 0 and averaged over runs, against the true scale `R_true(k)`, and position RMSE over runs versus time; the fixed-average filter is labelled as a hindsight reference and the filter given `R_true(k)` as the true-covariance filter. |
 | `lorenz_mse.png` | Lorenz-attractor benchmark: MSE [dB] versus `1/r^2` for all filters of this study, with the paper's EKF and UKF values as markers; full information and J = 2 mismatch. |
 | `lorenz_example.png` | Lorenz-attractor run 0 at `1/r^2` = 20 dB: truth, observations, EKF and UKF estimates for the first 400 steps. |
+| `lorenz_knet_training_curve.png` | Exploratory: training and validation MSE of the KalmanNet reference run (non-finite from the second step) with the reference EKF level. |

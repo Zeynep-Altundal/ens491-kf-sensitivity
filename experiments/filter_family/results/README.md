@@ -25,3 +25,5 @@ CSV output of `run.py` (range-bearing benchmark, N = 100 runs, 60 steps, seed 0,
 | `lorenz_summary.csv` | Lorenz-attractor benchmark: per setting (`full`, `mismatch_J2`), `1/r^2` and filter: failed runs, MSE in dB with 95 % interval and the paper-style spread, RMSE, mean NEES, mean NIS with intervals. |
 | `lorenz_paper_values.csv` | EKF and UKF MSE [dB] transcribed from Tables V and VII of arXiv:2107.10043v3, with table, setting and spread. |
 | `lorenz_comparison.csv` | This study's MSE [dB] next to the transcribed paper values, difference and whether the paper value lies inside this study's interval. |
+| `lorenz_knet_baseline.csv` | Exploratory: reference-code results (EKF, observation noise floor; KalmanNet absent because training failed) and this repository's EKF, EKF-F, IEKF, UKF on the exported reference test set and on an independent realisation, MSE in dB with interval and spread, NEES, NIS. |
+| `lorenz_knet_training_curve.csv` | Exploratory: training and validation MSE [dB] per logged step of the KalmanNet reference run (parsed from its log). |
