@@ -1,0 +1,7 @@
+window,val_nll_burst,val_nll_pooled,selected_burst,selected_pooled
+5,2.174911898,2.146477102,False,False
+10,2.146281868,2.072702001,True,False
+20,2.215765454,2.067108999,False,True
+50,2.363291496,2.101872889,False,False
+100,2.361686946,2.122785797,False,False
+200,2.427969973,2.224401223,False,False

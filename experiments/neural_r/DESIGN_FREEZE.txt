@@ -1,0 +1,7 @@
+Design freeze of experiments/neural_r/README.md
+
+SHA-256: 04d0d927049fbb43a703d8484ee826a7785bc7a581f04425195ffbbd80b194ac
+Frozen at: 2026-11-18T19:14:43Z
+
+The design document was frozen before any diagnostic, training or evaluation run of this folder.
+Later changes are listed under "Post-result amendments" in README.md.

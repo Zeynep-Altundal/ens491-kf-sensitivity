@@ -1,0 +1,61 @@
+model,W,term,metric,difference,ci_low,ci_high,supported,runs_used
+linear,5,total: closed - off,mean_nees,0.9260702172,0.8374947111,1.017995191,True,100
+linear,5,total: closed - off,mean_nis,0.4764057142,0.4464885303,0.5065975479,True,100
+linear,5,feedback: closed - open_replay,mean_nees,0.4754144903,0.4178356645,0.5380410964,True,100
+linear,5,feedback: closed - open_replay,mean_nis,0.2602800713,0.2424582289,0.2794064162,True,100
+linear,5,own-data correlation: open_replay - indep_open_replay,mean_nees,0.05155036982,-0.01987977524,0.1221983125,False,100
+linear,5,own-data correlation: open_replay - indep_open_replay,mean_nis,0.0008882812941,-0.0283550469,0.02942152478,False,100
+linear,5,fluctuation: indep_open_replay - off,mean_nees,0.3991053571,0.3454236748,0.4533789816,True,100
+linear,5,fluctuation: indep_open_replay - off,mean_nis,0.2152373617,0.1951418469,0.2363464795,True,100
+linear,5,closed-loop statistics: indep_closed_replay - off,mean_nees,0.7939215614,0.6939233763,0.8980531958,True,100
+linear,5,closed-loop statistics: indep_closed_replay - off,mean_nis,0.4783661989,0.4348759991,0.5247243993,True,100
+linear,20,total: closed - off,mean_nees,0.1302659899,0.1018255393,0.1593371702,True,100
+linear,20,total: closed - off,mean_nis,0.09994695238,0.07996189042,0.1200018224,True,100
+linear,20,feedback: closed - open_replay,mean_nees,0.06182956831,0.05168371067,0.07272668838,True,100
+linear,20,feedback: closed - open_replay,mean_nis,0.05217240899,0.04526689008,0.05918501887,True,100
+linear,20,own-data correlation: open_replay - indep_open_replay,mean_nees,0.007788662996,-0.02254555268,0.03873504446,False,100
+linear,20,own-data correlation: open_replay - indep_open_replay,mean_nis,-0.001158731071,-0.02152018095,0.01907204826,False,100
+linear,20,fluctuation: indep_open_replay - off,mean_nees,0.06064775859,0.04125517717,0.08018608272,True,100
+linear,20,fluctuation: indep_open_replay - off,mean_nis,0.04893327446,0.03504773846,0.06336383044,True,100
+linear,20,closed-loop statistics: indep_closed_replay - off,mean_nees,0.1231469481,0.09374512177,0.1527393123,True,100
+linear,20,closed-loop statistics: indep_closed_replay - off,mean_nis,0.1029171211,0.08117130201,0.125771136,True,100
+linear,100,total: closed - off,mean_nees,0.001997365118,-0.0177913272,0.02246829087,False,100
+linear,100,total: closed - off,mean_nis,0.001519374517,-0.01667990186,0.02022777463,False,100
+linear,100,feedback: closed - open_replay,mean_nees,0.004147864964,-0.001415225505,0.01005751325,False,100
+linear,100,feedback: closed - open_replay,mean_nis,0.0042142813,-0.000916199402,0.009588160742,False,100
+linear,100,own-data correlation: open_replay - indep_open_replay,mean_nees,0.00358178387,-0.01792039603,0.02529894385,False,100
+linear,100,own-data correlation: open_replay - indep_open_replay,mean_nis,-0.001045685465,-0.02046969281,0.01794957378,False,100
+linear,100,fluctuation: indep_open_replay - off,mean_nees,-0.005732283716,-0.0213392034,0.01010694145,False,100
+linear,100,fluctuation: indep_open_replay - off,mean_nis,-0.001649221318,-0.01532124505,0.01253138955,False,100
+linear,100,closed-loop statistics: indep_closed_replay - off,mean_nees,-0.001267428369,-0.02288394316,0.02093827624,False,100
+linear,100,closed-loop statistics: indep_closed_replay - off,mean_nis,0.002958910047,-0.01607858008,0.02286672911,False,100
+rb,5,total: closed - off,mean_nees,4.119930233,3.727816426,4.552111143,True,100
+rb,5,total: closed - off,mean_nis,1.725473335,1.672865625,1.77799718,True,100
+rb,5,feedback: closed - open_replay,mean_nees,2.384147945,2.102793064,2.706291585,True,100
+rb,5,feedback: closed - open_replay,mean_nis,1.017444328,0.9770113252,1.057945124,True,100
+rb,5,own-data correlation: open_replay - indep_open_replay,mean_nees,0.17043296,-0.06333949459,0.4024694642,False,100
+rb,5,own-data correlation: open_replay - indep_open_replay,mean_nis,0.01884721202,-0.03870954453,0.07639631172,False,100
+rb,5,fluctuation: indep_open_replay - off,mean_nees,1.565349327,1.40076584,1.738549898,True,100
+rb,5,fluctuation: indep_open_replay - off,mean_nis,0.6891817952,0.6434189197,0.735471134,True,100
+rb,5,closed-loop statistics: indep_closed_replay - off,mean_nees,3.730541684,3.413962554,4.077248604,True,100
+rb,5,closed-loop statistics: indep_closed_replay - off,mean_nis,1.68956863,1.596713698,1.785420993,True,100
+rb,20,total: closed - off,mean_nees,0.4821904793,0.4157053246,0.5499138914,True,100
+rb,20,total: closed - off,mean_nis,0.3335496458,0.302858725,0.3650365352,True,100
+rb,20,feedback: closed - open_replay,mean_nees,0.2516284059,0.2231955978,0.281300712,True,100
+rb,20,feedback: closed - open_replay,mean_nis,0.1733438857,0.1584519812,0.1880400908,True,100
+rb,20,own-data correlation: open_replay - indep_open_replay,mean_nees,-0.0564080083,-0.1555341555,0.03510569866,False,100
+rb,20,own-data correlation: open_replay - indep_open_replay,mean_nis,0.004153208741,-0.02953102648,0.0380981848,False,100
+rb,20,fluctuation: indep_open_replay - off,mean_nees,0.2869700817,0.2154822986,0.3668103301,True,100
+rb,20,fluctuation: indep_open_replay - off,mean_nis,0.1560525514,0.131589457,0.1814965107,True,100
+rb,20,closed-loop statistics: indep_closed_replay - off,mean_nees,0.5538999967,0.459064453,0.6611815975,True,100
+rb,20,closed-loop statistics: indep_closed_replay - off,mean_nis,0.3258798602,0.2907181249,0.3627962033,True,100
+rb,100,total: closed - off,mean_nees,0.0925868005,0.05686940947,0.1295359063,True,100
+rb,100,total: closed - off,mean_nis,0.07504864126,0.05231671662,0.09785610689,True,100
+rb,100,feedback: closed - open_replay,mean_nees,0.04398813981,0.02896613823,0.0595721448,True,100
+rb,100,feedback: closed - open_replay,mean_nis,0.03215077591,0.02317591019,0.0409441864,True,100
+rb,100,own-data correlation: open_replay - indep_open_replay,mean_nees,-0.0009136645156,-0.03385867692,0.03253309807,False,100
+rb,100,own-data correlation: open_replay - indep_open_replay,mean_nis,-0.001392189333,-0.02606852503,0.02375772203,False,100
+rb,100,fluctuation: indep_open_replay - off,mean_nees,0.04951232521,0.0287213139,0.0707826168,True,100
+rb,100,fluctuation: indep_open_replay - off,mean_nis,0.04429005468,0.02640496314,0.06234793872,True,100
+rb,100,closed-loop statistics: indep_closed_replay - off,mean_nees,0.09328103347,0.06170753477,0.1257291384,True,100
+rb,100,closed-loop statistics: indep_closed_replay - off,mean_nis,0.07372088138,0.05049544469,0.09730466421,True,100
