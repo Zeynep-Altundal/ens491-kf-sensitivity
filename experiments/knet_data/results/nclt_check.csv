@@ -1,0 +1,7 @@
+method,error_on,mse_db,q2,r2,paper_kf_db,n_train_windows,steps_1hz
+"KF (tuned q2, r2)",full state,24.32,10000.0,1e-07,25.47,22,5210
+"KF (tuned q2, r2)",position,27.33,10000.0,1e-07,25.47,22,5210
+"KF (tuned q2, r2)",velocity,-15.23,10000.0,1e-07,25.47,22,5210
+Integrated odometry velocity,full state,24.31,,,25.47,22,5210
+Integrated odometry velocity,position,27.32,,,25.47,22,5210
+Integrated odometry velocity,velocity,-15.23,,,25.47,22,5210

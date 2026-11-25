@@ -64,7 +64,26 @@ reference code uses delta = 1 and nu = 0 dB; we follow the paper.
 - partial model with Q tuned on the validation split (grid 1e-2 ... 1e8 times the true Q): within
   1.3 dB of Table IV everywhere (0.4 dB at 20 and 40 dB). The paper does not describe its EKF set-up
   for Table IV; a tuned Q is the only way we found to reach its numbers.
-  
+
+## NCLT benchmark (`nclt.py`)
+
+Raw files: `groundtruth_2012-01-22.csv` and `2012-01-22/odometry_mu_100hz.csv` in `~/data/nclt`
+(override with `NCLT_DIR`). State `[p_x, v_x, p_y, v_y]` (x north, y east), measurement = velocity,
+Wiener velocity model per axis, dt = 1 s.
+
+Our choices where the paper is silent:
+
+- **Velocity measurement**: central difference of the 100 Hz wheel odometry position at 1 Hz,
+  rotated into the ground-truth frame with the ground-truth yaw at the first sample. Alternative:
+  `wheels.csv` (left/right wheel speed) projected with the odometry heading.
+- **Target velocity**: central difference of the ground-truth position at 1 Hz.
+- **Cleaning**: rows with NaN are dropped; both files are cut to their common time span.
+- **Windows**: non-overlapping, in time order: training (T = 200), validation (2 x 200), test
+  (1 x 277). Each window starts from its own ground-truth state. If the session is too short for 23
+  training windows, fewer are used (printed and stored in `meta`).
+- **KF check**: q^2 and r^2 grid-searched on the validation windows (the paper says only that the
+  KF's Q and R were "optimized through a grid search"); MSE is reported on the full state, on
+  position and on velocity, because the paper does not say which error its 25.47 dB refers to.
 ### Open point
 
 With r^2 = 1 the mismatched KF in `rotF10` / `rotF20` is about 33 / 51 dB worse than the KF with the

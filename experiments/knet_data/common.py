@@ -69,3 +69,36 @@ def load_dataset(path: Path) -> tuple[dict[str, np.ndarray], dict]:
         arrays = {k: f[k] for k in f.files if k != "meta"}
         meta = json.loads(str(f["meta"]))
     return arrays, meta
+
+
+
+
+def batched_ekf(y, f, F_jac, h, H_jac, Q, R, x0, P0):
+    """Extended Kalman filter run on many trajectories at once (vectorised over the batch).
+
+    Same equations as ``experiments/filter_family/filters.py::EKF`` (predict, then update with
+    the Joseph-form covariance), but every step processes all N trajectories together, which is
+    much faster in numpy. ``f``, ``h`` take (N, n); ``F_jac``, ``H_jac`` return (N, n, n) / (N, m, n).
+    ``y``: measurements (N, T, m). Returns posterior means (N, T, n) and covariances (N, T, n, n).
+    """
+    N, T, m = y.shape
+    n = Q.shape[0]
+    x = np.broadcast_to(np.asarray(x0, dtype=float), (N, n)).copy()
+    P = np.broadcast_to(np.asarray(P0, dtype=float), (N, n, n)).copy()
+    I = np.eye(n)
+    xs, Ps = np.empty((N, T, n)), np.empty((N, T, n, n))
+    for t in range(T):
+        # predict: P <- F P F^T + Q, with F the Jacobian at the previous estimate
+        Fj = F_jac(x)
+        x = f(x)
+        P = Fj @ P @ Fj.transpose(0, 2, 1) + Q
+        # update: S = H P H^T + R, K = P H^T S^-1, Joseph form for P
+        Hj = H_jac(x)
+        S = Hj @ P @ Hj.transpose(0, 2, 1) + R
+        K = np.linalg.solve(S, Hj @ P).transpose(0, 2, 1)
+        nu = y[:, t] - h(x)
+        x = x + np.einsum("nij,nj->ni", K, nu)
+        A = I - K @ Hj
+        P = A @ P @ A.transpose(0, 2, 1) + K @ R @ K.transpose(0, 2, 1)
+        xs[:, t], Ps[:, t] = x, P
+    return xs, Ps
