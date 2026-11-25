@@ -1,0 +1,13 @@
+scenario,T,nu_db,inv_r2_db,method,mse_db,ci_lo_db,ci_hi_db,predicted_db
+full,100,-20.0,0.0,KF true model,-7.412,-7.562,-7.265,-7.322
+full,100,-20.0,0.0,KF given model,-7.412,-7.562,-7.265,
+full,100,-20.0,0.0,Measurement only,-0.032,-0.091,0.026,
+rotF10,20,0.0,0.0,KF true model,-1.993,-2.149,-1.839,-1.957
+rotF10,20,0.0,0.0,KF given model,33.504,32.645,34.274,
+rotF10,20,0.0,0.0,Measurement only,-0.089,-0.226,0.047,
+rotF20,20,0.0,0.0,KF true model,-1.993,-2.146,-1.841,-1.951
+rotF20,20,0.0,0.0,KF given model,50.948,50.087,51.72,
+rotF20,20,0.0,0.0,Measurement only,-0.089,-0.226,0.047,
+rotH10,100,-20.0,0.0,KF true model,-7.402,-7.553,-7.257,-7.322
+rotH10,100,-20.0,0.0,KF given model,1.503,0.804,2.156,
+rotH10,100,-20.0,0.0,Measurement only,11.574,10.798,12.281,
