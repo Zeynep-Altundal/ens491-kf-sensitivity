@@ -102,3 +102,43 @@ def batched_ekf(y, f, F_jac, h, H_jac, Q, R, x0, P0):
         P = A @ P @ A.transpose(0, 2, 1) + K @ R @ K.transpose(0, 2, 1)
         xs[:, t], Ps[:, t] = x, P
     return xs, Ps
+
+
+
+
+def batched_eskf(y, f, F_jac, h, H_jac, Q, R, x0, P0):
+    """Error-state Kalman filter for a plain vector state, run on many trajectories at once.
+
+    Written in error-state form on purpose, to compare it with ``batched_ekf``:
+      - the nominal state x_nom is propagated with the full non-linear f (no noise),
+      - the filter estimates the error dx = x_true - x_nom, with covariance P,
+      - after an update the error is injected into the nominal state and reset to zero.
+    For a vector state the injection is a plain addition and the reset Jacobian is the identity,
+    so every step is algebraically the same as the EKF. The two differ only when the state lives
+    on a manifold (e.g. a quaternion attitude, as in ``experiments/eskf_sensitivity``), where the
+    injection is x_nom (+) dx and the reset Jacobian is not the identity.
+    """
+    N, T, m = y.shape
+    n = Q.shape[0]
+    x_nom = np.broadcast_to(np.asarray(x0, dtype=float), (N, n)).copy()
+    P = np.broadcast_to(np.asarray(P0, dtype=float), (N, n, n)).copy()
+    I = np.eye(n)
+    G = I                                   # reset Jacobian: identity for a vector state
+    xs, Ps = np.empty((N, T, n)), np.empty((N, T, n, n))
+    for t in range(T):
+        # 1) propagate the nominal state and the error covariance (the error mean stays zero)
+        Fj = F_jac(x_nom)
+        x_nom = f(x_nom)
+        P = Fj @ P @ Fj.transpose(0, 2, 1) + Q
+        # 2) estimate the error from the measurement residual
+        Hj = H_jac(x_nom)
+        S = Hj @ P @ Hj.transpose(0, 2, 1) + R
+        K = np.linalg.solve(S, Hj @ P).transpose(0, 2, 1)
+        dx = np.einsum("nij,nj->ni", K, y[:, t] - h(x_nom))
+        A = I - K @ Hj
+        P = A @ P @ A.transpose(0, 2, 1) + K @ R @ K.transpose(0, 2, 1)
+        # 3) inject the error into the nominal state, then reset the error to zero
+        x_nom = x_nom + dx
+        P = G @ P @ G.T
+        xs[:, t], Ps[:, t] = x_nom, P
+    return xs, Ps

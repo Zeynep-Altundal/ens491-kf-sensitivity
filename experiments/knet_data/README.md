@@ -84,6 +84,20 @@ Our choices where the paper is silent:
 - **KF check**: q^2 and r^2 grid-searched on the validation windows (the paper says only that the
   KF's Q and R were "optimized through a grid search"); MSE is reported on the full state, on
   position and on velocity, because the paper does not say which error its 25.47 dB refers to.
+
+  ## ESKF = EKF check (`eskf_equivalence.py`)
+
+In all four benchmarks the state is a plain vector, so the error-state KF (inject by addition,
+identity reset Jacobian) is algebraically the same filter as the EKF, and both equal the KF on the
+linear models. `common.batched_eskf` is written in error-state form (nominal state, error, inject,
+reset) and run next to `common.batched_ekf` and `linear_kf/kf.py` on every test split:
+ESKF and EKF give bit-identical estimates and covariances; KF and EKF differ by ~1e-14 (rounding).
+The two filters differ only on a manifold state such as the quaternion attitude in
+`experiments/eskf_sensitivity`. Run after the four dataset scripts:
+
+```
+python -m experiments.knet_data.eskf_equivalence
+```
 ### Open point
 
 With r^2 = 1 the mismatched KF in `rotF10` / `rotF20` is about 33 / 51 dB worse than the KF with the

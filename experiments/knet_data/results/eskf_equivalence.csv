@@ -1,0 +1,5 @@
+dataset,n_traj,T,max_abs_diff_eskf_ekf,max_abs_diff_P_eskf_ekf,mse_db_ekf,mse_db_eskf,max_abs_diff_kf_ekf,mse_db_kf
+linear (full),200,100,0.0,0.0,-7.4119,-7.4119,0.0,-7.4119
+sinusoidal (1/r2 = 0 dB),200,100,0.0,0.0,-19.6925,-19.6925,,
+"lorenz (full, 1/r2 = 10 dB)",200,2000,0.0,0.0,-20.4457,-20.4457,,
+nclt (test window),1,277,0.0,0.0,24.3205,24.3205,0.0,24.3205
