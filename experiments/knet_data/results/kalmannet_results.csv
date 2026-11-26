@@ -5,3 +5,13 @@ kalmannet_lorenz_full_inv_r2_+20.00dB_J2,lorenz,lorenz_full_inv_r2_+20.00dB,"Tay
 kalmannet_nclt_2012-01-22_model,nclt,nclt_2012-01-22,"F_model, H_model",2000,22,0.001,0.001,0,29088,13.806,1683,21.675,0.0,"KF (q2=10000, r2=1e-07 from nclt_check)",24.321,907.4,0.18
 kalmannet_linear_rotH10_model,linear,linear_rotH10,"F_model, H_model",4000,30,0.0001,0.001,0,5208,-6.204,3989,-6.293,1.152,"KF (given model, true Q, R)",1.503,644.9,0.09
 kalmannet_linear_full_model,linear,linear_full,"F_model, H_model",4000,30,0.0001,0.001,0,5208,-7.122,3990,-7.289,1.058,"KF (given model, true Q, R)",-7.412,619.3,0.07
+kalmannet_linear_full_model_s2,linear,linear_full,"F_model, H_model",4000,30,0.0001,0.001,2,5208,22.228,3288,23.291,6.226,"KF (given model, true Q, R)",-7.412,775.3,0.11
+kalmannet_linear_full_model_s1,linear,linear_full,"F_model, H_model",4000,30,0.0001,0.001,1,5208,10.008,3999,7.506,4.064,"KF (given model, true Q, R)",-7.412,794.5,0.15
+kalmannet_linear_rotH10_model_s2,linear,linear_rotH10,"F_model, H_model",4000,30,0.0001,0.001,2,5208,15.952,3998,17.023,6.683,"KF (given model, true Q, R)",1.503,822.9,0.1
+kalmannet_linear_rotH10_model_s1,linear,linear_rotH10,"F_model, H_model",4000,30,0.0001,0.001,1,5208,19.378,3999,16.091,6.251,"KF (given model, true Q, R)",1.503,843.3,0.13
+kalmannet_sinusoidal_inv_r2_+00.00dB_partial_s2,sinusoidal,sinusoidal_inv_r2_+00.00dB,partial parameters,2000,30,0.001,0.001,2,5208,-17.839,1878,-17.965,0.568,"EKF (partial model, true Q, R)",-6.895,429.1,0.15
+kalmannet_sinusoidal_inv_r2_+00.00dB_partial_s1,sinusoidal,sinusoidal_inv_r2_+00.00dB,partial parameters,2000,30,0.001,0.001,1,5208,-17.811,1886,-17.96,0.588,"EKF (partial model, true Q, R)",-6.895,435.2,0.19
+kalmannet_lorenz_rotH1_inv_r2_+10.00dB_J5_s2,lorenz,lorenz_rotH1_inv_r2_+10.00dB,"Taylor order J=5, H_model",2000,30,0.001,0.001,2,23928,-19.828,1826,-18.964,0.978,"EKF (J=5, H_model, true Q, R)",-16.115,1262.2,4.25
+kalmannet_lorenz_full_inv_r2_+20.00dB_J2_s2,lorenz,lorenz_full_inv_r2_+20.00dB,"Taylor order J=2, H_model",2000,30,0.001,0.001,2,23928,-25.518,1973,-26.434,0.19,"EKF (J=2, H_model, true Q, R)",-24.735,1205.3,6.71
+kalmannet_nclt_2012-01-22_model_s1,nclt,nclt_2012-01-22,"F_model, H_model",2000,22,0.001,0.001,1,29088,13.664,893,20.518,0.0,"KF (q2=10000, r2=1e-07 from nclt_check)",24.321,2349.6,0.21
+kalmannet_nclt_2012-01-22_model_s2,nclt,nclt_2012-01-22,"F_model, H_model",2000,22,0.001,0.001,2,29088,11.725,1036,14.897,0.0,"KF (q2=10000, r2=1e-07 from nclt_check)",24.321,2265.8,0.12

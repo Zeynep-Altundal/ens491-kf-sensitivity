@@ -121,3 +121,54 @@ true model: Rot(alpha) F0 has an eigenvalue of 1.46 / 1.59, so the state grows q
 steps and a wrong F gives large prediction errors. The paper reports only "a 3 dB gain" of
 KalmanNet over the model-based KF in Fig. 6a and gives no numbers; this has to be checked against
 the figure before comparing.
+
+## Sweeps (`sweep.py`, `sweeps/*.json`)
+
+A sweep file lists datasets (patterns with `*` allowed), the model given to KalmanNet and the seeds.
+`sweep.py` runs `kalmannet_run` once per (dataset, model, seed) as separate processes, optionally
+several at once (`--jobs`), skips runs that already have results (an interrupted sweep can simply be
+restarted) and writes `results/sweep_<name>_runs.csv` and `results/sweep_<name>_summary.csv`
+(mean and standard deviation over seeds, KF/EKF baseline, gain).
+
+If the training of a run becomes NaN, `kalmannet_run` stops at that step (exit code 3) and writes
+`diverged.json` (reason, step) instead of `results.npz`. The sweep reports the run as `DIVERGED`,
+does not retry it (same seed gives the same NaN; `--force` reruns it) and counts it in the summary
+(`n_diverged`, `diverged_seeds`). The mean over seeds is over the runs that did not diverge.
+On Lorenz `rotH1` 10 dB with the reference settings, seeds 1, 3 and 4 of 0–7 become NaN in the first
+training steps (the initial KalmanNet estimate already runs away on some trajectories).
+
+| Sweep | Runs | Content |
+|---|---|---|
+| `smoke` | 4 | two datasets, two seeds, 10 steps: checks the machinery in a minute |
+| `main` | 18 | the six first settings, seeds 0, 1, 2 |
+| `all` | 29 | every dataset and noise level, seed 0 |
+
+```
+python -m experiments.knet_data.sweep main --dry-run
+python -m experiments.knet_data.sweep main --jobs 2
+python -m experiments.knet_data.sweep main --collect
+```
+
+## Filter logs for the peak analysis (`export_logs.py`)
+
+Interface for the KalmanNet benchmarks, v1 (generic counterpart of the common interface of the
+drone experiments, `docs/common_interface.md` in `ens491-nkf`, sections 2 and 5):
+
+- **Recording** = the dataset file itself (`~/data/knet_benchmarks/<data>.npz`): truth `x_*`,
+  measurements `y_*`, initial state, `Q`, `R`, true and given models, `meta`. Only the test split is
+  used for the logs.
+- **Run log**, one file per filter: `~/data/knet_logs/<data>_<given>/<FILTER>.npz` with `t`,
+  `x_hat`, `err` (truth - estimate), `P`, `nees`, `innov`, `S`, `nis` and `meta` (filter, recording,
+  `source` = `kalmannet_linear` / `kalmannet_sine` / `kalmannet_lorenz` / `nclt`, given model, noise
+  given to the filter, state and measurement names). Arrays are float32.
+- Filters: KF (linear models), EKF, ESKF and, when a trained run exists, KalmanNet. KalmanNet has
+  no covariance, so `P`, `S`, `nees`, `nis` are NaN; its innovations are computed as
+  y_t - h(f(x_hat_{t-1})) with the given model, the same definition as for the other filters.
+- Same conventions as the drone logs: error = truth - estimate, NEES and NIS with the filter's own
+  covariances. Differences: the state is generic (not p, v, q, b), and NCLT keeps its own frame
+  (x north, y east), not ENU.
+
+```
+python -m experiments.knet_data.export_logs                     # all datasets (~2 min, ~450 MB)
+python -m experiments.knet_data.export_logs --data "linear_*"
+```

@@ -1,0 +1,12 @@
+{
+  "description": "The six settings of the first KalmanNet runs, with three seeds each (18 runs).",
+  "seeds": [0, 1, 2],
+  "runs": [
+    {"data": "linear_full"},
+    {"data": "linear_rotH10"},
+    {"data": "sinusoidal_inv_r2_+00.00dB", "given": "partial"},
+    {"data": "lorenz_rotH1_inv_r2_+10.00dB"},
+    {"data": "lorenz_full_inv_r2_+20.00dB", "given": "J2"},
+    {"data": "nclt_2012-01-22"}
+  ]
+}

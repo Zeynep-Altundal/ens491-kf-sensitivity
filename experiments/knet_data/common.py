@@ -73,16 +73,18 @@ def load_dataset(path: Path) -> tuple[dict[str, np.ndarray], dict]:
 
 
 
-def batched_ekf(y, f, F_jac, h, H_jac, Q, R, x0, P0):
+def batched_ekf(y, f, F_jac, h, H_jac, Q, R, x0, P0, return_innov=False):
     """Extended Kalman filter run on many trajectories at once (vectorised over the batch).
 
     Same equations as ``experiments/filter_family/filters.py::EKF`` (predict, then update with
     the Joseph-form covariance), but every step processes all N trajectories together, which is
     much faster in numpy. ``f``, ``h`` take (N, n); ``F_jac``, ``H_jac`` return (N, n, n) / (N, m, n).
-    ``y``: measurements (N, T, m). Returns posterior means (N, T, n) and covariances (N, T, n, n).
+    ``y``: measurements (N, T, m). Returns posterior means (N, T, n) and covariances (N, T, n, n);
+    with ``return_innov=True`` also the innovations (N, T, m) and their covariances S (N, T, m, m).
     """
     N, T, m = y.shape
     n = Q.shape[0]
+    nus, Ss = np.empty((N, T, m)), np.empty((N, T, m, m))
     x = np.broadcast_to(np.asarray(x0, dtype=float), (N, n)).copy()
     P = np.broadcast_to(np.asarray(P0, dtype=float), (N, n, n)).copy()
     I = np.eye(n)
@@ -100,13 +102,15 @@ def batched_ekf(y, f, F_jac, h, H_jac, Q, R, x0, P0):
         x = x + np.einsum("nij,nj->ni", K, nu)
         A = I - K @ Hj
         P = A @ P @ A.transpose(0, 2, 1) + K @ R @ K.transpose(0, 2, 1)
-        xs[:, t], Ps[:, t] = x, P
+        xs[:, t], Ps[:, t], nus[:, t], Ss[:, t] = x, P, nu, S
+    if return_innov:
+        return xs, Ps, nus, Ss
     return xs, Ps
 
 
 
 
-def batched_eskf(y, f, F_jac, h, H_jac, Q, R, x0, P0):
+def batched_eskf(y, f, F_jac, h, H_jac, Q, R, x0, P0, return_innov=False):
     """Error-state Kalman filter for a plain vector state, run on many trajectories at once.
 
     Written in error-state form on purpose, to compare it with ``batched_ekf``:
@@ -120,6 +124,7 @@ def batched_eskf(y, f, F_jac, h, H_jac, Q, R, x0, P0):
     """
     N, T, m = y.shape
     n = Q.shape[0]
+    nus, Ss = np.empty((N, T, m)), np.empty((N, T, m, m))
     x_nom = np.broadcast_to(np.asarray(x0, dtype=float), (N, n)).copy()
     P = np.broadcast_to(np.asarray(P0, dtype=float), (N, n, n)).copy()
     I = np.eye(n)
@@ -134,11 +139,14 @@ def batched_eskf(y, f, F_jac, h, H_jac, Q, R, x0, P0):
         Hj = H_jac(x_nom)
         S = Hj @ P @ Hj.transpose(0, 2, 1) + R
         K = np.linalg.solve(S, Hj @ P).transpose(0, 2, 1)
-        dx = np.einsum("nij,nj->ni", K, y[:, t] - h(x_nom))
+        nu = y[:, t] - h(x_nom)
+        dx = np.einsum("nij,nj->ni", K, nu)
         A = I - K @ Hj
         P = A @ P @ A.transpose(0, 2, 1) + K @ R @ K.transpose(0, 2, 1)
         # 3) inject the error into the nominal state, then reset the error to zero
         x_nom = x_nom + dx
         P = G @ P @ G.T
-        xs[:, t], Ps[:, t] = x_nom, P
+        xs[:, t], Ps[:, t], nus[:, t], Ss[:, t] = x_nom, P, nu, S
+    if return_innov:
+        return xs, Ps, nus, Ss
     return xs, Ps

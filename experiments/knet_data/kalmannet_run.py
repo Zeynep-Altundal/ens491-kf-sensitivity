@@ -17,7 +17,7 @@ KalmanNet itself is not reimplemented here: the script imports the authors' refe
    (training / validation split, best checkpoint on validation) and tests on the test split.
 4. Runs the KF/EKF with the same given model on the same test split, for comparison.
 5. Saves the KalmanNet estimates, per-trajectory errors and training curves to
-   ``~/data/knet_outputs/<run name>/results.npz`` (with ``best-model.pt``) and appends one summary
+   ``~/data/knet_outputs/kalmannet_<data>_<given>_s<seed>/results.npz`` (with ``best-model.pt``) and appends one summary
    row to ``results/kalmannet_results.csv``.
 
 Training settings default to those of the reference scripts: linear 4000 steps, lr 1e-4; all other
@@ -184,21 +184,58 @@ def classical_baseline(arrays: dict, meta: dict, given: str) -> tuple[str, np.nd
 # Run
 # --------------------------------------------------------------------------------------------
 
+def normalize_given(bench: str, given: str) -> str:
+    """Which model KalmanNet is given: sinusoidal partial|full, Lorenz J5|J2, otherwise 'model'."""
+    if bench == "sinusoidal":
+        return given if given in ("full", "partial") else "partial"
+    if bench == "lorenz":
+        return given if given in ("J5", "J2") else "J5"
+    return "model"
+
+
+def run_dir(data: str, given: str, seed: int, steps: int | None = None) -> Path:
+    """Output folder of one run (given must already be normalised).
+
+    A non-default number of training steps is part of the name, so short test runs never
+    replace or stand in for full runs.
+    """
+    suffix = f"_st{steps}" if steps else ""
+    return OUT_DIR / f"kalmannet_{data}_{given}_s{seed}{suffix}"
+
+
 def to_ref(a: np.ndarray):
     """(N, T, k) numpy -> (N, k, T) float32 torch, the layout of the reference code."""
     return torch.tensor(np.ascontiguousarray(a.transpose(0, 2, 1)), dtype=torch.float32)
 
 
-def run(data: str, given: str, steps: int | None, batch: int, lr: float | None, wd: float, seed: int) -> dict:
+class TrainingDiverged(RuntimeError):
+    """Raised when the training loss or the gradients become NaN/inf."""
+
+
+def stop_on_nan(pipe, model) -> None:
+    """Make the optimizer raise TrainingDiverged as soon as a gradient is NaN/inf.
+
+    Without this the reference loop keeps updating NaN weights until the last step and only then
+    fails, because best-model.pt was never saved (a NaN validation loss is never 'better').
+    """
+    adam_step = pipe.optimizer.step
+    count = {"step": 0}
+
+    def checked_step(*a, **k):
+        for p in model.parameters():
+            if p.grad is not None and not torch.isfinite(p.grad).all():
+                raise TrainingDiverged(f"gradient is NaN/inf at training step {count['step']}")
+        count["step"] += 1
+        return adam_step(*a, **k)
+
+    pipe.optimizer.step = checked_step
+
+
+def run(data: str, given: str, steps: int | None, batch: int, lr: float | None, wd: float, seed: int) -> dict | None:
     KalmanNetNN, Pipeline_EKF, args = import_reference()
     arrays, meta = load_dataset(DATA_DIR / f"{data}.npz")
     bench = meta["benchmark"]
-    if bench == "sinusoidal" and given not in ("full", "partial"):
-        given = "partial"
-    if bench == "lorenz" and given not in ("J5", "J2"):
-        given = "J5"
-    if bench in ("linear", "nclt"):
-        given = "model"
+    given = normalize_given(bench, given)
 
     torch.manual_seed(seed)
     random.seed(seed)       # the pipeline draws training batches with random.sample
@@ -223,8 +260,8 @@ def run(data: str, given: str, steps: int | None, batch: int, lr: float | None, 
     args.randomLength = False
     args.CompositionLoss = False
 
-    run_name = f"kalmannet_{data}_{given}"
-    out = OUT_DIR / run_name
+    out = run_dir(data, given, seed, steps)
+    run_name = out.name
     out.mkdir(parents=True, exist_ok=True)
 
     knet = KalmanNetNN()
@@ -234,6 +271,7 @@ def run(data: str, given: str, steps: int | None, batch: int, lr: float | None, 
     pipe.setssModel(sysmodel)
     pipe.setModel(knet)
     pipe.setTrainingParams(args)
+    stop_on_nan(pipe, knet)
 
     tr_in, tr_tg = to_ref(arrays["y_train"]), to_ref(arrays["x_train"])
     cv_in, cv_tg = to_ref(arrays["y_val"]), to_ref(arrays["x_val"])
@@ -245,9 +283,20 @@ def run(data: str, given: str, steps: int | None, batch: int, lr: float | None, 
     print(f"\n=== {run_name}: {bench}, given model: {model_desc}, {n_params} parameters, "
           f"{args.n_steps} steps, batch {args.n_batch}, lr {args.lr:g}, wd {args.wd:g} ===\n")
     t0 = time.time()
-    cv_lin, cv_db, tr_lin, tr_db = pipe.NNTrain(
-        sysmodel, cv_in, cv_tg, tr_in, tr_tg, str(out) + "/",
-        randomInit=random_init, cv_init=inits.get("val"), train_init=inits.get("train"))
+    try:
+        cv_lin, cv_db, tr_lin, tr_db = pipe.NNTrain(
+            sysmodel, cv_in, cv_tg, tr_in, tr_tg, str(out) + "/",
+            randomInit=random_init, cv_init=inits.get("val"), train_init=inits.get("train"))
+        if not (out / "best-model.pt").exists():   # validation loss was NaN at every step
+            raise TrainingDiverged("validation loss was never finite, no best-model.pt")
+    except TrainingDiverged as err:
+        # Keep a short note instead of results.npz, so the sweep can count diverged runs.
+        note = {"run": run_name, "data": data, "given_model": model_desc, "seed": seed,
+                "steps": args.n_steps, "lr": args.lr, "reason": str(err),
+                "time_s": round(time.time() - t0, 1)}
+        (out / "diverged.json").write_text(json.dumps(note, indent=2))
+        print(f"\nTRAINING DIVERGED: {err}\nwrote {out / 'diverged.json'}")
+        return None
     train_time = time.time() - t0
     _, _, test_db, x_out, infer_time = pipe.NNTest(
         sysmodel, te_in, te_tg, str(out) + "/", randomInit=random_init, test_init=inits.get("test"))
@@ -297,7 +346,9 @@ def main() -> None:
     ap.add_argument("--wd", type=float, default=1e-3)
     ap.add_argument("--seed", type=int, default=0)
     a = ap.parse_args()
-    run(a.data, a.given, a.steps, a.batch, a.lr, a.wd, a.seed)
+    row = run(a.data, a.given, a.steps, a.batch, a.lr, a.wd, a.seed)
+    if row is None:
+        sys.exit(3)   # exit code 3 = training diverged (NaN); sweep.py reports it as DIVERGED
 
 
 if __name__ == "__main__":

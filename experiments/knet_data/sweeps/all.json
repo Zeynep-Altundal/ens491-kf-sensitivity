@@ -1,0 +1,13 @@
+{
+  "description": "Every dataset and noise level, one seed (29 runs). Change seeds to [0, 1, 2] for a full study.",
+  "seeds": [0],
+  "runs": [
+    {"data": "linear_*"},
+    {"data": "sinusoidal_inv_r2_*", "given": "partial"},
+    {"data": "sinusoidal_inv_r2_*", "given": "full"},
+    {"data": "lorenz_full_inv_r2_*", "given": "J5"},
+    {"data": "lorenz_full_inv_r2_*", "given": "J2"},
+    {"data": "lorenz_rotH1_inv_r2_*"},
+    {"data": "nclt_2012-01-22"}
+  ]
+}

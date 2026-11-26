@@ -1,0 +1,9 @@
+{
+  "description": "Quick check of the sweep machinery: two datasets, two seeds, 10 training steps.",
+  "seeds": [0, 1],
+  "steps": 10,
+  "runs": [
+    {"data": "linear_rotH10"},
+    {"data": "sinusoidal_inv_r2_+00.00dB", "given": "partial"}
+  ]
+}
