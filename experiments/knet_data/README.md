@@ -98,6 +98,22 @@ The two filters differ only on a manifold state such as the quaternion attitude 
 ```
 python -m experiments.knet_data.eskf_equivalence
 ```
+
+## KalmanNet on our datasets (`kalmannet_run.py`)
+
+Trains and tests the authors' reference KalmanNet (architecture 2; outside this repository, path in
+`KNET_REPO`, default `~/ens491/KalmanNet_TSP`) on one of our `.npz` files. KalmanNet is given the
+same model as the classical filters (`F_model`/`H_model`; sinusoidal `--given partial|full`; Lorenz
+`--given J5|J2`), so under mismatch both start from the same wrong model. The KF/EKF with that model
+is run on the same test split for comparison. Training settings follow the reference scripts
+(linear: 4000 steps, lr 1e-4; others: 2000 steps, lr 1e-3; batch 30, weight decay 1e-3); CPU only.
+Outputs: `~/data/knet_outputs/<run>/results.npz` and `best-model.pt`, plus one row per run in
+`results/kalmannet_results.csv`.
+
+```
+python -m experiments.knet_data.kalmannet_run --data linear_rotH10 --steps 50     # quick check
+python -m experiments.knet_data.kalmannet_run --data "sinusoidal_inv_r2_+00.00dB" --given partial
+```
 ### Open point
 
 With r^2 = 1 the mismatched KF in `rotF10` / `rotF20` is about 33 / 51 dB worse than the KF with the
