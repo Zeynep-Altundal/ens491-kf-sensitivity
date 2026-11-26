@@ -26,7 +26,9 @@ print(f"SMOKE kit_version={app.get_kit_version()}", flush=True)
 print(f"SMOKE app_version={app.get_app_version()}", flush=True)
 
 tokens = carb.tokens.get_tokens_interface()
-for name in ("home", "data", "cache", "logs", "documents", "shared_data", "app_data", "temp"):
+for name in ("home", "data", "cache", "logs", "documents", "temp", "omni_config", "omni_data", "omni_logs",
+             "omni_cache", "omni_global_config", "omni_global_data", "omni_global_logs", "omni_global_cache",
+             "omni_documents", "shared_documents", "app_documents"):
     print(f"SMOKE token {name}={tokens.resolve('${' + name + '}')}", flush=True)
 
 world = World(stage_units_in_meters=1.0, physics_dt=1.0 / 250.0, rendering_dt=1.0 / 60.0)

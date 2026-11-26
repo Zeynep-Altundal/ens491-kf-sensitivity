@@ -35,6 +35,37 @@ export TMPDIR="${SANDBOX}/tmp"
 export __GL_SHADER_DISK_CACHE_PATH="${SANDBOX}/cache/nvidia"
 export PIP_CACHE_DIR="${SANDBOX}/cache/pip"
 export PYTHONNOUSERSITE=1
+export CUDA_CACHE_PATH="${SANDBOX}/cache/ComputeCache"
+
+# Kit settings that move every remaining per-user location into the sandbox. They are appended
+# only when a script is run (SimulationApp passes unknown arguments on to Kit), not for `-m pip`.
+PORTABLE="${SANDBOX}/portable"
+GLOBAL="${SANDBOX}/global"
+mkdir -p "${PORTABLE}/logs" "${PORTABLE}/structuredlog" "${GLOBAL}"/{config,data,logs,cache,documents}
+PRIVACY="${SANDBOX}/config/privacy.toml"
+if [ ! -f "${PRIVACY}" ]; then
+    printf '[privacy]\nperformance = false\npersonalization = false\nusage = false\n' > "${PRIVACY}"
+fi
+KIT_ISOLATION_ARGS=(
+    "--portable-root" "${PORTABLE}"
+    "--/structuredLog/enable=false"
+    "--/structuredLog/logDirectory=${PORTABLE}/structuredlog"
+    "--/structuredLog/privacySettingsFile=${PRIVACY}"
+    "--/telemetry/enableAnonymousData=false"
+    "--/telemetry/log/file=${PORTABLE}/logs/omni.telemetry.transmitter.log"
+    "--/app/tokens/omni_global_config=${GLOBAL}/config"
+    "--/app/tokens/omni_global_data=${GLOBAL}/data"
+    "--/app/tokens/omni_global_logs=${GLOBAL}/logs"
+    "--/app/tokens/omni_global_cache=${GLOBAL}/cache"
+    "--/app/tokens/omni_config=${PORTABLE}/config"
+    "--/app/tokens/omni_data=${PORTABLE}/data"
+    "--/app/tokens/omni_logs=${PORTABLE}/logs"
+    "--/app/tokens/omni_cache=${PORTABLE}/cache"
+    "--/app/tokens/omni_documents=${GLOBAL}/documents"
+    "--/app/tokens/shared_documents=${GLOBAL}/documents/shared"
+    "--/app/tokens/app_documents=${GLOBAL}/documents/app"
+    "--/app/tokens/documents=${GLOBAL}/documents"
+)
 
 # Remove the ROS 2 environment of the calling shell.
 for v in $(compgen -e); do
@@ -48,4 +79,7 @@ export PATH
 export ROS_LOCALHOST_ONLY=1
 export ROS_DOMAIN_ID=101
 
+if [[ "${1:-}" == *.py ]]; then
+    exec "${ISAACSIM_PATH}/python.sh" "$@" "${KIT_ISOLATION_ARGS[@]}"
+fi
 exec "${ISAACSIM_PATH}/python.sh" "$@"
