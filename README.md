@@ -15,6 +15,7 @@ neural error-state Kalman filters (ESKF) for inertial navigation without GNSS.
 | `synthetic/` | Scenario generator: noise, bias drift, outliers, dropout and motion profiles. |
 | `experiments/` | Experiment code and results. |
 | `report/` | LaTeX report generated from the CSV files and figures of the repository. |
+| `simulation/` | Simulation environments for drone recordings: abandoned Isaac Sim attempt and the ROS 2 / RViz quadrotor simulation. |
 | `experiments/common/` | Shared bootstrap utilities for confidence intervals over Monte Carlo runs. |
 | `experiments/linear_kf/` | Linear Kalman filter mis-tuning study on a linear Gaussian model (Layer A). |
 | `experiments/filter_family/` | KF, EKF, IEKF, UKF and adaptive filter behind one interface; equivalence tests and a range-bearing comparison. |

@@ -1,0 +1,59 @@
+Panels:
+  - Class: rviz_common/Displays
+    Name: Displays
+  - Class: rviz_common/Views
+    Name: Views
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Class: rviz_default_plugins/Grid
+      Name: Grid
+      Enabled: true
+      Reference Frame: <Fixed Frame>
+      Cell Size: 1
+      Plane Cell Count: 20
+    - Class: rviz_default_plugins/TF
+      Name: TF
+      Enabled: true
+      Marker Scale: 0.5
+      Show Names: true
+    - Class: rviz_default_plugins/Marker
+      Name: Drone
+      Enabled: true
+      Topic:
+        Value: /drone/marker
+    - Class: rviz_default_plugins/Path
+      Name: Truth path
+      Enabled: true
+      Color: 25; 255; 0
+      Topic:
+        Value: /drone/truth/path
+    - Class: rviz_default_plugins/PointStamped
+      Name: Position measurement
+      Enabled: true
+      Color: 204; 41; 204
+      Radius: 0.08
+      History Length: 20
+      Topic:
+        Value: /drone/position
+  Enabled: true
+  Global Options:
+    Fixed Frame: world
+    Background Color: 48; 48; 48
+    Frame Rate: 30
+  Tools:
+    - Class: rviz_default_plugins/MoveCamera
+  Views:
+    Current:
+      Class: rviz_default_plugins/Orbit
+      Distance: 14
+      Focal Point:
+        X: 0
+        Y: 0
+        Z: 1.5
+      Pitch: 0.6
+      Yaw: 0.8
+      Target Frame: <Fixed Frame>
+Window Geometry:
+  Height: 900
+  Width: 1400
