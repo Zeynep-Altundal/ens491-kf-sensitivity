@@ -12,6 +12,8 @@
 \usetikzlibrary{positioning,arrows.meta}
 \usepackage[numbers,sort&compress]{natbib}
 \usepackage{url}
+% allow line breaks in file paths after these characters
+\renewcommand{\UrlBreaks}{\do\/\do\_\do\.\do\-}
 \usepackage[hidelinks]{hyperref}
 \usepackage{caption}
 
@@ -63,7 +65,10 @@ position updates; (Q3) which filter component, if any, is a reasonable target fo
 
 The report answers these questions with controlled synthetic experiments, in which the data are
 generated from the filter's model family with one property changed at a time, and with a
-characterisation of one KITTI and one EuRoC sequence. \textbf{The learned estimator is a prototype on
+characterisation of one KITTI and one EuRoC sequence. The classical filters are also evaluated on a
+reconstruction of the Lorenz-attractor benchmark of the KalmanNet paper; an exploratory attempt to
+train the reference KalmanNet code did not produce a trained network (Section~\ref{sec:lorenz}).
+\textbf{The learned estimator is a prototype on
 a linear two-state model; it is not integrated into the ESKF} and has not been evaluated on the
 nonlinear benchmark, on inertial data or on real data. The report does not claim that any filter, or
 the learned estimator, is better in general, and it does not identify the noise parameters of the
@@ -148,7 +153,9 @@ trained through the differentiable filter \citep{haarnoja2016}; linear model onl
 \textbf{Learned process noise $Q_t$} \todo{citation needed: learned process noise for inertial
 navigation}.\status{Literature Review Only}\\
 \textbf{Learned gain} \citep{revach2022}: a network replaces the gain computation; no covariance
-with a probabilistic meaning is carried.\status{Literature Review Only}
+with a probabilistic meaning is carried. The reference code was run outside this repository in an
+exploratory attempt that did not train (Section~\ref{sec:lorenz}); no learned gain is implemented
+here.\status{Literature Review Only}
 
 \begin{table}[htbp]
 \centering\small
@@ -174,7 +181,7 @@ Adaptive and learned & Residual-based adaptive & $R$ stationary within a window 
  & Innovation-based adaptive & as above & indefinite estimate & $+O(m^2)$ & Implemented Only\\
  & Learned $R_t$ & training data representative & distribution shift, miscalibration & network & Implemented and Tested (linear model)\\
  & Learned $Q_t$ & as above & as above & network & Literature Review Only\\
- & Learned gain & as above & distribution shift, no covariance & network & Literature Review Only\\
+ & Learned gain & as above & distribution shift, no covariance & network & Literature Review Only (reference code run, not trained)\\
 \bottomrule
 \end{tabular}}
 \end{table}
@@ -364,6 +371,67 @@ mean NIS changes by at most \MisNISmaxchange{} (misalignment) and \SFNISmaxchang
 (Table~\ref{tab:main_mismatch}). The innovation statistics, on which adaptive and learned
 covariances are trained, therefore carry little signal of these errors.
 
+\subsection{Lorenz benchmark of the KalmanNet paper}\label{sec:lorenz}
+
+\paragraph{Reconstructed setup.} The Lorenz-attractor experiments of the paper \citep{revach2022}
+(arXiv version 3, Section IV-D, Tables V and VII) were reconstructed from the paper and from the
+reference code repository linked in it (\path{github.com/KalmanNet/KalmanNet_TSP}, commit
+\texttt{828a2cf}). \textbf{The reference repository carries no licence; no KalmanNet source file was
+copied into this repository}: the model was re-implemented from the equations, the shipped data file
+was not used, and the reference code was only run from a temporary clone outside the repository.
+The parameters and their sources (file and line of the reference commit) are listed in
+\path{experiments/filter_family/README.md}: Lorenz dynamics discretised by a Taylor expansion of
+order 5 with step 0.02, identity observation, $Q=q^2I$, $R=r^2I$ with $q^2/r^2=-20$\,dB, the paper's
+grid of $1/r^2$, trajectories of 2000 steps, and the state-evolution mismatch in which the filters
+use order 2. All filters of this repository receive the true $Q$ and $R$; nothing was tuned.
+
+\input{generated/tab_lorenz_comp.tex}
+
+\paragraph{Agreement and disagreement.} \obs{} With full information our EKF agrees with the
+paper's EKF within \LorEKFlowMaxAbsDiff\,dB from 0 to 30\,dB, inside the spread reported by the
+paper; at 40\,dB it differs by \LorEKFhighDiff\,dB. \obs{} Our UKF equals our EKF to rounding,
+while the paper's UKF has a higher MSE: the differences (this study minus paper) range from
+\LorUKFdiffMin{} to \LorUKFdiffMax{} dB; this is a disagreement. \obs{} Under the J = 2 mismatch the filters of this repository level
+off near \LorJtwoPlateau\,dB at high $1/r^2$, whereas the paper reports substantially lower values;
+this is a disagreement. Only \LorInsideCount{} of the \LorCompTotal{} paper values lie inside our
+bootstrap intervals (Table~\ref{tab:lorenz_comp}, Figure~\ref{fig:lorenz}). \obs{} The adaptive
+filter loses the track under the mismatch at the highest $1/r^2$ (MSE \LorAdaptJtwoForty\,dB;
+Table~\ref{tab:lorenz_summary}). Possible reasons, all \openlbl{} and untested: the paper's
+model-based filters were tuned by a grid search over the filter $Q$, whose values are not reported;
+the placement of the state-dependent matrix $A(x)$ differs between paper and code and changes the
+discrete model from Taylor order two on; the paper's UKF is not part of the repository; the test-set
+size and seeds are not stated; single versus double precision.
+
+\begin{figure}[htbp]\centering
+\includegraphics[width=0.9\linewidth]{filter_family/figures/lorenz_mse.png}
+\caption{Lorenz attractor: MSE versus $1/r^2$ for the filters of this study, with the paper's EKF and
+UKF values as markers; full information (left) and J = 2 mismatch (right). Source:
+\path{experiments/filter_family/figures/lorenz_mse.png}.}\label{fig:lorenz}
+\end{figure}
+
+\paragraph{Exact Jacobian versus the reference EKF.} The reference code linearises the state
+transition with $F(x)$ itself instead of the Jacobian of $F(x)\,x$. \ver{} On the test trajectories
+exported from an exploratory run of the reference code, our EKF with that convention (EKF-F)
+reproduces the reference EKF (\LorOurEKFF\,dB, spread \LorOurEKFFspread\,dB, against
+\LorRefEKF\,dB and \LorRefEKFspread\,dB), which checks the re-implemented model against the code.
+\obs{} The EKF with the exact Jacobian has a lower MSE (\LorOurEKF\,dB) and a mean NEES close to 3,
+while EKF-F has a higher NEES (Table~\ref{tab:lorenz_knet}).
+
+\input{generated/tab_lorenz_knet.tex}
+
+\paragraph{KalmanNet runs (exploratory).} \obs{} The reference KalmanNet code, run with its default
+Lorenz configuration (full information) and default hyperparameters, produced a finite training loss
+only at the first step (\LorKnetFirstTrain\,dB) and non-finite losses afterwards; the run was stopped
+after \LorKnetSteps{} logged steps, no checkpoint was saved and \textbf{no KalmanNet test result
+exists}. KalmanNet outputs state estimates only, so NEES and NIS could not be computed for it in any
+case. \ver{} A diagnosis on one training batch with the untrained network (Table~\ref{tab:lorenz_diag})
+locates the first non-finite value in the forward pass: one trajectory's estimate grows to
+\LorDiagState{} at step \LorDiagStep{}, and the Taylor term of order \LorDiagTaylor{} of the reference
+state-transition function overflows single precision. \hyp{} The failed training run has the same
+mechanism. No compatibility fix for the installed PyTorch (\LorDiagTorch) applies without changing
+the model or the training, and an environment with the PyTorch version of the reference code could
+not be created with the tools installed; whether that configuration trains there is \openlbl.
+
 \subsection{Supporting evidence}\label{sec:support}
 
 \paragraph{ESKF sensitivity and consistency.} \obs{} With the true parameters the full-state and all
@@ -478,7 +546,9 @@ setting; intervals are wide for heavy-tailed quantities. (iv) \emph{Non-independ
 the KITTI reference is the unit's own navigation solution and the EuRoC estimate uses the IMU.
 (v) \emph{Unverified explanations}: statements labelled \hyp{} and Appendix~\ref{app:open}.
 (vi) \emph{Linear-model-only prototype}: the learned $R_t$ was trained and evaluated on the linear
-model only and is not integrated into the ESKF.
+model only and is not integrated into the ESKF. (vii) \emph{No KalmanNet comparison}: the reference
+KalmanNet code did not train in the available environment, and the reconstruction of the paper's
+Lorenz setting contains ambiguities (form of $A(x)$, tuned filter $Q$, UKF settings).
 
 \paragraph{Next steps.}
 (1) Run the adaptive and the learned $R_t$ inside the ESKF under misalignment and scale factor, to
@@ -487,7 +557,10 @@ range-bearing benchmark, and address the bound on $\alpha_t$ in a new pre-regist
 changing the existing results. (3) Run the attitude-reference control initialised around the sensor
 attitude. (4) Obtain static IMU recordings for an Allan analysis \citep{allan1966} and evaluate on
 several sequences per dataset. (5) Resolve the open citation items and the match of the implemented
-adaptive rule with the cited estimator.
+adaptive rule with the cited estimator. (6) Create an environment with the PyTorch version of the
+reference KalmanNet code (an older Python and an environment manager are needed) and repeat the
+exploratory run; any change of precision or initialisation would be a separate, pre-registered
+amendment.
 
 \bibliographystyle{plainnat}
 \bibliography{refs}
@@ -665,6 +738,7 @@ profiles. Source: \texttt{analysis/dataset\_char/figures/motion\_comparison.png}
 \subsection*{Filter family}
 \input{generated/tab_ff_runtime.tex}
 \input{generated/tab_ff_closure.tex}
+\input{generated/tab_ff_closure_cons.tex}
 \input{generated/tab_ff_paired.tex}
 \subsection*{ESKF}
 \input{generated/tab_es_closure.tex}
@@ -702,6 +776,9 @@ profiles. Source: \texttt{analysis/dataset\_char/figures/motion\_comparison.png}
 \input{generated/tab_nr_bound.tex}
 \input{generated/tab_nr_alpha.tex}
 \input{generated/tab_nr_slopes.tex}
+\subsection*{Lorenz benchmark}
+\input{generated/tab_lorenz_summary.tex}
+\input{generated/tab_lorenz_diag.tex}
 \subsection*{Real data}
 \input{generated/tab_ds_summary.tex}
 \input{generated/tab_ds_generator.tex}
@@ -741,6 +818,10 @@ python -m experiments.neural_r.train
 python -m experiments.neural_r.evaluate
 python -m experiments.neural_r.inspect_saturation
 python -m analysis.dataset_char.characterise
+OMP_NUM_THREADS=1 \
+    python -m experiments.filter_family.lorenz
+python -m experiments.filter_family.lorenz_knet_baseline <folder>
+python -m experiments.filter_family.lorenz_knet_diagnosis <clone>
 python report/make_tables.py
 python report/check_tex.py
 python report/package.py
@@ -767,6 +848,13 @@ measurements and contains estimated biases; it is therefore not independent of t
 generator's accelerometer noise and random-walk defaults equal the values in that file and its
 gyroscope defaults are close to them (\texttt{synthetic/README.md}).
 
+\textbf{Lorenz benchmark}: reference repository \path{github.com/KalmanNet/KalmanNet_TSP}, commit
+\texttt{828a2cf529bc84f43b37d543d916fe5858054457}, no licence; cloned outside this repository; no
+source file or data file copied; the exploratory runs used a small patch (device, full-information
+switch, enabled reference EKF, seeds, export of the test trajectories as plain arrays, loading of
+the model saved in the same run) kept outside the repository and described in
+\path{experiments/filter_family/README.md}.
+
 Neither sequence contains a static segment under the stated criterion; no Allan deviation was
 computed and the noise parameters are not identifiable. The raw data were read from their local
 locations and are not part of the repository.
@@ -790,6 +878,10 @@ INS/GPS paper exactly; volume and pages of that reference. & Check against the p
 \ref{app:data} & Internal processing of the EuRoC sensor; cause of its vibration level. & Sensor documentation, static recording.\\
 \ref{app:data} & Cause of the KITTI mismatch between finite-difference position and reported velocity. & Ellipsoidal conversion, timing analysis.\\
 \ref{sec:which} & Whether innovation-based adaptation detects structural IMU mismatch. & Adaptive or learned ESKF under misalignment and scale factor.\\
+\ref{sec:lorenz} & Which placement of $A(x)$ (paper or code) produced the published Lorenz values. & Statement of the reference authors or older code versions.\\
+\ref{sec:lorenz} & Filter $Q$ used by the paper's tuned model-based filters; UKF parameters; test-set size and seeds. & Not reported; would need the reference authors.\\
+\ref{sec:lorenz} & Causes of the disagreement for the UKF and under the J = 2 mismatch. & Runs with the paper's tuned $Q$, if available.\\
+\ref{sec:lorenz} & Whether the reference KalmanNet configuration trains with its own PyTorch version. & Environment with an older Python and that PyTorch version.\\
 \bottomrule
 \end{longtable}
 

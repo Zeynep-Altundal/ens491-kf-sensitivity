@@ -1,0 +1,22 @@
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Exploratory reference run (default Lorenz configuration of the reference code, full information, rotated observation, $1/r^2 = 10$\,dB, T = 100): reference-code results on its test set and the filters of this repository on the same exported trajectories and on an independent realisation. No KalmanNet result exists (training failed). Source: \path{experiments/filter_family/results/lorenz_knet_baseline.csv}.}\label{tab:lorenz_knet}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lllllll}
+\toprule
+Source & Test data & Method & MSE [dB] & Spread [dB] & NEES & NIS \\
+\midrule
+reference repository & reference test set & EKF (reference code) & -19.66 & 1.31 & -- & -- \\
+reference repository & reference test set & observation noise floor & -10.03 & 0.361 & -- & -- \\
+this repository & same test trajectories (exported) & EKF & -20.31 [-20.49, -20.12] & 1.13 & 3.02 & 2.98 \\
+this repository & same test trajectories (exported) & EKF-F & -19.66 [-19.87, -19.45] & 1.31 & 4.35 & 3.05 \\
+this repository & same test trajectories (exported) & IEKF & -20.31 [-20.49, -20.12] & 1.13 & 3.02 & 2.98 \\
+this repository & same test trajectories (exported) & UKF & -20.31 [-20.48, -20.12] & 1.12 & 3.02 & 2.98 \\
+this repository & independent realisation (seed 0) & EKF & -20.42 [-20.59, -20.24] & 1.10 & 3.01 & 3.01 \\
+this repository & independent realisation (seed 0) & EKF-F & -19.77 [-19.98, -19.55] & 1.33 & 4.34 & 3.08 \\
+this repository & independent realisation (seed 0) & IEKF & -20.42 [-20.59, -20.24] & 1.10 & 3.01 & 3.01 \\
+this repository & independent realisation (seed 0) & UKF & -20.42 [-20.59, -20.24] & 1.10 & 3.01 & 3.01 \\
+\bottomrule
+\end{tabular}}
+\end{table}

@@ -76,7 +76,7 @@ def main() -> int:
     builtin_like = set(re.findall(r"\\(\w+)", text))
     numbers = set(re.findall(r"\\newcommand\{\\(\w+)\}", files.get("generated/numbers.tex", "")))
     for m in sorted(builtin_like):
-        if m[0].isupper() and m not in defined and m not in {"Exp", "Log"} and len(m) > 3 \
+        if m[0].isupper() and m not in defined and m not in {"Exp", "Log", "UrlBreaks"} and len(m) > 3 \
                 and re.search(r"[a-z][A-Z]", m) and m not in numbers:
             errors.append(f"possibly undefined macro \\{m}")
     todos = re.findall(r"\\todo\{([^}]*)\}", main_tex)

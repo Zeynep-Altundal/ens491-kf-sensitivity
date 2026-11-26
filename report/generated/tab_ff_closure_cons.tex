@@ -1,0 +1,38 @@
+{\scriptsize
+\begin{longtable}{llll}
+\caption{Range-bearing benchmark, same settings as Table~\ref{tab:ff_closure}: mean NEES (expected 4) and mean NIS (expected 2) with 95\,\% intervals. Source: \path{experiments/filter_family/results/closure_summary.csv}.}\label{tab:ff_closure_cons}\\
+\toprule
+Setting & Filter & Mean NEES & Mean NIS \\
+\midrule
+\endfirsthead
+\toprule
+Setting & Filter & Mean NEES & Mean NIS \\
+\midrule
+\endhead
+nominal & EKF & 4.10 [3.93, 4.28] & 2.04 [1.99, 2.09] \\
+nominal & IEKF & 4.03 [3.87, 4.20] & 2.03 [1.99, 2.08] \\
+nominal & UKF & 4.03 [3.86, 4.20] & 2.02 [1.97, 2.07] \\
+nominal & AdaptiveEKF & 4.36 [4.17, 4.56] & 2.23 [2.20, 2.26] \\
+initial std 40 m & EKF & 179 [112, 258] & 8.14 [6.07, 10.4] \\
+initial std 40 m & IEKF & 4.10 [3.93, 4.29] & 2.04 [1.99, 2.09] \\
+initial std 40 m & UKF & 4.21 [3.99, 4.44] & 2.04 [1.95, 2.16] \\
+initial std 40 m & AdaptiveEKF & 181 [113, 261] & 7.95 [5.93, 10.2] \\
+bearing noise 0.5 rad & EKF & 359 [77.2, 883] & 2.16 [2.08, 2.25] \\
+bearing noise 0.5 rad & IEKF & 209 [138, 296] & 2.31 [2.22, 2.41] \\
+bearing noise 0.5 rad & UKF & 12.8 [8.57, 18.4] & 1.47 [1.42, 1.52] \\
+bearing noise 0.5 rad & AdaptiveEKF & 1078 [84.2, 2796] & 2.13 [2.09, 2.17] \\
+R x 100 & EKF & 2.41 [2.20, 2.63] & 0.119 [0.110, 0.129] \\
+R x 100 & IEKF & 2.36 [2.17, 2.57] & 0.119 [0.110, 0.129] \\
+R x 100 & UKF & 2.40 [2.22, 2.61] & 0.118 [0.108, 0.128] \\
+R x 100 & AdaptiveEKF & 3.25 [3.08, 3.43] & 1.11 [1.08, 1.14] \\
+Q x 0.01 & EKF & 151 [138, 164] & 6.21 [5.77, 6.69] \\
+Q x 0.01 & IEKF & 150 [137, 164] & 6.21 [5.76, 6.69] \\
+Q x 0.01 & UKF & 149 [136, 162] & 6.15 [5.71, 6.62] \\
+Q x 0.01 & AdaptiveEKF & 180 [162, 201] & 3.67 [3.55, 3.78] \\
+P0 x 100 & EKF & 4.11 [3.93, 4.29] & 1.98 [1.93, 2.02] \\
+P0 x 100 & IEKF & 4.00 [3.84, 4.18] & 1.97 [1.92, 2.02] \\
+P0 x 100 & UKF & 3.64 [3.49, 3.80] & 1.78 [1.73, 1.82] \\
+P0 x 100 & AdaptiveEKF & 4.37 [4.18, 4.57] & 2.17 [2.14, 2.20] \\
+\bottomrule
+\end{longtable}
+}

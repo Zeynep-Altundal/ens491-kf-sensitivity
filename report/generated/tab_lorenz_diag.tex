@@ -1,0 +1,24 @@
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Exploratory diagnosis of the non-finite KalmanNet loss (one training batch of the default configuration, untrained network). Source: \path{experiments/filter_family/results/lorenz_knet_nan_diagnosis.csv}.}\label{tab:lorenz_diag}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lp{0.55\linewidth}}
+\toprule
+Quantity & Value \\
+\midrule
+training data finite & True \\
+first step with a non-finite value (0-based) & 73 \\
+non-finite quantities at that step & m1x\_prior;m1y;KGain;m1x\_posterior \\
+affected batch rows & 24 \\
+first sub-modules with non-finite output & FC7;GRU\_S;FC2;FC3;FC4 \\
+max abs state of the affected row at the previous step & $7.658\times10^{17}$ \\
+float32 maximum & $3.403\times10^{38}$ \\
+first non-finite Taylor term (order j) & 5 \\
+operation & torch.matrix\_power(A*delta\_t, j) in f (Simulations/Lorenz\_Atractor/parameters.py:90) \\
+batch loss finite (anomaly run) & False \\
+anomaly detection message & Function 'MseLossBackward0' returned nan values in its 0th output. \\
+PyTorch version & 2.15.0+cpu \\
+\bottomrule
+\end{tabular}}
+\end{table}

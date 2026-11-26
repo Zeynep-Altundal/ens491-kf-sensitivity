@@ -170,12 +170,16 @@ def linear_kf() -> None:
 
 def filter_family() -> None:
     src = FF / "closure_summary.csv"
-    out = [[esc(r["setting"]), esc(r["filter"]), r["n_diverged"], ci(r, "pos_rmse"), ci(r, "mean_nees"),
-            ci(r, "mean_nis")] for r in read(src)]
-    table("ff_closure", "Range-bearing benchmark, N = 100 runs, 60 steps: divergence count and metrics "
-          "over non-diverged runs with 95\\,\\% intervals. Expected NEES 4, NIS 2.", [src],
-          ["Setting", "Filter", "Div.", "Position RMSE [m]", "Mean NEES", "Mean NIS"], out, long=True,
-          size="\\scriptsize")
+    # Split in two long tables so that each fits the text width (a longtable cannot be scaled).
+    out = [[esc(r["setting"]), esc(r["filter"]), r["n_diverged"], ci(r, "pos_rmse")] for r in read(src)]
+    table("ff_closure", "Range-bearing benchmark, N = 100 runs, 60 steps: divergence count and position "
+          "RMSE over non-diverged runs with 95\\,\\% intervals (consistency in "
+          "Table~\\ref{tab:ff_closure_cons}).", [src],
+          ["Setting", "Filter", "Div.", "Position RMSE [m]"], out, long=True, size="\\scriptsize")
+    out = [[esc(r["setting"]), esc(r["filter"]), ci(r, "mean_nees"), ci(r, "mean_nis")] for r in read(src)]
+    table("ff_closure_cons", "Range-bearing benchmark, same settings as Table~\\ref{tab:ff_closure}: mean "
+          "NEES (expected 4) and mean NIS (expected 2) with 95\\,\\% intervals.", [src],
+          ["Setting", "Filter", "Mean NEES", "Mean NIS"], out, long=True, size="\\scriptsize")
     qd = next(r for r in read(src) if r["setting"] == "Q x 0.01" and r["filter"] == "AdaptiveEKF")
     macro("FFAdaptQdiv", qd["n_diverged"])
     nom = next(r for r in read(src) if r["setting"] == "nominal" and r["filter"] == "AdaptiveEKF")
@@ -805,6 +809,92 @@ def main_tables() -> None:
           out, size="\\scriptsize")
 
 
+# --------------------------------------------------------------------------------------------
+# Lorenz benchmark of the KalmanNet paper
+# --------------------------------------------------------------------------------------------
+
+def lorenz() -> None:
+    src = FF / "lorenz_comparison.csv"
+    rows = read(src)
+    out = [[esc(r["paper_table"]), esc(r["setting"]), num(r["inv_r2_dB"]), esc(r["filter"]),
+            num(r["paper_mse_dB"], 4) + (f" $\\pm$ {num(r['paper_spread_dB'], 2)}" if r["paper_spread_dB"] else ""),
+            f"{num(r['ours_mse_dB'], 4)} [{num(r['ours_lo'], 4)}, {num(r['ours_hi'], 4)}]",
+            num(r["ours_minus_paper_dB"], 3)] for r in rows]
+    table("lorenz_comp", "Lorenz attractor: MSE [dB] of this study (true $Q$ and $R$, N = 100, T = 2000, "
+          "$\\nu = -20$\\,dB) next to the EKF and UKF values transcribed from Tables V and VII of the "
+          "paper (spread $10\\log_{10}(\\mathrm{std}+\\mathrm{mean})-\\mathrm{mean}$ where reported).",
+          [src], ["Paper table", "Setting", "$1/r^2$ [dB]", "Filter", "Paper", "This study [95\\,\\% CI]",
+                  "Difference"], out, size="\\scriptsize")
+    full_ekf = [r for r in rows if r["setting"] == "full" and r["filter"] == "EKF" and r["paper_table"] == "Table V"]
+    low = [abs(float(r["ours_minus_paper_dB"])) for r in full_ekf if float(r["inv_r2_dB"]) <= 30]
+    high = [float(r["ours_minus_paper_dB"]) for r in full_ekf if float(r["inv_r2_dB"]) == 40]
+    ukf = [float(r["ours_minus_paper_dB"]) for r in rows if r["setting"] == "full" and r["filter"] == "UKF"]
+    macro("LorEKFlowMaxAbsDiff", num(max(low), 2))
+    macro("LorEKFhighDiff", num(high[0], 2))
+    macro("LorUKFdiffMin", num(min(ukf), 3))
+    macro("LorUKFdiffMax", num(max(ukf), 3))
+    macro("LorInsideCount", str(sum(r["paper_inside_our_interval"] == "True" for r in rows)))
+    macro("LorCompTotal", str(len(rows)))
+
+    src = FF / "lorenz_summary.csv"
+    rows = read(src)
+    out = [[esc(r["setting"]), num(r["inv_r2_dB"]), esc(r["filter"]), r["n_failed"], ci(r, "mse_dB", d=4),
+            ci(r, "mean_nees"), ci(r, "mean_nis")] for r in rows]
+    table("lorenz_summary", "Lorenz attractor, all filters of this study: failed runs, MSE [dB], mean NEES "
+          "(expected 3) and mean NIS (expected 3) with 95\\,\\% intervals.", [src],
+          ["Setting", "$1/r^2$ [dB]", "Filter", "Failed", "MSE [dB]", "Mean NEES", "Mean NIS"], out,
+          long=True, size="\\scriptsize")
+    plateau = [float(r["mse_dB"]) for r in rows if r["setting"] == "mismatch_J2" and r["filter"] == "EKF"
+               and float(r["inv_r2_dB"]) >= 30]
+    macro("LorJtwoPlateau", num(sum(plateau) / len(plateau), 3))
+    ad = [r for r in rows if r["setting"] == "mismatch_J2" and r["filter"] == "AdaptiveEKF" and float(r["inv_r2_dB"]) == 40]
+    macro("LorAdaptJtwoForty", num(ad[0]["mse_dB"], 3))
+
+    src = FF / "lorenz_knet_baseline.csv"
+    rows = read(src)
+    out = []
+    for r in rows:
+        mse = (f"{num(r['mse_dB'], 4)} [{num(r['mse_dB_lo'], 4)}, {num(r['mse_dB_hi'], 4)}]"
+               if r.get("mse_dB_lo") else num(r["mse_dB"], 4))
+        out.append([esc(r["source"]), esc(r["dataset"]), esc(r["method"]), mse, num(r["spread_dB"], 3),
+                    num(r.get("mean_nees") or "nan"), num(r.get("mean_nis") or "nan")])
+    table("lorenz_knet", "Exploratory reference run (default Lorenz configuration of the reference code, "
+          "full information, rotated observation, $1/r^2 = 10$\\,dB, T = 100): reference-code results on its "
+          "test set and the filters of this repository on the same exported trajectories and on an "
+          "independent realisation. No KalmanNet result exists (training failed).", [src],
+          ["Source", "Test data", "Method", "MSE [dB]", "Spread [dB]", "NEES", "NIS"], out, size="\\scriptsize")
+    ref = next(r for r in rows if r["method"] == "EKF (reference code)")
+    ekff = next(r for r in rows if r["method"] == "EKF-F" and r["dataset"].startswith("same"))
+    ekf = next(r for r in rows if r["method"] == "EKF" and r["dataset"].startswith("same"))
+    macro("LorRefEKF", num(ref["mse_dB"], 5))
+    macro("LorRefEKFspread", num(ref["spread_dB"], 5))
+    macro("LorOurEKFF", num(ekff["mse_dB"], 5))
+    macro("LorOurEKFFspread", num(ekff["spread_dB"], 4))
+    macro("LorOurEKF", num(ekf["mse_dB"], 4))
+
+    src = FF / "lorenz_knet_nan_diagnosis.csv"
+    rows = read(src)
+    def cell(v: str) -> str:
+        if v.lstrip("-").isdigit():
+            return v
+        try:
+            return num(float(v), 4)
+        except ValueError:
+            return esc(v)
+    out = [[esc(r["quantity"]), cell(r["value"])] for r in rows]
+    table("lorenz_diag", "Exploratory diagnosis of the non-finite KalmanNet loss (one training batch of the "
+          "default configuration, untrained network).", [src], ["Quantity", "Value"], out,
+          align="lp{0.55\\linewidth}", size="\\scriptsize")
+    d = {r["quantity"]: r["value"] for r in rows}
+    macro("LorDiagStep", d["first step with a non-finite value (0-based)"])
+    macro("LorDiagState", num(d["max abs state of the affected row at the previous step"], 3))
+    macro("LorDiagTaylor", d["first non-finite Taylor term (order j)"])
+    macro("LorDiagTorch", esc(d["PyTorch version"]))
+    curve = read(FF / "lorenz_knet_training_curve.csv")
+    macro("LorKnetSteps", str(len(curve)))
+    macro("LorKnetFirstTrain", num(curve[0]["train_mse_dB"], 4))
+
+
 def commits() -> None:
     """List of the commits of the branch (identifiers from git, not results)."""
     import subprocess
@@ -827,6 +917,7 @@ def main() -> None:
     learned()
     datasets()
     main_tables()
+    lorenz()
     (OUT / "numbers.tex").write_text("".join(f"\\newcommand{{\\{n}}}{{{v}}}\n" for n, v in MACROS))
     (OUT / "crosscheck.txt").write_text("\n".join(CHECKS) + "\n")
     print(f"{len(list(OUT.glob('tab_*.tex')))} tables, {len(MACROS)} macros")
