@@ -1,0 +1,13 @@
+quantity,value
+training data finite,True
+first step with a non-finite value (0-based),73
+non-finite quantities at that step,m1x_prior;m1y;KGain;m1x_posterior
+affected batch rows,24
+first sub-modules with non-finite output,FC7;GRU_S;FC2;FC3;FC4
+max abs state of the affected row at the previous step,7.65839e+17
+float32 maximum,3.40282e+38
+first non-finite Taylor term (order j),5
+operation,"torch.matrix_power(A*delta_t, j) in f (Simulations/Lorenz_Atractor/parameters.py:90)"
+batch loss finite (anomaly run),False
+anomaly detection message,Function 'MseLossBackward0' returned nan values in its 0th output.
+PyTorch version,2.15.0+cpu

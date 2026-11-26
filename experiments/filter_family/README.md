@@ -672,6 +672,46 @@ pandas 3.1.1 into the `.venv`, which broke the system-installed SciPy and Matplo
 NumPy 1.x). Both were removed again and pandas 2.2.3 was installed without dependencies, so the
 `.venv` uses the system NumPy 1.26.4 again; the test suite was re-run afterwards.
 
+### Second attempt: diagnosis of the non-finite loss (`lorenz_knet_diagnosis.py`, exploratory)
+
+Time box 45 min of wall-clock time; about 4 min were used. The script imports the reference modules
+at run time from the clone (nothing copied), builds the default Lorenz configuration with full
+information (switch 'full'), generates the training data in memory (no file written, no pickle
+loaded) and passes one training batch of 30 trajectories through the untrained network, with seeds
+`torch.manual_seed(0)` and `random.seed(0)`. Outputs: `results/lorenz_knet_nan_diagnosis.csv`,
+`results/lorenz_knet_nan_steps.csv`, `results/lorenz_knet_nan_taylor_terms.csv`.
+
+* \[Verified\] The first non-finite value appears in the forward pass, not in the backward pass:
+  the state estimate of one trajectory of the batch grows over the steps (column
+  `max_abs_posterior_finite_part` of `lorenz_knet_nan_steps.csv`) until the reference state-transition
+  function overflows in single precision. The first non-finite operation is
+  `torch.matrix_power(A*delta_t, j)` in `f` (`Simulations/Lorenz_Atractor/parameters.py:90` of the
+  reference commit), at Taylor order j = 5 (`lorenz_knet_nan_taylor_terms.csv`); the non-finite
+  prior then reaches the network sub-modules (`FC7`, `GRU_S`, `FC2`, `FC3`, `FC4`) and the loss.
+  Anomaly detection reports the first non-finite gradient in `MseLossBackward0`, i.e. the loss
+  itself is already non-finite.
+* \[Observed\] In a diagnostic run in which the network was initialised after re-seeding (different
+  initial weights), the same batch passed all 100 steps without a non-finite value (console output,
+  not stored); whether a run diverges therefore depends on the random initialisation.
+* \[Hypothesized\] The failure of the first training run (finite training loss at step 0, non-finite
+  validation loss after the first update) has the same mechanism: an untrained or once-updated
+  network lets some trajectory diverge until the Taylor map overflows. Not tested for that run.
+
+Attempts, in the prescribed order:
+
+* (a) **Compatibility fix for the installed PyTorch** that changes neither model, data nor
+  hyperparameters: **none applies.** The non-finite value is a single-precision overflow of the
+  model function at a diverged state, not a change of a PyTorch interface; the only remedies
+  (double precision, clipping of the state, a modified initialisation or learning rate) change the
+  model or the training and are excluded by the protocol.
+* (b) **Isolated environment with the PyTorch version of the reference code** (`requirements.txt`:
+  `torch==1.10.1`): this version has no wheels for Python 3.12, the only Python on the machine;
+  no tool to create an environment with an older Python is installed (no conda, mamba, micromamba,
+  uv or pyenv; no python3.8, 3.9 or 3.10). Stopped here, as prescribed.
+
+Consequently no KalmanNet network was trained and no KalmanNet test result exists. Whether the
+reference configuration trains with PyTorch 1.10.1 is **OPEN**.
+
 ## Files
 
 | File | Purpose |
@@ -684,6 +724,7 @@ NumPy 1.x). Both were removed again and pandas 2.2.3 was installed without depen
 | `adaptive_r.py` | Adaptive-R diagnosis under constant true R (protocol above). |
 | `time_varying_r.py` | Time-varying measurement noise benchmark (protocol above). |
 | `lorenz.py` | Lorenz-attractor benchmark of the KalmanNet paper (protocol above); KalmanNet is not run. |
+| `lorenz_knet_diagnosis.py` | Exploratory: locates the first non-finite value of the reference KalmanNet code on one training batch (imports the reference modules from the clone). |
 | `lorenz_knet_baseline.py` | Exploratory: runs the classical filters on the test set of a KalmanNet reference run and on an own realisation; collects the reference results. |
 | `plots.py` | Writes figures to `figures/`. |
 | `tests/` | Equivalence, adaptation, Jacobian and wrap-around tests. |

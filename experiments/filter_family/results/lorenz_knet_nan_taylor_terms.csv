@@ -1,0 +1,6 @@
+taylor_order_j,term_finite,max_abs_finite_entries
+1,True,1.53168e+16
+2,True,1.68484e+15
+3,True,7.82011e+30
+4,True,8.60212e+29
+5,False,5.00487e+28

@@ -27,3 +27,6 @@ CSV output of `run.py` (range-bearing benchmark, N = 100 runs, 60 steps, seed 0,
 | `lorenz_comparison.csv` | This study's MSE [dB] next to the transcribed paper values, difference and whether the paper value lies inside this study's interval. |
 | `lorenz_knet_baseline.csv` | Exploratory: reference-code results (EKF, observation noise floor; KalmanNet absent because training failed) and this repository's EKF, EKF-F, IEKF, UKF on the exported reference test set and on an independent realisation, MSE in dB with interval and spread, NEES, NIS. |
 | `lorenz_knet_training_curve.csv` | Exploratory: training and validation MSE [dB] per logged step of the KalmanNet reference run (parsed from its log). |
+| `lorenz_knet_nan_diagnosis.csv` | Exploratory: summary of the diagnosis of the non-finite KalmanNet loss (first step, quantities, sub-modules, state magnitude, operation, anomaly message, PyTorch version). |
+| `lorenz_knet_nan_steps.csv` | Exploratory: per step of the diagnosed batch the largest finite posterior magnitude, the largest gain entry and the non-finite quantities. |
+| `lorenz_knet_nan_taylor_terms.csv` | Exploratory: the Taylor terms of the reference state-transition function at the last finite state of the diverging trajectory. |
