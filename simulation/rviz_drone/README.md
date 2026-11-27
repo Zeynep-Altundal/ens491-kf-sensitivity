@@ -34,9 +34,14 @@ The package is built in its own workspace `../rviz_drone_ws/` inside this reposi
   (tilt limited to 45 deg); geometric attitude controller on SO(3) with angular-rate damping gives
   the torques, with lower gains on yaw. When the rotor thrusts would saturate, the yaw torque is
   reduced first, because the rotors have little yaw authority (at most 0.32 N m).
-* **Parameters** (illustrative, of the order of a 1.5 kg quadrotor, not a specific vehicle):
-  `m = 1.5 kg`, `J = diag(0.029, 0.029, 0.055) kg m^2`, arm 0.25 m, `f_max = 10 N` per rotor,
-  `k_m = 0.016 m`, `c_d = 0.1 N s/m`.
+* **Parameters**: mass, inertia and arm are those of the vehicle rendered in Isaac Sim
+  (`../isaac_render/`, NTNU ARL-Robot-1 asset), so that the visual and the dynamics describe the same
+  vehicle: base link 1.2 kg with `diag(0.013, 0.014, 0.013) kg m^2` and four 0.01 kg propellers at
+  `(+-0.1, +-0.1, 0) m` give `m = 1.24 kg`, `J = diag(0.013404, 0.014404, 0.013804) kg m^2`
+  (parallel-axis theorem) and arm `0.1 sqrt(2) = 0.141421 m`. The rotor and drag parameters are
+  illustrative, not taken from the asset: `f_max = 10 N` per rotor, `k_m = 0.016 m`,
+  `c_d = 0.1 N s/m`. (Until 2026-11-27 the illustrative values `m = 1.5 kg`,
+  `J = diag(0.029, 0.029, 0.055) kg m^2` and arm 0.25 m were used.)
 
 ## Trajectory (`reference.py`, closed form, analytic velocity and acceleration)
 
@@ -52,14 +57,16 @@ The package is built in its own workspace `../rviz_drone_ws/` inside this reposi
 | ground | 49-50 | on the ground |
 
 Closed-loop tracking of this trajectory with the default parameters (seed-independent; position
-error `|p - p_ref|`, tilt and yaw from the simulated attitude):
+error `|p - p_ref|`, tilt and yaw from the simulated attitude; produced by
+`python -m rviz_drone.tracking`). With the earlier illustrative parameters the figure-eight yaw was
+2.9 deg and the aggressive errors 0.619 m (max) and 0.287 m (RMS); all other entries were equal.
 
 | Segment | max `|a_ref|` [m/s^2] | max error [m] | RMS error [m] | max tilt [deg] | max yaw [deg] |
 |---|---|---|---|---|---|
 | take-off | 0.72 | < 0.001 | < 0.001 | 0.0 | 0.0 |
 | hover (both) | 0 | 0.036 | 0.008 | 4.1 | 0.4 |
-| figure-eight | 3.10 | 0.089 | 0.052 | 19.2 | 2.9 |
-| aggressive | 7.53 | 0.619 | 0.287 | 45.5 (tilt limit) | 21.6 |
+| figure-eight | 3.10 | 0.089 | 0.052 | 19.2 | 2.8 |
+| aggressive | 7.53 | 0.611 | 0.284 | 45.5 (tilt limit) | 21.6 |
 | landing | 0.46 | < 0.001 | < 0.001 | 0.0 | 0.0 |
 
 In the aggressive segment the tilt limit is reached and the yaw is not held at 0 (low yaw

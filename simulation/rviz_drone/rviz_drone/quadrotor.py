@@ -20,9 +20,12 @@ E3 = np.array([0.0, 0.0, 1.0])
 
 @dataclass(frozen=True)
 class QuadParams:
-    mass: float = 1.5  # [kg]
-    inertia: tuple[float, float, float] = (0.029, 0.029, 0.055)  # [kg m^2], principal axes
-    arm: float = 0.25  # [m], centre to rotor
+    # Mass, inertia and arm of the vehicle rendered in Isaac Sim (NTNU ARL-Robot-1 asset of the
+    # Isaac Sim 6.0 assets): base link 1.2 kg with diag(0.013, 0.014, 0.013) kg m^2, four 0.01 kg
+    # propellers at (+-0.1, +-0.1, 0) m; inertia about the centre with the parallel-axis theorem.
+    mass: float = 1.24  # [kg]
+    inertia: tuple[float, float, float] = (0.013404, 0.014404, 0.013804)  # [kg m^2], principal axes
+    arm: float = 0.141421  # [m], centre to rotor (0.1 m * sqrt(2))
     f_max: float = 10.0  # [N] per rotor
     k_m: float = 0.016  # [m], yaw torque per unit thrust
     drag: float = 0.1  # [N s/m], linear translational drag
