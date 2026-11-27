@@ -1,0 +1,152 @@
+{
+  "seeds": 10,
+  "check1": {
+    "own": {
+      "dp": 0.0022263656522714115,
+      "dv": 0.0015901664507418367,
+      "datt_deg": 0.019015109748780394,
+      "pass": true
+    },
+    "companion": {
+      "dp": 0.03795296649164026,
+      "dv": 0.028777889260630296,
+      "datt_deg": 0.4118590022118213,
+      "pass": false
+    }
+  },
+  "check2": {
+    "KF": {
+      "dim": 6,
+      "nees_bounds": [
+        4.048174804284183,
+        8.32976748771732
+      ],
+      "nees_fraction_inside": 0.2006505632190832,
+      "nees_fraction_above": 0.12011324618998856,
+      "nees_fraction_below": 0.6792361905909282,
+      "mean_nees": 4.660885401171065,
+      "nis_fraction_inside": 0.9049338146811071,
+      "mean_nis": 2.904450238533578,
+      "pass": false
+    },
+    "EKF": {
+      "dim": 15,
+      "nees_bounds": [
+        11.79845154029029,
+        18.580044700379325
+      ],
+      "nees_fraction_inside": 0.6866453828082646,
+      "nees_fraction_above": 0.19745798445876755,
+      "nees_fraction_below": 0.1158966327329679,
+      "mean_nees": 45.64487778524082,
+      "nis_fraction_inside": 0.9434416365824309,
+      "mean_nis": 2.996864409690899,
+      "pass": false
+    },
+    "ESKF": {
+      "dim": 15,
+      "nees_bounds": [
+        11.79845154029029,
+        18.580044700379325
+      ],
+      "nees_fraction_inside": 0.6873682308294681,
+      "nees_fraction_above": 0.1968556111077646,
+      "nees_fraction_below": 0.11577615806276731,
+      "mean_nees": 44.618928100249114,
+      "nis_fraction_inside": 0.9434416365824309,
+      "mean_nis": 2.9966787252368277,
+      "pass": false
+    },
+    "own_KF": {
+      "dim": 6,
+      "nees_bounds": [
+        4.048174804284183,
+        8.32976748771732
+      ],
+      "nees_fraction_inside": 0.2006505632190832,
+      "nees_fraction_above": 0.12011324618998856,
+      "nees_fraction_below": 0.6792361905909282,
+      "mean_nees": 4.660885401171065,
+      "nis_fraction_inside": 0.9049338146811071,
+      "mean_nis": 2.904450238533578,
+      "pass": false
+    },
+    "own_EKF": {
+      "dim": 15,
+      "nees_bounds": [
+        11.79845154029029,
+        18.580044700379325
+      ],
+      "nees_fraction_inside": 0.8816938738630203,
+      "nees_fraction_above": 0.0,
+      "nees_fraction_below": 0.1183061261369797,
+      "mean_nees": 13.539976610240137,
+      "nis_fraction_inside": 0.9434416365824309,
+      "mean_nis": 2.9959988092287486,
+      "pass": false
+    },
+    "own_ESKF": {
+      "dim": 15,
+      "nees_bounds": [
+        11.79845154029029,
+        18.580044700379325
+      ],
+      "nees_fraction_inside": 0.88163363652792,
+      "nees_fraction_above": 0.0,
+      "nees_fraction_below": 0.11836636347207999,
+      "mean_nees": 13.546103920520757,
+      "nis_fraction_inside": 0.9434416365824309,
+      "mean_nis": 2.9959944630710296,
+      "pass": false
+    }
+  },
+  "check3": {
+    "KF": {
+      "dp": 9.237055564881302e-14,
+      "dv": 3.207434318142077e-13,
+      "all_valid": true,
+      "pass": true
+    },
+    "own_KF": {
+      "dp": 9.237055564881302e-14,
+      "dv": 3.207434318142077e-13,
+      "all_valid": true,
+      "pass": true
+    }
+  },
+  "own_vs_companion": {
+    "KF": {
+      "max_dp": 0.0,
+      "max_dv": 0.0,
+      "max_datt_deg": null,
+      "mean_nees_own": 4.6608854011710665,
+      "mean_nees_companion": 4.6608854011710665,
+      "max_abs_dnees": 0.0
+    },
+    "EKF": {
+      "max_dp": 0.026452144691267776,
+      "max_dv": 0.060862151817955734,
+      "max_datt_deg": 0.7569721445160232,
+      "mean_nees_own": 13.539976610240137,
+      "mean_nees_companion": 45.644877785240816,
+      "max_abs_dnees": 745.9570163163936
+    },
+    "ESKF": {
+      "max_dp": 0.04623948537896361,
+      "max_dv": 0.0660902050133938,
+      "max_datt_deg": 1.0914841489608578,
+      "mean_nees_own": 13.546103920520759,
+      "mean_nees_companion": 44.61892810024912,
+      "max_abs_dnees": 750.5546114214806
+    }
+  },
+  "runtime_per_run_s": {
+    "KF": 0.597693057791912,
+    "EKF": 4.019048681095592,
+    "ESKF": 2.0338315812055954,
+    "own_KF": 0.6191430231992854,
+    "own_EKF": 5.207693940892932,
+    "own_ESKF": 2.2063388800015673
+  },
+  "wall_s": 37.08784991799621
+}
