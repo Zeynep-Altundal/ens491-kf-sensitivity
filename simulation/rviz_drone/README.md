@@ -135,6 +135,115 @@ measurements come from `synthetic.measurements.position_measurements`. Error par
 are those of `synthetic.scenario.ScenarioConfig` (same random-stream split, `RNG_STREAMS`), so the
 same seed always gives the same flight and the same measurements.
 
+## Flight recorder (`recorder.py`, common recording format v1)
+
+One flight is written to one `.npz` file in the common recording format of the filter comparison
+(`docs/common_interface.md` on branch `feat/W03-synthetic-scenarios` of the companion repository
+`ens491-nkf`, frozen 2026-11-25, v1; read-only reference, not copied here). The file is readable
+with `numpy.load(path, allow_pickle=False)` and with the reader `load_recording` of that repository;
+no ROS or Isaac Sim is needed.
+
+### Signals, rates, units and frames
+
+| Key | Shape | Unit | Rate | Frame | Content |
+|---|---|---|---|---|---|
+| `imu_t` | [N] float64 | s | 200 Hz | - | IMU time stamps, `k / 200`, from 0 to the end of the flight |
+| `imu_gyro` | [N,3] | rad/s | 200 Hz | body (FLU) | measured angular rate (white noise, turn-on bias, bias random walk) |
+| `imu_accel` | [N,3] | m/s^2 | 200 Hz | body (FLU) | measured specific force `f_b = R^T (a_w - g_w)`, gravity not removed |
+| `imu_gyro_clean`, `imu_accel_clean` | [N,3] | as above | 200 Hz | body | the same without any error |
+| `truth_t` | [M] | s | 200 Hz | - | truth time stamps (equal to `imu_t`) |
+| `truth_p`, `truth_v` | [M,3] | m, m/s | 200 Hz | world (ENU) | true position and velocity of the centre of mass |
+| `truth_q` | [M,4] | - | 200 Hz | body to world | true attitude, Hamilton `[w, x, y, z]`, unit norm |
+| `truth_bg`, `truth_ba` | [M,3] | rad/s, m/s^2 | 200 Hz | body | true gyro and accelerometer bias (turn-on bias plus random walk) |
+| `pos_t` | [K] | s | 10 Hz | - | position measurement time stamps (every 20th IMU sample) |
+| `pos_z` | [K,3] | m | 10 Hz | world (ENU) | measured position; NaN where `pos_valid` is false |
+| `pos_R` | [K,3,3] | m^2 | 10 Hz | world | covariance told to the filter: `diag(meas_sigma^2)` (equal to the true noise here) |
+| `pos_valid` | [K] bool | - | 10 Hz | - | false inside a dropout (none in the default configuration) |
+| `events` | JSON string | - | - | - | injected disturbances; `[]` (disturbances are added afterwards in `ens491-nkf`) |
+| `meta` | JSON string | - | - | - | metadata, below |
+| `sim_p_ref`, `sim_w_b`, `sim_a_w`, `sim_rotor_thrust` | [M,3], [M,3], [M,3], [M,4] | m, rad/s, m/s^2, N | 200 Hz | world, body, world, - | extra keys of this simulator (reference position, true body rate, true acceleration, rotor thrusts); not part of the common format, ignored by its reader |
+
+`N = M = 200 T + 1` and `K = 10 T + 1` for a flight of `T` seconds (mission: 16 601 and 831).
+
+### Metadata (`meta`)
+
+`version` (`"v1"`), `id` (`<trajectory>_seed<seed>`), `platform` (`"uav"`), `source`
+(`"ens491_quadrotor_sim"`), `imu_rate_hz` (200), `pos_rate_hz` (10), `seed`, `trajectory`,
+`duration_s`, `true_noise` (noise densities, turn-on biases, bias random walks, position sigma),
+`frames` (world ENU, body FLU = IMU frame, quaternion Hamilton `[w, x, y, z]` body to world),
+`gravity_w`, `git_commit` and `git_dirty` (state of this repository when the file was written),
+`parameters` (vehicle `QuadParams`, `ControllerGains`, `sim_rate_hz` 1000, the full
+`ScenarioConfig` of `synthetic/`), `generator` (`rviz_drone.recorder`).
+
+### File layout
+
+`simulation/recordings/<trajectory>_seed<seed>.npz` (folder version-controlled with its README,
+the `.npz` files are not). The archive is written member by member in sorted key order with a fixed
+time stamp (1980-01-01) and fixed permissions, so that the same code (`git_commit`), trajectory and
+seed give a bit-identical file; `numpy.savez_compressed` stores the current time and does not.
+
+### Frames used by this simulator (answer to the OPEN item of `common_interface.md`, section 1)
+
+The recorder of this repository does not take its frames from Isaac Sim or Pegasus: the flight is
+simulated by `rviz_drone` and Isaac Sim 6.0.1 only renders it (kinematic replay, `../isaac_render/`);
+Pegasus is not used (the Isaac Sim 5.1.0 / Pegasus attempt in `../isaac_drone/` was abandoned).
+The simulator works natively in the frames of the common interface: world ENU (origin on the
+ground at the take-off point, which is also the first truth sample), body FLU equal to the IMU
+frame, Hamilton `[w, x, y, z]` body to world, specific force with gravity not removed. No
+conversion is applied when the recording is written. Isaac Sim's stage is set up as ENU with z up
+and metres (`../isaac_render/usd_pose.py`), so the rendered and recorded poses are the same numbers.
+
+Mismatches with the common interface (none in the frames, three in the bookkeeping):
+
+1. `meta.source`: the list of `common_interface.md` has no value for this simulator; the file uses
+   `"ens491_quadrotor_sim"` (OPEN for the owner of the common interface: add it or name another
+   value).
+2. `meta.version`: the document says v1, while its writer `nkf/data/recording.py` writes
+   `"draft-2026-11-25"`; this recorder writes `"v1"`.
+3. `meta.pos_rate_hz` is listed in the document but not written by that writer; this recorder
+   writes it.
+
+### Done criteria
+
+1. Round trip: every array loaded from the file equals the source array exactly (`np.array_equal`,
+   NaN in the same places) and the JSON fields parse back to the same values.
+2. Time stamps: strictly increasing, steps equal to 1/200 s (IMU, truth) and 1/10 s (position)
+   within 1e-9 s; `truth_t` equals `imu_t`; `pos_t` is every 20th IMU time stamp.
+3. Consistency: strapdown integration of the recorded clean IMU (the second-order scheme of
+   `synthetic/tests/test_synthetic.py`), restarted from the recorded truth every 1 s, stays within
+   5 mm of the recorded truth position (measured 2.0 mm, mission, worst window at t = 62 s in the
+   aggressive segment); `imu_gyro - imu_gyro_clean` minus `truth_bg` has the white-noise standard
+   deviation of the configuration within 5 % (same for the accelerometer).
+4. Reproducibility: two recordings with the same seed are byte-identical; a different seed gives
+   different measurements and the same truth.
+5. The full test suite passes; the mission recording is written and its size and summary are
+   recorded below.
+
+### Usage
+
+```bash
+.venv/bin/python -m rviz_drone.recorder --trajectory mission --seed 0   # from simulation/rviz_drone/
+```
+
+Mission recording of 2026-11-27 (`simulation/recordings/mission_seed0.npz`, not version-controlled):
+4 788 647 bytes, written in 20.8 s; two runs in separate processes gave the same SHA-256
+(`e6138b37...05a079cd`). Written at commit `f324994` with uncommitted changes (`git_dirty: true`).
+It also loads with `load_recording` of `ens491-nkf` (`nkf/data/recording.py` on
+`feat/W03-synthetic-scenarios`, run from a temporary copy, that repository unchanged).
+
+| Item | Value |
+|---|---|
+| trajectory, seed | mission, 0 |
+| duration | 83.000 s |
+| IMU samples (rate) | 16601 (200 Hz) |
+| position samples (rate), valid | 831 (10 Hz), 831 |
+| max speed | 6.26 m/s |
+| max gyro norm | 4.78 rad/s |
+| accel norm range | 7.86 to 17.10 m/s^2 |
+| position error RMS (per axis) | 0.505, 0.478, 0.484 m |
+| gyro bias at end | 2.00e-03, -1.02e-03, 1.26e-03 rad/s |
+| accel bias at end | 0.038, -0.041, 0.012 m/s^2 |
+
 ## Topics and rates
 
 | Topic / TF | Type | Frame | Rate |
@@ -192,6 +301,7 @@ area of `figure_eights` and has to be zoomed out for the mission.
 | `rviz_drone/tracking.py` | Tracking table of the closed-loop flight. |
 | `rviz_drone/flight.py` | Simulates the flight and generates the sensor streams with `synthetic/`. |
 | `rviz_drone/repo_path.py` | Makes the repository root importable (for `synthetic/`). |
+| `rviz_drone/recorder.py` | Writes one flight in the common recording format (`.npz`). |
 | `rviz_drone/sim_node.py` | ROS 2 node that publishes the streams in real time. |
 | `launch/rviz_drone.launch.py` | Starts the node and, optionally, RViz. |
 | `rviz/rviz_drone.rviz` | RViz configuration. |
