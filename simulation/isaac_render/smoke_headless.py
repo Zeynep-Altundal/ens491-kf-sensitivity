@@ -1,4 +1,6 @@
-"""Headless start-up check of Isaac Sim: start SimulationApp, step an empty world, shut down.
+"""Headless start-up check of Isaac Sim 6.0.1: start SimulationApp, render a small stage, shut down.
+
+Only ``omni.usd`` and ``pxr`` are used, because ``isaacsim.core.api`` is in ``extsDeprecated`` in 6.0.1.
 
 Run with the Python of Isaac Sim (never with the system Python):
     source simulation/isaac_render/env.sh
@@ -19,7 +21,8 @@ print(f"SMOKE app_started seconds={time.time() - t0:.1f}", flush=True)
 
 import carb  # noqa: E402
 import omni.kit.app  # noqa: E402
-from isaacsim.core.api import World  # noqa: E402
+import omni.usd  # noqa: E402
+from pxr import Gf, UsdGeom, UsdLux  # noqa: E402
 
 app = omni.kit.app.get_app()
 print(f"SMOKE kit_version={app.get_kit_version()}", flush=True)
@@ -31,15 +34,19 @@ for name in ("home", "data", "cache", "logs", "documents", "temp", "omni_config"
              "omni_documents", "shared_documents", "app_documents"):
     print(f"SMOKE token {name}={tokens.resolve('${' + name + '}')}", flush=True)
 
-world = World(stage_units_in_meters=1.0, physics_dt=1.0 / 250.0, rendering_dt=1.0 / 60.0)
-world.scene.add_default_ground_plane()
-world.reset()
-n_steps = 250
+ctx = omni.usd.get_context()
+ctx.new_stage()
+stage = ctx.get_stage()
+UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.z)
+UsdGeom.SetStageMetersPerUnit(stage, 1.0)
+UsdGeom.Cube.Define(stage, "/World/Ground").AddScaleOp().Set(Gf.Vec3f(10.0, 10.0, 0.01))
+UsdGeom.Cube.Define(stage, "/World/Box").AddTranslateOp().Set(Gf.Vec3d(0.0, 0.0, 1.0))
+UsdLux.DistantLight.Define(stage, "/World/Sun").CreateIntensityAttr(2500.0)
+n_updates = 120
 t1 = time.time()
-for _ in range(n_steps):
-    world.step(render=False)
-print(f"SMOKE stepped steps={n_steps} sim_time={world.current_time:.3f} wall={time.time() - t1:.2f}",
-      flush=True)
+for _ in range(n_updates):
+    simulation_app.update()
+print(f"SMOKE updated updates={n_updates} wall={time.time() - t1:.2f}", flush=True)
 
 simulation_app.close()
 print(f"SMOKE closed total_seconds={time.time() - t0:.1f}", flush=True)
