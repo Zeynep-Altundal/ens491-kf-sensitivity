@@ -137,7 +137,8 @@ below.
 
 ## Done criteria
 
-1. Sanity checks 1 and 3 pass; check 2 reported (and passed for `EKF` and `ESKF`).
+1. Sanity checks 1 and 3 pass; check 2 reported (and passed for `EKF` and `ESKF`; evaluated after
+   the convergence window of protocol change 5).
 2. All 960 runs (or the stated reduced number) written; runtime reported.
 3. Tables: RMSE per phase and overall, peak error and its time, recovery times, per estimator and
    scenario with bootstrap intervals over seeds.
@@ -158,6 +159,23 @@ below.
    (provisional). No criterion, tolerance or tuning value was changed.
 3. The summary tables (`results/summary_*.csv`, `results/tables.md`) and `results/sanity.json` are
    version-controlled; only `results/runs/` is git-ignored.
+4. 2026-11-27, decision of the project owner after the first sanity results: the adapter passes the
+   interval mean `(u_k + u_k+1) / 2` of the two IMU samples bounding each interval to the companion
+   `predict` (their code unchanged; `vendor.INPUT`). Checks 1 and 2 were rerun for the companion
+   pair with this adapter. Rule fixed before the rerun: if both pass, the reported `KF`, `EKF` and
+   `ESKF` are the companion filters and the label "provisional" is removed; otherwise the own `EKF`
+   and `ESKF` stay reported (provisional) with the reason stated. Outcome: check 1 fails (below).
+5. **Protocol amendment, 2026-11-27, decision of the project owner** (after the first sanity
+   results, before the final sweep): check 2 is evaluated after a 10 s convergence window
+   (epochs and position updates with `t >= 10 s`); the whole-flight fractions are still reported.
+   Reason (Observed, own `EKF` and `ESKF`, first sanity run): every NEES violation over the whole
+   flight is below the lower bound (none above); 88.2 % of the epochs are inside the bounds over the
+   whole flight and 99.4 % from 10 s on. The violations before 10 s lie in the ground (0-1 s),
+   takeoff (1-5 s), hover (5-7 s) and the first 3 s of the straight leg (own `ESKF`: 200, 800, 400
+   and 483 epochs). The tolerance (90 %) and the bounds are unchanged. For the `KF` the NEES result
+   is not a pass: it is reported as a known property of the constant-velocity model on a
+   manoeuvring vehicle (its process noise is tuned for the whole flight, so the 6-state NEES is
+   mostly below the bound in calm flight and above it in manoeuvres; Hypothesized, not tested).
 
 ## Companion filters (adapter `vendor.py`)
 
@@ -172,8 +190,9 @@ below.
   `nkf/filters/__init__.py`, `nkf/filters/conventions.py`; they import only NumPy, `math` and each
   other.
 * Adapter: our tuning and initial state are passed as their `Init` and `NoiseSpec`
-  (`sigma_cv = sqrt(q_cv)`); `predict(gyro_k, accel_k, t_k+1 - t_k)` is called with the IMU sample
-  at the start of the interval, as in their runner (`nkf/compare/runner.py`, line 118); the full
+  (`sigma_cv = sqrt(q_cv)`); `predict(u, t_k+1 - t_k)` is called with the interval mean
+  `u = (u_k + u_k+1) / 2` (protocol change 4; their runner, `nkf/compare/runner.py` line 118, passes
+  the start sample `u_k`, still available as `vendor.INPUT = "start"`); the full
   covariance `P` of the filter object is read for the NEES (their `cov_blocks` gives only the
   diagonal blocks), the 16-state EKF covariance mapped with their `EKF._J_q_to_att`.
 * Conventions checked in their code: Hamilton `[w, x, y, z]`, `R_wb` body to world, attitude error
@@ -182,51 +201,73 @@ below.
 
 ## Sanity checks: results (2026-11-27, 10 seeds, nominal recording; `results/sanity.json`)
 
+Final run: companion `EKF` and `ESKF` with the interval-mean adapter (protocol change 4); check 2
+after the 10 s convergence window (protocol change 5), whole-flight fractions in brackets.
+
 | Check | Estimator | Result | Criterion | Pass |
 |---|---|---|---|---|
 | 1 EKF-ESKF agreement | own `EKF` vs own `ESKF` | 0.0022 m, 0.0016 m/s, 0.019 deg | 0.05 m, 0.05 m/s, 0.2 deg | yes |
-| 1 EKF-ESKF agreement | companion `EKF` vs companion `ESKF` | 0.038 m, 0.029 m/s, 0.41 deg | same | no |
-| 2 NEES / NIS | companion `KF` (= own `KF`) | NEES inside 20.1 % (below 67.9 %, above 12.0 %), mean 4.66 (dim 6); NIS inside 90.5 % | 90 % each | no |
-| 2 NEES / NIS | companion `EKF` | NEES inside 68.7 % (above 19.7 %, below 11.6 %), mean 45.6 (dim 15); NIS inside 94.3 % | 90 % each | no |
-| 2 NEES / NIS | companion `ESKF` | NEES inside 68.7 % (above 19.7 %, below 11.6 %), mean 44.6; NIS inside 94.3 % | 90 % each | no |
-| 2 NEES / NIS | own `EKF` | NEES inside 88.2 % (below 11.8 %, above 0 %), mean 13.5; NIS inside 94.3 % | 90 % each | no |
-| 2 NEES / NIS | own `ESKF` | NEES inside 88.2 % (below 11.8 %, above 0 %), mean 13.5; NIS inside 94.3 % | 90 % each | no |
+| 1 EKF-ESKF agreement | companion `EKF` vs companion `ESKF` | 0.038 m, 0.028 m/s, **0.41 deg** | same | **no** |
+| 2 NEES / NIS | companion `KF` (= own `KF`) | NEES inside 21.6 % (64.8 % below, 13.7 % above) [20.1 %]; NIS inside 90.6 % [90.5 %] | 90 % each | no (known property, change 5) |
+| 2 NEES / NIS | companion `EKF` | NEES inside 96.2 % (3.5 % above, 0.3 % below) [85.3 %], mean 14.9; NIS inside 94.5 % [94.5 %] | 90 % each | yes |
+| 2 NEES / NIS | companion `ESKF` | NEES inside 96.3 % (3.3 % above, 0.4 % below) [85.4 %], mean 14.8; NIS inside 94.5 % [94.5 %] | 90 % each | yes |
+| 2 NEES / NIS | own `EKF` | NEES inside 99.45 % (0.55 % below, none above) [88.2 %], mean 14.1; NIS inside 94.4 % [94.3 %] | 90 % each | yes |
+| 2 NEES / NIS | own `ESKF` | NEES inside 99.44 % (0.56 % below, none above) [88.2 %], mean 14.2; NIS inside 94.4 % [94.3 %] | 90 % each | yes |
 | 3 KF vs linear reference | companion `KF` and own `KF` | 9.2e-14 m, 3.2e-13 m/s | 1e-9 | yes |
 
-Observed (own `ESKF`, seed-averaged NEES, 10 seeds): every epoch below the lower bound lies in
-the first 10 s (0-5 s: all epochs below, mean NEES 6.6-9.0; 5-10 s: 88 % below); from 10 s on,
-99.4 % of the epochs are inside the bounds.
+Observed (seed-averaged NEES): the own `ESKF` epochs below the lower bound after 10 s (82 epochs)
+lie near 37 s (figure-eight) and 79 s (landing); the companion `EKF` epochs above the upper bound
+after 10 s (511 epochs) lie in the aggressive segment. A previous version of this README stated
+that every epoch below the lower bound lies in the first 10 s; that was wrong (corrected here).
 
-Own `EKF` against the companion `EKF` on the nominal recording (10 seeds, largest over the flight
-and the seeds): position 0.0265 m, velocity 0.0609 m/s, attitude 0.757 deg; mean NEES 13.54 (own)
-and 45.64 (companion), largest NEES difference at one epoch 746. Own `ESKF` against the companion
-`ESKF`: 0.0462 m, 0.0661 m/s, 1.09 deg; mean NEES 13.55 and 44.62. Own `KF` against the companion
-`KF-CV`: identical (difference 0).
+**Outcome of protocol change 4.** With the interval-mean input the companion `EKF` and `ESKF` pass
+check 2, but their pair fails check 1 on attitude: the largest difference over the flight and the
+seeds is 0.41 deg against the 0.2 deg tolerance (position 0.038 m and velocity 0.028 m/s pass). The
+same check failed with the start-sample input (0.41 deg), so the input convention does not cause it.
+Observed on seed 0: the difference is almost all about the body z axis (0.219 of 0.220 deg at its
+largest, 69.4 s), and it is largest in the hover, aggressive, return and landing phases (0.21, 0.21,
+0.22, 0.20 deg) and at most 0.006 deg in the straight, turn and figure-eight phases. Observed in
+their code: the companion `EKF` uses central finite-difference Jacobians of the discrete model and
+the process noise `G diag(sigma^2 / dt) G^T` of the IMU-input Jacobian, the companion `ESKF` the
+analytic error-state model discretised by `conventions.discretise`; which of these causes the yaw
+difference is not tested (OPEN). Therefore the reported `EKF` and `ESKF` remain the own filters,
+labelled provisional; the reported `KF` is the companion KF-CV.
 
-What fails with the companion EKF and ESKF on our recordings (Verified by a diagnostic fixed
-before it was run, seed 0): their propagation holds the IMU sample of the start of each interval
-over the interval (their runner calls `predict(gyro[k], accel[k], dt)`), while our recordings
-contain instantaneous samples at the epochs. In the aggressive segment this gives a mean NEES of
-194.7 (companion ESKF; own ESKF 15.8). Feeding the same, unchanged companion filter the interval
-mean `(u_k + u_k+1) / 2` instead gives a mean NEES of 14.6 over the flight and 17.8 in the
-aggressive segment (companion EKF: 14.7 and 17.9). This is an interface mismatch (meaning of an IMU
-sample), not a bug in their filter equations. Minimal change, not applied: the adapter passes the
-interval mean of the two IMU samples to `predict` (no change to their code), or the common
-interface states which IMU sample convention recordings use. The companion EKF and ESKF are
-therefore not used in the sweep (stopped); the companion `KF-CV` runs correctly and is the
-reported `KF`.
+Differences on the nominal recording (largest over the flight and 10 seeds), with the final adapter:
 
-Runtime per run (nominal recording, mean of 10): companion `KF` 0.60 s, companion `EKF` 4.0 s,
-companion `ESKF` 2.0 s, own `KF` 0.62 s, own `EKF` 5.2 s, own `ESKF` 2.2 s.
+| Pair | Position [m] | Velocity [m/s] | Attitude [deg] | Mean NEES (own / companion) | Largest NEES difference |
+|---|---|---|---|---|---|
+| own `EKF` vs companion `EKF` | 0.0213 | 0.0353 | 0.127 | 13.54 / 14.16 | 16.5 |
+| own `ESKF` vs companion `ESKF` | 0.0445 | 0.0511 | 0.490 | 13.55 / 14.12 | 15.7 |
+| own `KF` vs companion `KF-CV` | 0 | 0 | - | 4.66 / 4.66 | 0 |
 
-## Sweep and results (2026-11-27)
+History (first sanity run, start-sample adapter, verified diagnostic on seed 0): the companion
+filters held the IMU sample of the start of each interval while our recordings contain
+instantaneous samples; mean NEES 45.6 (`EKF`) and 44.6 (`ESKF`) over the flight, 194.7 in the
+aggressive segment (companion `ESKF`); the own `EKF` against the companion `EKF` differed by
+0.0265 m, 0.0609 m/s and 0.757 deg.
 
-960 runs (3 estimators x 32 recordings x 10 seeds; no seed reduction): wall time 212.8 s on 24
-worker processes (sum of the run times 2901 s), code at commit `108cb48` plus the uncommitted files
-of this step. Run files: 1.5 GB in `results/runs/` (git-ignored). Tables with bootstrap intervals:
-`results/tables.md` (position RMSE overall and per phase, velocity and attitude RMSE, peak error
-and its time, recovery time after each event). Reported estimators: `KF` = companion KF-CV;
-`EKF`, `ESKF` = own filters, provisional.
+Runtime per run (nominal recording, mean of 10): companion `KF` 0.60 s, `EKF` 3.8 s, `ESKF` 2.0 s;
+own `KF` 0.59 s, `EKF` 5.0 s, `ESKF` 2.2 s.
+
+## Open items
+
+* **IMU sample convention of the common interface (OPEN).** The common recording format does not
+  state whether IMU sample `k` is the instantaneous value at `t_k` or the mean over an interval.
+  Our recordings hold instantaneous values; the companion runner assumes a value held over
+  `[t_k, t_k+1)`. Needed: a statement in the common interface, agreed with the companion
+  repository's owner role.
+* **Companion EKF-ESKF yaw difference (OPEN).** See "Outcome of protocol change 4"; needed: a
+  diagnostic run of the companion pair with a common process-noise discretisation.
+
+## Sweep and results (2026-11-27, final estimator set)
+
+960 runs (3 estimators x 32 recordings x 10 seeds; no seed reduction): wall time 211.4 s on 24
+worker processes (sum of the run times 3020 s), code at commit `620049e` (plus the uncommitted
+adapter change of protocol change 4, which does not affect the swept estimators). Run files: 1.5 GB
+in `results/runs/` (git-ignored). Reported estimators: `KF` = companion KF-CV; `EKF`, `ESKF` = own
+filters, provisional. All metrics are equal to those of the first sweep (largest difference 0; only
+the runtimes differ). Tables with bootstrap intervals: `results/tables.md`.
 
 Observed (selection; numbers from `results/tables.md`, mean over 10 seeds with 95 % interval):
 
@@ -241,6 +282,8 @@ Observed (selection; numbers from `results/tables.md`, mean over 10 seeds with 9
 * With the 0.1 m recovery tolerance, the `EKF` and `ESKF` estimates do not return to the nominal
   estimate before the end of the flight after the large accelerometer step and after every gyro
   step that starts in the figure-eight or aggressive segment (10 of 10 seeds).
+
+Peak analysis of this sweep: `../peak_analysis/`.
 
 ## Files
 

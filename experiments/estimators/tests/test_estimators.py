@@ -95,3 +95,22 @@ def test_kf_matches_the_linear_reference():
     ref = kalman_filter(rec["pos_z"][1:], F, H, Q, rec["pos_R"][0], f0.x, f0.P)
     np.testing.assert_allclose(out["p_hat"][k[1:]], ref.estimates[:, :3], atol=1e-9)
     np.testing.assert_allclose(out["v_hat"][k[1:]], ref.estimates[:, 3:], atol=1e-9)
+
+
+def test_vendor_adapter_passes_the_interval_mean_of_the_imu_samples():
+    from experiments.estimators import vendor
+
+    calls = []
+
+    class Fake:
+        def predict(self, gyro, accel, dt):
+            calls.append((gyro.copy(), accel.copy(), dt))
+
+    est = object.__new__(vendor.VendorEstimator)
+    est.f, est.g, est.a = Fake(), np.array([0.0, 0.0, 1.0]), np.array([1.0, 0.0, 9.0])
+    est.predict(0.005, np.array([0.0, 0.0, 3.0]), np.array([3.0, 0.0, 11.0]))
+    est.predict(0.005, np.array([0.0, 0.0, 5.0]), np.array([5.0, 0.0, 13.0]))
+    assert vendor.INPUT == "mean"
+    np.testing.assert_allclose(calls[0][0], [0, 0, 2.0])
+    np.testing.assert_allclose(calls[0][1], [2.0, 0, 10.0])
+    np.testing.assert_allclose(calls[1][0], [0, 0, 4.0])

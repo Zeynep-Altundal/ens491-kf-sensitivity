@@ -8,9 +8,9 @@
       "pass": true
     },
     "companion": {
-      "dp": 0.03795296649164026,
-      "dv": 0.028777889260630296,
-      "datt_deg": 0.4118590022118213,
+      "dp": 0.03765066172795084,
+      "dv": 0.028047501468309366,
+      "datt_deg": 0.40726966529771363,
       "pass": false
     }
   },
@@ -21,12 +21,23 @@
         4.048174804284183,
         8.32976748771732
       ],
+      "nis_bounds": [
+        1.6790772265566631,
+        4.6979242243671155
+      ],
       "nees_fraction_inside": 0.2006505632190832,
       "nees_fraction_above": 0.12011324618998856,
       "nees_fraction_below": 0.6792361905909282,
       "mean_nees": 4.660885401171065,
       "nis_fraction_inside": 0.9049338146811071,
       "mean_nis": 2.904450238533578,
+      "nees_fraction_inside_after_10s": 0.21546469419902747,
+      "nees_fraction_above_after_10s": 0.13656598863091568,
+      "nees_fraction_below_after_10s": 0.6479693171700568,
+      "mean_nees_after_10s": 4.890205354946744,
+      "nis_fraction_inside_after_10s": 0.905608755129959,
+      "mean_nis_after_10s": 2.940326608448878,
+      "pass_whole_flight": false,
       "pass": false
     },
     "EKF": {
@@ -35,13 +46,24 @@
         11.79845154029029,
         18.580044700379325
       ],
-      "nees_fraction_inside": 0.6866453828082646,
-      "nees_fraction_above": 0.19745798445876755,
-      "nees_fraction_below": 0.1158966327329679,
-      "mean_nees": 45.64487778524082,
-      "nis_fraction_inside": 0.9434416365824309,
-      "mean_nis": 2.996864409690899,
-      "pass": false
+      "nis_bounds": [
+        1.6790772265566631,
+        4.6979242243671155
+      ],
+      "nees_fraction_inside": 0.8527197156797783,
+      "nees_fraction_above": 0.030781278236250827,
+      "nees_fraction_below": 0.11649900608397085,
+      "mean_nees": 14.15728716003676,
+      "nis_fraction_inside": 0.9446450060168472,
+      "mean_nis": 2.9966451751017655,
+      "nees_fraction_inside_after_10s": 0.9615779741113623,
+      "nees_fraction_above_after_10s": 0.03499760290391069,
+      "nees_fraction_below_after_10s": 0.0034244229847270736,
+      "mean_nees_after_10s": 14.851505364287627,
+      "nis_fraction_inside_after_10s": 0.945280437756498,
+      "mean_nis_after_10s": 3.0130938754572902,
+      "pass_whole_flight": false,
+      "pass": true
     },
     "ESKF": {
       "dim": 15,
@@ -49,13 +71,24 @@
         11.79845154029029,
         18.580044700379325
       ],
-      "nees_fraction_inside": 0.6873682308294681,
-      "nees_fraction_above": 0.1968556111077646,
-      "nees_fraction_below": 0.11577615806276731,
-      "mean_nees": 44.618928100249114,
-      "nis_fraction_inside": 0.9434416365824309,
-      "mean_nis": 2.9966787252368277,
-      "pass": false
+      "nis_bounds": [
+        1.6790772265566631,
+        4.6979242243671155
+      ],
+      "nees_fraction_inside": 0.853683513041383,
+      "nees_fraction_above": 0.029395819528944038,
+      "nees_fraction_below": 0.11692066742967291,
+      "mean_nees": 14.11740156699661,
+      "nis_fraction_inside": 0.9446450060168472,
+      "mean_nis": 2.9964314276003754,
+      "nees_fraction_inside_after_10s": 0.9626737894664749,
+      "nees_fraction_above_after_10s": 0.03342236833093624,
+      "nees_fraction_below_after_10s": 0.003903842202588864,
+      "mean_nees_after_10s": 14.805973560205821,
+      "nis_fraction_inside_after_10s": 0.945280437756498,
+      "mean_nis_after_10s": 3.012843837206607,
+      "pass_whole_flight": false,
+      "pass": true
     },
     "own_KF": {
       "dim": 6,
@@ -63,12 +96,23 @@
         4.048174804284183,
         8.32976748771732
       ],
+      "nis_bounds": [
+        1.6790772265566631,
+        4.6979242243671155
+      ],
       "nees_fraction_inside": 0.2006505632190832,
       "nees_fraction_above": 0.12011324618998856,
       "nees_fraction_below": 0.6792361905909282,
       "mean_nees": 4.660885401171065,
       "nis_fraction_inside": 0.9049338146811071,
       "mean_nis": 2.904450238533578,
+      "nees_fraction_inside_after_10s": 0.21546469419902747,
+      "nees_fraction_above_after_10s": 0.13656598863091568,
+      "nees_fraction_below_after_10s": 0.6479693171700568,
+      "mean_nees_after_10s": 4.890205354946744,
+      "nis_fraction_inside_after_10s": 0.905608755129959,
+      "mean_nis_after_10s": 2.940326608448878,
+      "pass_whole_flight": false,
       "pass": false
     },
     "own_EKF": {
@@ -77,13 +121,24 @@
         11.79845154029029,
         18.580044700379325
       ],
+      "nis_bounds": [
+        1.6790772265566631,
+        4.6979242243671155
+      ],
       "nees_fraction_inside": 0.8816938738630203,
       "nees_fraction_above": 0.0,
       "nees_fraction_below": 0.1183061261369797,
       "mean_nees": 13.539976610240137,
       "nis_fraction_inside": 0.9434416365824309,
       "mean_nis": 2.9959988092287486,
-      "pass": false
+      "nees_fraction_inside_after_10s": 0.9944524347647421,
+      "nees_fraction_above_after_10s": 0.0,
+      "nees_fraction_below_after_10s": 0.005547565235257859,
+      "mean_nees_after_10s": 14.146139615768462,
+      "nis_fraction_inside_after_10s": 0.9439124487004104,
+      "mean_nis_after_10s": 3.012380537585292,
+      "pass_whole_flight": false,
+      "pass": true
     },
     "own_ESKF": {
       "dim": 15,
@@ -91,13 +146,24 @@
         11.79845154029029,
         18.580044700379325
       ],
+      "nis_bounds": [
+        1.6790772265566631,
+        4.6979242243671155
+      ],
       "nees_fraction_inside": 0.88163363652792,
       "nees_fraction_above": 0.0,
       "nees_fraction_below": 0.11836636347207999,
       "mean_nees": 13.546103920520757,
       "nis_fraction_inside": 0.9434416365824309,
       "mean_nis": 2.9959944630710296,
-      "pass": false
+      "nees_fraction_inside_after_10s": 0.9943839463050476,
+      "nees_fraction_above_after_10s": 0.0,
+      "nees_fraction_below_after_10s": 0.0056160536949524005,
+      "mean_nees_after_10s": 14.153131050288035,
+      "nis_fraction_inside_after_10s": 0.9439124487004104,
+      "mean_nis_after_10s": 3.012375988197421,
+      "pass_whole_flight": false,
+      "pass": true
     }
   },
   "check3": {
@@ -124,29 +190,29 @@
       "max_abs_dnees": 0.0
     },
     "EKF": {
-      "max_dp": 0.026452144691267776,
-      "max_dv": 0.060862151817955734,
-      "max_datt_deg": 0.7569721445160232,
+      "max_dp": 0.02128118746354879,
+      "max_dv": 0.03526337468450569,
+      "max_datt_deg": 0.12709324458324217,
       "mean_nees_own": 13.539976610240137,
-      "mean_nees_companion": 45.644877785240816,
-      "max_abs_dnees": 745.9570163163936
+      "mean_nees_companion": 14.15728716003676,
+      "max_abs_dnees": 16.450789667541564
     },
     "ESKF": {
-      "max_dp": 0.04623948537896361,
-      "max_dv": 0.0660902050133938,
-      "max_datt_deg": 1.0914841489608578,
+      "max_dp": 0.04454198715834501,
+      "max_dv": 0.05107623536029149,
+      "max_datt_deg": 0.49000638615913583,
       "mean_nees_own": 13.546103920520759,
-      "mean_nees_companion": 44.61892810024912,
-      "max_abs_dnees": 750.5546114214806
+      "mean_nees_companion": 14.117401566996609,
+      "max_abs_dnees": 15.660694586673495
     }
   },
   "runtime_per_run_s": {
-    "KF": 0.597693057791912,
-    "EKF": 4.019048681095592,
-    "ESKF": 2.0338315812055954,
-    "own_KF": 0.6191430231992854,
-    "own_EKF": 5.207693940892932,
-    "own_ESKF": 2.2063388800015673
+    "KF": 0.5985826961958083,
+    "EKF": 3.83453392960364,
+    "ESKF": 1.98716925419576,
+    "own_KF": 0.5916882515972247,
+    "own_EKF": 4.984183120998205,
+    "own_ESKF": 2.1669404077983927
   },
-  "wall_s": 37.08784991799621
+  "wall_s": 36.96053263300564
 }

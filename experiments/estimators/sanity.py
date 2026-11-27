@@ -22,6 +22,9 @@ from synthetic.rotation import quat_conjugate, quat_log, quat_multiply
 RESULTS = Path(__file__).resolve().parent / "results"
 TOL_P, TOL_V, TOL_ATT_DEG = 0.05, 0.05, 0.2
 FRACTION = 0.90
+# Protocol amendment 1 (2026-11-27, README "Protocol changes"): check 2 is evaluated after a
+# convergence window; the whole-flight fractions are still reported.
+CONVERGENCE_S = 10.0
 
 
 ALL = ("KF", "EKF", "ESKF", "own_KF", "own_EKF", "own_ESKF")
@@ -60,6 +63,7 @@ def _seed_runs(seed: int) -> dict:
         "nees": {n: o["nees"] for n, o in outs.items()}, "nis": {n: o["nis"] for n, o in outs.items()},
         "dims": {n: o["nees_dim"] for n, o in outs.items()},
         "runtime_s": {n: o["runtime_s"] for n, o in outs.items()},
+        "t": rec["imu_t"], "upd_t": {n: o["upd_t"] for n, o in outs.items()},
     }
 
 
@@ -103,13 +107,20 @@ def main() -> None:
         nis = np.mean([r["nis"][name] for r in res], axis=0)
         lo, hi = chi2.ppf([0.025, 0.975], n * d) / n
         lo3, hi3 = chi2.ppf([0.025, 0.975], n * 3) / n
-        f_nees = float(np.mean((nees >= lo) & (nees <= hi)))
-        f_nis = float(np.mean((nis >= lo3) & (nis <= hi3)))
-        report["check2"][name] = {
-            "dim": d, "nees_bounds": [float(lo), float(hi)], "nees_fraction_inside": f_nees,
-            "nees_fraction_above": float(np.mean(nees > hi)), "nees_fraction_below": float(np.mean(nees < lo)),
-            "mean_nees": float(nees.mean()), "nis_fraction_inside": f_nis, "mean_nis": float(nis.mean()),
-            "pass": f_nees >= FRACTION and f_nis >= FRACTION}
+        late = res[0]["t"] >= CONVERGENCE_S
+        late_nis = res[0]["upd_t"][name] >= CONVERGENCE_S
+        c = {"dim": d, "nees_bounds": [float(lo), float(hi)], "nis_bounds": [float(lo3), float(hi3)]}
+        for tag, a, b in (("", slice(None), slice(None)), ("_after_10s", late, late_nis)):
+            c[f"nees_fraction_inside{tag}"] = float(np.mean((nees[a] >= lo) & (nees[a] <= hi)))
+            c[f"nees_fraction_above{tag}"] = float(np.mean(nees[a] > hi))
+            c[f"nees_fraction_below{tag}"] = float(np.mean(nees[a] < lo))
+            c[f"mean_nees{tag}"] = float(nees[a].mean())
+            c[f"nis_fraction_inside{tag}"] = float(np.mean((nis[b] >= lo3) & (nis[b] <= hi3)))
+            c[f"mean_nis{tag}"] = float(nis[b].mean())
+        c["pass_whole_flight"] = c["nees_fraction_inside"] >= FRACTION and c["nis_fraction_inside"] >= FRACTION
+        c["pass"] = (c["nees_fraction_inside_after_10s"] >= FRACTION
+                     and c["nis_fraction_inside_after_10s"] >= FRACTION)
+        report["check2"][name] = c
     report["runtime_per_run_s"] = {name: float(np.mean([r["runtime_s"][name] for r in res])) for name in ALL}
     report["wall_s"] = time.perf_counter() - t0
     RESULTS.mkdir(exist_ok=True)

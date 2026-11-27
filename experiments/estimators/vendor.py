@@ -6,8 +6,11 @@ Source: ``ens491-nkf``, ``nkf/compare/filters.py`` and its imports, exported rea
 unchanged; nothing here modifies their behaviour. The adapter only
 
 * converts our tuning and initial state to their ``Init`` and ``NoiseSpec``,
-* calls ``predict(gyro_k, accel_k, dt)`` with the IMU sample at the start of the interval, as their
-  runner does (``nkf/compare/runner.py``: ``f.predict(gyro[k], accel[k], t[k + 1] - t[k])``),
+* calls ``predict(gyro, accel, dt)`` with the mean of the two IMU samples that bound the interval,
+  ``(u_k + u_{k+1}) / 2``. Their runner (``nkf/compare/runner.py``) passes the start sample ``u_k``,
+  which fits a recording whose sample ``k`` is the mean over the interval; our recordings hold
+  instantaneous samples (open item: the common interface does not state the sample convention).
+  ``INPUT = "start"`` restores the runner's convention for diagnostics,
 * reads the full covariance ``P`` of the filter object for the NEES (their ``cov_blocks`` returns
   only the diagonal blocks); for the 16-state EKF it maps the quaternion block with their own
   ``EKF._J_q_to_att``.
@@ -41,6 +44,8 @@ VENDOR_SHA256 = {
 }
 VENDOR_DIR = Path(__file__).resolve().parent / "_vendor" / f"nkf_{VENDOR_COMMIT}"
 NAMES = {"KF": "KF-CV", "EKF": "EKF", "ESKF": "ESKF"}  # our name -> their class name
+# IMU input per interval: "mean" = (u_k + u_{k+1}) / 2 (protocol decision), "start" = u_k (their runner).
+INPUT = "mean"
 
 
 def export() -> Path:
@@ -89,8 +94,12 @@ class VendorEstimator:
         self.g, self.a = np.asarray(init.gyro, float), np.asarray(init.accel, float)
 
     def predict(self, dt, gyro, accel) -> None:
-        self.f.predict(self.g, self.a, dt)  # sample at the start of the interval, held
-        self.g, self.a = np.asarray(gyro, float), np.asarray(accel, float)
+        gyro, accel = np.asarray(gyro, float), np.asarray(accel, float)
+        if INPUT == "mean":
+            self.f.predict(0.5 * (self.g + gyro), 0.5 * (self.a + accel), dt)
+        else:
+            self.f.predict(self.g, self.a, dt)  # sample at the start of the interval, held
+        self.g, self.a = gyro, accel
 
     def update_position(self, z, R):
         info = self.f.update_position(np.asarray(z, float), np.asarray(R, float))
