@@ -199,9 +199,32 @@ rclpy for Python 3.12), removes `/opt/ros` from `PATH` and does not source any s
 file; the system installation is not changed. With `ROS_DISTRO` set and no ROS 2 sourced, the
 bridge loads its rclpy as `jazzy.rclpy` (code of `isaacsim.ros2.core`, `impl/extension.py`). At
 start-up the live mode prints every ROS 2 / DDS library mapped into the process (from
-`/proc/self/maps`) and how many come from `/opt/ros`. BLOCKED: not run yet (see
-`../rviz_drone/README.md`, "Isolation": Fast DDS shared memory in `/dev/shm`), so which libraries
-are actually loaded is not yet confirmed.
+`/proc/self/maps`) and how many come from `/opt/ros`.
+
+Run of 2026-11-27 17:00 (full launch, mission, chase camera, window): the libraries mapped into
+Isaac Sim were all bundled ones, none from `/opt/ros` (log: "libraries from /opt/ros: 0; bundled:
+6"): `librcl.so`, `librcutils.so`, `librmw_implementation.so`, `librmw_fastrtps_cpp.so`,
+`libfastrtps.so.2.14`, `libfastcdr.so.2`, all from
+`isaacsim.ros2.core/jazzy/lib`; rclpy from `isaacsim.ros2.core/jazzy/rclpy`. 10 s windows of the
+flight:
+
+| Flight time [s] | Frames/s | Frame time median / max [ms] | Poses received /s | Receive time minus stamp, median / max [ms] |
+|---|---|---|---|---|
+| 0-9.3 (with the start) | 102.3 | 9.7 / 80.1 | 185.6 | 5.9 / 153.5 |
+| 9.3-19.3 | 97.2 | 10.0 / 69.6 | 200.0 | 145.9 / 152.8 |
+| 19.3-29.3 | 97.2 | 10.1 / 15.1 | 199.9 | 145.9 / 149.3 |
+| 29.3-39.3 | 95.6 | 10.2 / 43.1 | 200.0 | 145.9 / 149.4 |
+| 39.3-49.3 | 95.8 | 10.3 / 16.5 | 200.0 | 145.9 / 149.2 |
+| 49.3-59.3 | 109.2 | 8.9 / 34.6 | 200.0 | 145.8 / 148.6 |
+| 59.3-69.3 | 111.5 | 8.8 / 14.6 | 200.0 | 145.8 / 149.4 |
+| 69.3-79.3 | 110.9 | 8.9 / 13.5 | 199.9 | 145.8 / 148.2 |
+
+The receive time minus the header stamp is not the transport latency: the stamp is `t0 + t_k`
+(flight time), and the simulator node fell about 0.15 s behind its own time base early in the run
+(the flight of 83 s took 83.15 s from `t0`; ROS 2 timers do not catch up missed periods) and then
+published at 200 Hz; the constant 146 ms is this offset. The transport latency itself was not
+measured separately (OPEN). At shutdown the spin thread raised `ExternalShutdownException` (the
+bridge closes the rclpy context first); it is caught since then (not yet run again).
 
 ## GUI replay timing
 
@@ -286,3 +309,6 @@ and `/opt/ros/jazzy` gave 0 differences.
 | 2026-11-27 12:25-12:47 | 15 s clip of the mission, t = 13-28 s (straight leg, turn, hover with turn, start of the figure-eight), chase, 30 frames/s, path traced | exit 0; 451 frames in 1257 s, `frames/seq_chase_13.00_28.00.mp4` (H.264, 1280x720, 8.6 MB) |
 | 2026-11-27 12:47 | `--gui --camera chase`, mission | window open; frame rate below |
 | 2026-11-27 15:57 | seven chase stills (t = 3, 12, 20, 30, 45, 55, 70 s) and one overview still (t = 30 s) after the camera pitch, fill light and route line changes | exit 0; `frames/stills/`; horizon and sky in all chase stills, drone lit in all |
+| 2026-11-27 16:25 | stills t = 30 s chase, t = 55 s top-down, after the live-mode changes (offline mode unchanged) | exit 0 |
+| 2026-11-27 16:56 | full launch, live mode | Isaac Sim started; the live mode stopped with a Python error at the first pose (trail of a one-sample history), fixed (`replay.trail_from_history`) |
+| 2026-11-27 17:00 | full launch, live mode, 83 s flight | exit 0 ("finished cleanly"); results in "ROS 2 live mode" |

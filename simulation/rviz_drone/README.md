@@ -329,29 +329,37 @@ stops publishing and logs a message.
 `ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST`, so that the nodes of this package never discover nodes on
 the default domain; `ROS_LOG_DIR` to `../rviz_drone_ws/log/ros` and `ROS_HOME` to
 `../rviz_drone_ws/ros_home`, so that nothing is written to `~/.ros`; `RMW_IMPLEMENTATION=rmw_fastrtps_cpp`
-and `FASTDDS_BUILTIN_TRANSPORTS=UDPv4`. The launch file starts RViz with `HOME` set to
-`../rviz_drone_ws/ros_home`, so that RViz does not write `~/.rviz2`. Use the command-line tools
-with `--no-daemon` (`ros2 node list --no-daemon`, `ros2 topic list --no-daemon`) and stop a daemon
-that was started anyway with `ros2 daemon stop` in the same environment.
+and `FASTRTPS_DEFAULT_PROFILES_FILE=../rviz_drone_ws/fastdds_udp_localhost.xml` (UDPv4 on 127.0.0.1
+only, built-in transports disabled). `../isaac_render/isaac_python.sh` sets the same for Isaac Sim
+in its ROS 2 mode. The launch file starts RViz with `HOME` set to `../rviz_drone_ws/ros_home`, so
+that RViz does not write `~/.rviz2`. Use the command-line tools with `--no-daemon` where they offer
+it, and stop the daemon (domain 101) with `ros2 daemon stop` in the same environment at the end.
 
-Observation of 2026-11-27 (headless run, `/dev/shm` listed before and after, information only; the
-shared directories of the isolation check, `~/.ros` and `/opt/ros/jazzy` had 0 differences):
+Rule: the ROS 2 processes of this repository are never started while any other ROS 2 process
+(ROS 2 node or tool, RViz, Gazebo, Isaac Sim) is running on this machine; check first
+(`ps -eo args | grep -E '/opt/ros/|ros2 |rviz2|gz sim|gazebo|isaacsim'`), and if one is running,
+stop and report.
 
-* The node alone (launch at 16:11, 83 s flight) changed nothing in `/dev/shm`.
-* During the rate measurement (16:17:01-16:17:02: six `ros2 topic hz`, one `ros2 topic echo`
-  without `--no-daemon`, which started a `ros2-daemon` on domain 101) three existing Fast DDS
-  shared-memory port files of earlier, no longer running processes, `/dev/shm/fastrtps_port7001`,
-  `fastrtps_port7005` and `fastrtps_port7007` (52 400 bytes, last changed before this run), were
-  rewritten (new mtime, same size). `FASTDDS_BUILTIN_TRANSPORTS=UDPv4` did not prevent it.
-  `librmw_fastrtps_shared_cpp.so` of Jazzy creates a `SharedMemTransportDescriptor` itself (seen in
-  its symbols); whether it adds shared memory for the `LOCALHOST` discovery range regardless of
-  the environment variable was not confirmed (OPEN).
-* BLOCKED: `/dev/shm` is shared with the ROS 2 work of the other project on this machine. Further
-  ROS 2 runs (in particular Isaac Sim with its ROS 2 bridge, and RViz) wait for an explicit
-  decision of the project owner: accept the shared-memory files of Fast DDS under
-  `ROS_DOMAIN_ID=101`, or move to a configuration without shared memory (for example a Fast DDS
-  XML profile with UDPv4 on 127.0.0.1 only and the discovery range not set to `LOCALHOST`, still
-  to be tested).
+Accepted side effect (decision of the project owner, 2026-11-27): Fast DDS keeps lock and port files
+in `/dev/shm` (`fastrtps_port*`, `fastrtps_*_el`, `sem.fastrtps_*`). They are transient run-time
+state of DDS, not project files, and `/dev/shm` is shared with other ROS 2 work on this machine.
+Measurements (listing of `/dev/shm` with names, sizes, mtimes and owners before and after each run):
+
+| Run | Configuration | Changes in `/dev/shm` |
+|---|---|---|
+| 2026-11-27 16:11, node alone | UDP requested with `FASTDDS_BUILTIN_TRANSPORTS=UDPv4` | none |
+| 2026-11-27 16:17, `ros2 topic hz` (6), `ros2 topic echo` (started a `ros2-daemon`) | same | 3 existing port files of earlier processes rewritten (`fastrtps_port7001`, `7005`, `7007`; same size, new mtime) |
+| 2026-11-27 16:53, node and the same tools | XML profile, UDPv4 on 127.0.0.1, built-in transports off | 1 existing port file rewritten (`fastrtps_port7008`, same size, new mtime, at the start of the tools) |
+| 2026-11-27 16:56, full launch (node, RViz, Isaac Sim; Isaac Sim stopped early by an error of the live mode, since fixed) | XML profile | new: `fastrtps_port32661`, `fastrtps_port32663`, `fastrtps_port7000` (52 400 bytes) and their `sem.*_mutex` files, created at the start of the launch; removed: the stale `fastrtps_port7002` and its mutex |
+| 2026-11-27 17:00, full launch (node, RViz, Isaac Sim), 83 s flight | XML profile | new and left after the end: `fastrtps_port32665`, `fastrtps_port7002` (52 400 bytes each), a 549 408-byte segment `fastrtps_05a43ae57994a416`, three `*_el` lock files and two `sem.*_mutex` files, all created at 17:00:43 when the Isaac Sim node was created |
+
+The UDP-only profile did not prevent the use of `/dev/shm`: the command-line tools, RViz and the
+Isaac Sim bridge (its bundled Fast DDS) still create or reuse shared-memory port files and a
+data-sharing segment, and files of processes that are stopped by a signal stay there. Which setting
+would remove them completely was not determined (OPEN, not pursued after the decision; `fastdds shm
+clean` would also remove the files of other work and is not used). All files are owned by this user
+and are Fast DDS run-time state. The shared directories of the isolation
+check, `~/.ros` and `/opt/ros/jazzy` had 0 differences in all runs.
 
 ## Usage
 
@@ -388,8 +396,29 @@ in 83.01 s of wall-clock time.
 `/drone/sim/info` (latched) carried `{"duration_s": 83.0, "imu_rate_hz": 200.0, "pos_rate_hz": 10.0,
 "seed": 0, "t0_ns": ..., "trajectory": "mission"}`; `ros2 node list` showed `/rviz_drone_sim` only.
 
-Not yet run (BLOCKED, see "Isolation"): RViz with the widened view (`rviz/rviz_drone.rviz`, 62 m
-from the centre of the mission area) and the launch with Isaac Sim (`isaac:=true`).
+Second run of 2026-11-27 16:53 with the UDP-only profile, same measurement: 200.002 Hz
+(`/drone/truth/pose`), 200.006 Hz (`/tf`), 200.001 Hz (`/drone/imu`), 10.000 Hz, 2.000 Hz, 3.000 /s.
+
+Full launch of 2026-11-27 17:00 (`ros2 launch rviz_drone rviz_drone.launch.py trajectory:=mission`:
+node, Isaac Sim live mode, RViz): Isaac Sim was up and its node in the graph 34 s after the launch;
+the node then published the 83 s flight (from 17:00:44 to 17:02:07). Rates with `ros2 topic hz`
+over 30 s, started 3 s after the first message, while Isaac Sim and RViz were running:
+
+| Topic | Expected | Measured | Min / max period |
+|---|---|---|---|
+| `/drone/truth/pose` | 200 Hz | 200.022 Hz | 2 / 7 ms |
+| `/tf` | 200 Hz | 199.038 Hz | 1 / 153 ms |
+| `/drone/imu` | 200 Hz | 200.006 Hz | 3 / 7 ms |
+| `/drone/position` | 10 Hz | 10.000 Hz | 98 / 102 ms |
+| `/drone/truth/path` | 2 Hz | 1.990 Hz | 499 / 640 ms |
+| `/drone/marker` | 3 messages/s | 3.000 /s | 0 / 1001 ms |
+
+Received by Isaac Sim (`/drone/truth/pose`, its own log, 10 s windows): 199.9 to 200.0 poses/s in
+every full window of the flight. RViz: started, in the graph (`/rviz2` and its TF listener), ran
+until the end without warnings or errors in its log; that the drone, TF, path and measurements are
+visible in the widened view was not checked by looking at the window (manual check, OPEN). After
+the end, `SIGINT` to the launch stopped all three processes cleanly and the `ros2` daemon of
+domain 101 was stopped.
 
 ## Done criteria
 
@@ -404,7 +433,9 @@ from the centre of the mission area) and the launch with Isaac Sim (`isaac:=true
    logs the ROS 2 libraries it loaded (bundled or `/opt/ros`), the received pose rate (200 Hz
    within 5 %) and the latency.
 
-Status 2026-11-27: 1 to 3 met (rates in "Usage"); 4 and 5 BLOCKED (see "Isolation").
+Status 2026-11-27: 1 to 3 met (rates in "Usage"); 5 met (Isaac Sim followed the pose at 200 Hz,
+bundled ROS 2 libraries, see `../isaac_render/README.md`); 4 partly: RViz ran without errors, the
+visual check in its window is OPEN.
 
 ## Files
 

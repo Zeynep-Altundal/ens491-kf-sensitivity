@@ -133,6 +133,21 @@ def test_online_chase_filter_equals_the_offline_chase_path():
     np.testing.assert_allclose(online[:, 3:], target, atol=1e-9)
 
 
+def test_live_trail_from_a_short_or_irregular_history():
+    pts, age = replay.trail_from_history(np.array([5.0]), np.array([[1.0, 2.0, 3.0]]), n=5)
+    assert np.all(pts == [1.0, 2.0, 3.0]) and np.all(age == 0.0)
+    t = np.array([0.0, 0.5, 0.6, 1.9, 2.0, 3.0])  # gaps, as when messages are dropped
+    p = np.stack([t, 0 * t, 0 * t], axis=1)
+    pts, age = replay.trail_from_history(t, p, length_s=2.0, n=5)  # times 1.0, 1.5, 2.0, 2.5, 3.0
+    np.testing.assert_allclose(pts[:, 0], [0.6, 0.6, 2.0, 2.0, 3.0])
+    assert age[-1] == 0.0 and np.all(np.diff(pts[:, 0]) >= 0)
+    t = np.arange(0.0, 10.0, 0.005)
+    p = np.stack([t, t, t], axis=1)
+    a, _ = replay.trail(t, p, len(t) - 1)
+    b, _ = replay.trail_from_history(t, p)
+    np.testing.assert_allclose(a, b, atol=0.0051)
+
+
 def test_fill_light_shines_along_the_view_from_above():
     d = replay.fill_direction(np.array([0.0, 0.0, 1.0]), np.array([3.0, 4.0, 0.5]))
     assert abs(np.linalg.norm(d) - 1.0) < 1e-12 and d[2] < 0

@@ -27,10 +27,10 @@ export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
 # of the shared ~/.ros.
 export ROS_LOG_DIR="${RVIZ_DRONE_WS}/log/ros"
 export ROS_HOME="${RVIZ_DRONE_WS}/ros_home"
-# Fast DDS (also bundled with Isaac Sim 6.0.1, same version 2.14.6). UDP only is requested, but with
-# ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST shared-memory port files in /dev/shm were still rewritten by
-# the ros2 command-line tools (README.md, "Isolation"); /dev/shm is also used by other ROS 2 work.
+# Fast DDS (also bundled with Isaac Sim 6.0.1, same version 2.14.6) with the profile of the workspace:
+# UDPv4 on 127.0.0.1 only, built-in transports (shared memory in /dev/shm) disabled. See README.md,
+# "Isolation".
 export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
-export FASTDDS_BUILTIN_TRANSPORTS=UDPv4
+export FASTRTPS_DEFAULT_PROFILES_FILE="${RVIZ_DRONE_WS}/fastdds_udp_localhost.xml"
 
 unset _rviz_drone_dir

@@ -557,7 +557,15 @@ def run_live(labels, overlay_where: str) -> None:
 
     node.create_subscription(PoseStamped, topics.TRUTH_POSE.name, on_pose, topics.qos_profile(topics.TRUTH_POSE))
     node.create_subscription(String, topics.SIM_INFO.name, on_info, topics.qos_profile(topics.SIM_INFO))
-    spin = threading.Thread(target=rclpy.spin, args=(node,), daemon=True)
+    def spin_until_shutdown() -> None:
+        # The bridge extension shuts the rclpy context down when Kit closes; that ends the spin.
+        from rclpy.executors import ExternalShutdownException
+        try:
+            rclpy.spin(node)
+        except (ExternalShutdownException, KeyboardInterrupt):
+            pass
+
+    spin = threading.Thread(target=spin_until_shutdown, daemon=True)
     spin.start()
     print(f"RENDER ros2: node {topics.ISAAC_NODE} subscribed to {topics.TRUTH_POSE.name} and "
           f"{topics.SIM_INFO.name}; camera={args.camera} overlay={overlay_where}; close the window to exit",
@@ -625,13 +633,13 @@ def run_live(labels, overlay_where: str) -> None:
         route_pts_attr.Set([Gf.Vec3f(*map(float, x))
                             for x in replay.upcoming_route(T, P_REF, k_ref, horizon_s=ROUTE_S, n=ROUTE_N)])
         th, ph = np.array(hist_t), np.array(hist_p)
-        pts, age = replay.trail(th, ph, len(th) - 1, n=TRAIL_N)
+        pts, age = replay.trail_from_history(th, ph, n=TRAIL_N)
         trail_pts_attr.Set([Gf.Vec3f(*map(float, x)) for x in pts])
         trail_widths_attr.Set([float(line_scale * (0.012 * (1.0 - a) + 0.002)) for a in age])
         route_width_attr.Set([float(line_scale * ROUTE_WIDTH)])
         apply_cameras(eye, target)
-        j = replay.sample_index(th, th[-1] - 0.1)
-        speed = float(np.linalg.norm(ph[-1] - ph[j]) / max(th[-1] - th[j], 1e-6)) if len(th) > 1 else 0.0
+        j = int(np.clip(np.searchsorted(th, th[-1] - 0.1, side="right") - 1, 0, len(th) - 1))
+        speed = float(np.linalg.norm(ph[-1] - ph[j]) / (th[-1] - th[j])) if th[-1] > th[j] else 0.0
         segment = TRAJ.segment_at(min(max(t, 0.0), TRAJ.duration)).name
         for label, text in zip(labels, replay.overlay_lines(t, segment, speed, args.camera)):
             label.text = text

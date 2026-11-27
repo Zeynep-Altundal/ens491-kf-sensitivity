@@ -201,6 +201,18 @@ def trail(t: np.ndarray, p: np.ndarray, k: int, length_s: float = 2.0, n: int = 
     return p[idx], np.clip(age, 0.0, 1.0)
 
 
+def trail_from_history(t: np.ndarray, p: np.ndarray, length_s: float = 2.0, n: int = 41
+                       ) -> tuple[np.ndarray, np.ndarray]:
+    """Trail of the live mode from received samples (times increasing, not necessarily uniform,
+    possibly a single sample): points at ``n`` times over the last ``length_s`` (nearest received
+    sample at or before each time, the oldest sample before the start) and their age fraction."""
+    t = np.asarray(t, dtype=float)
+    times = t[-1] - np.linspace(length_s, 0.0, n)
+    idx = np.clip(np.searchsorted(t, times, side="right") - 1, 0, len(t) - 1)
+    age = (t[-1] - t[idx]) / length_s
+    return np.asarray(p)[idx], np.clip(age, 0.0, 1.0)
+
+
 def overlay_lines(time: float, phase: str, speed: float, camera: str) -> list[str]:
     return [f"t = {time:6.2f} s", f"phase: {PHASE_LABELS.get(phase, phase)}",
             f"speed: {speed:5.2f} m/s", f"camera: {camera}"]
