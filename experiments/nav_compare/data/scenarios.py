@@ -11,8 +11,9 @@ Design rules
   - Independent random streams (SeedSequence.spawn): changing one factor (for example the
     vibration level) does not reshuffle the noise of the other factors. Scenarios that differ
     in one setting are therefore a paired comparison for the same seed.
-  - The IMU grade presets are illustrative orders of magnitude, not values from a datasheet.
-  - Same conventions as docs/interfaces.md (ENU, z up, Hamilton [w,x,y,z], R_wb, g_w=[0,0,-9.81]).
+  - IMU grades: "euroc" (default) uses the densities of synthetic/ (EuRoC ADIS16448 level); the
+    other presets are illustrative orders of magnitude, not values from a datasheet.
+  - Same conventions as docs/common_interface.md (ENU, z up, Hamilton [w,x,y,z], R_wb, g_w=[0,0,-9.81]).
 """
 
 from __future__ import annotations
@@ -40,6 +41,10 @@ from experiments.nav_compare.data.synthetic import (
 #  gyro bias std rad/s, accel bias std m/s^2,
 #  gyro bias random walk rad/s/sqrt(s), accel bias random walk m/s^2/sqrt(s))
 IMU_GRADES = {
+    # Default since week 3: same white-noise and random-walk densities as synthetic/ScenarioConfig,
+    # which equal (accel) or are within 18 % (gyro) of the EuRoC imu0/sensor.yaml (ADIS16448);
+    # turn-on bias std of the order of the fixed turn-on biases of synthetic/ (per axis).
+    "euroc": (2.0e-4, 2.0e-3, 1.5e-3, 4.0e-2, 2.0e-5, 3.0e-3),
     "low": (
         1e-5,
         1e-4,
@@ -81,7 +86,7 @@ class Scenario:
     uav_yaw_amp_rad: float = 0.3
 
     # --- IMU error model ---
-    imu_grade: str = "medium"
+    imu_grade: str = "euroc"
     noise_scale: float = (
         1.0  # multiplies all four noise terms of the grade (white + walk)
     )
@@ -447,7 +452,7 @@ def scenario_grid(platform: str) -> dict:
     def add(name, **kw):
         g[name] = base.replace(name=name, **kw)
 
-    for grade in ("low", "high"):
+    for grade in ("low", "medium", "high"):
         add(f"grade_{grade}", imu_grade=grade)
     for s in (0.3, 3.0):
         add(f"noise_x{s:g}", noise_scale=s)

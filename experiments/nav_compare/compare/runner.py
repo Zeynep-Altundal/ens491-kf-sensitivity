@@ -37,7 +37,7 @@ def make_init(rec, init_att_err=None, init_seed=0) -> Init:
     for every filter for a given init_seed), and tell the filter std_att = init_att_err.
     """
     meta = rec["meta"]
-    grade = meta.get("scenario", {}).get("imu_grade", "medium")
+    grade = meta.get("scenario", {}).get("imu_grade", "euroc")
     _, _, bg_std, ba_std, _, _ = IMU_GRADES[grade]
     bias_scale = meta.get("scenario", {}).get("bias_scale", 1.0)
     z = np.zeros(3)

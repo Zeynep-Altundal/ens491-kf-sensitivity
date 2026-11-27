@@ -49,21 +49,22 @@ std `sigma_b * sqrt(dt)`. This is the continuous-time model used by Kalibr
 noise + bias random walk, parameters `*_noise_density` and `*_random_walk`; the page also warns that
 the model is optimistic and that values for low-cost sensors may need to be 10x larger).
 
-### Values (grade `medium` is the default)
+### Values (grade `euroc` is the default since 27 Nov; `medium` was the default before)
 
-| Parameter | low | **medium** | high | EuRoC ADIS16448 (Kalibr yaml) |
-| --- | --- | --- | --- | --- |
-| Gyro noise density [rad/s/√Hz] | 1e-5 | **1e-4** (0.34 °/√h) | 5e-4 | 1.70e-4 |
-| Accel noise density [m/s²/√Hz] | 1e-4 | **1e-3** | 5e-3 | 2.0e-3 |
-| Gyro bias random walk [rad/s²/√Hz] | 1e-7 | **1e-6** | 1e-5 | 1.94e-5 |
-| Accel bias random walk [m/s³/√Hz] | 1e-6 | **1e-5** | 1e-4 | 3.0e-3 |
-| Gyro turn-on bias std [rad/s] | 5e-5 | **5e-4** (≈100 °/h) | 3e-3 | – |
-| Accel turn-on bias std [m/s²] | 2e-3 | **1e-2** (≈1 mg) | 5e-2 | – |
+| Parameter | low | medium | high | **euroc** | EuRoC ADIS16448 (Kalibr yaml) |
+| --- | --- | --- | --- | --- | --- |
+| Gyro noise density [rad/s/√Hz] | 1e-5 | 1e-4 (0.34 °/√h) | 5e-4 | **2e-4** | 1.70e-4 |
+| Accel noise density [m/s²/√Hz] | 1e-4 | 1e-3 | 5e-3 | **2e-3** | 2.0e-3 |
+| Gyro bias random walk [rad/s²/√Hz] | 1e-7 | 1e-6 | 1e-5 | **2e-5** | 1.94e-5 |
+| Accel bias random walk [m/s³/√Hz] | 1e-6 | 1e-5 | 1e-4 | **3e-3** | 3.0e-3 |
+| Gyro turn-on bias std [rad/s] | 5e-5 | 5e-4 (≈100 °/h) | 3e-3 | **1.5e-3** | – |
+| Accel turn-on bias std [m/s²] | 2e-3 | 1e-2 (≈1 mg) | 5e-2 | **4e-2** | – |
 
 EuRoC values: `imu0/sensor.yaml` of the EuRoC MAV dataset
 ([copy](https://docs.rs/crate/euroc/latest/source/test_data/imu0/sensor.yaml), comment "VI-Sensor
-IMU (ADIS16448)", 200 Hz). Our `medium` white-noise values are close to EuRoC; **our random-walk
-values are much smaller** (gyro about 20x, accel about 300x). The EuRoC yaml values are the ones
+IMU (ADIS16448)", 200 Hz). The `medium` random-walk values were much smaller than EuRoC (gyro about 20x, accel about 300x);
+therefore the default is now `euroc`, which uses the same densities as `synthetic/ScenarioConfig`
+of this repository (so both generators have the same IMU noise level). The EuRoC yaml values are the ones
 used for VIO tuning and are probably inflated as Kalibr suggests; we have not checked the ADIS16448
 datasheet. Grade names: "low" = low noise (tactical-like), "high" = high noise (consumer-like);
 [SBG](https://www.sbg-systems.com/glossary/imu-grades/) only states that tactical gyros are often
@@ -124,3 +125,46 @@ The filters are never told about a disturbance (R and Q stay as for the clean ca
    the "realistic" runs; keep 0.5 m as the clean baseline.
 3. Wheel speed scale error (~1 %) and magnetometer hard-iron offset as extra scenarios.
 4. Check the disturbance sizes against a real recording (e.g. the vibration level of a real drone).
+
+## 9. Relation to the generator in `synthetic/`
+
+Both generators build the truth first and use the same conventions and the same IMU noise model.
+They are used for different questions:
+
+| | `synthetic/` | `experiments/nav_compare/data/` |
+| --- | --- | --- |
+| Motion | `straight`, `turning` (figure-eight, yaw along velocity), `aggressive` (3-D, large roll/pitch); the quadrotor of `simulation/rviz_drone` uses it for its sensors | car with stops (UGV), smooth Lissajous drone path (UAV) |
+| IMU noise | EuRoC level | `euroc` grade by default (same densities) |
+| Turn-on bias | fixed vector | random per seed (std above) |
+| Position | 10 Hz, 0.5 m, random outliers and dropout windows | 1 Hz, 0.5 m (GNSS-like); events in a time window |
+| Disturbances | random spikes with a probability | logged events: bias step, noise burst, spike, outage |
+| Extra signals | - | wheel speed, steering, magnetometer heading |
+
+The 7 filters can be run on recordings of either generator (common recording format), so a
+separate experiment on `synthetic/` data is only needed for its aggressive profile (large roll and
+pitch), which our UAV path does not have.
+
+## 10. Wheel-speed check (27 Nov)
+
+The earlier result "wheel speed sometimes makes the ESKF worse" was checked:
+
+- The wheel-speed innovations are consistent: NIS mean 0.98-1.00 in every part of the drive
+  (expected 1), innovation mean below 0.003 m/s. Time alignment and the given std are correct.
+- The final position error is dominated by the heading (yaw) error in all runs.
+- 10 seeds, UGV, GPS only for the first 10 s, ESKF, final position error (median) and yaw error:
+
+  | Aiding | `medium` grade | `euroc` grade |
+  | --- | --- | --- |
+  | NHC | 6.6 m, 1.1 deg | 23.2 m, 3.6 deg |
+  | NHC + wheel speed | 12.7 m, 1.7 deg | 42.5 m, 6.3 deg |
+  | NHC + magnetometer | 0.71 m, 0.08 deg | 1.56 m, 0.11 deg |
+  | NHC + wheel speed + magnetometer | 0.77 m, 0.08 deg | 0.69 m, 0.11 deg |
+
+  Wheel speed was better than NHC alone in 3/10 and 2/10 seeds; with the magnetometer it helped
+  in 4/10 and 8/10 seeds.
+- Interpretation (hypothesis): without a heading measurement the yaw angle is unobservable, but the
+  ESKF, linearised at its own estimate, treats it as partly observable and corrects it from the
+  wheel-speed updates in the wrong direction (the known EKF inconsistency of unobservable
+  directions). Support: the right-invariant EKF, designed to avoid this, had 1.7 m instead of
+  16.3 m in the same setting (`compare_aiding_outage`, `ugv_static_short`, median of 5 seeds).
+  Not yet proven; a check with first-estimate Jacobians would test it.
