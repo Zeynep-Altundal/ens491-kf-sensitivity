@@ -244,6 +244,124 @@ It also loads with `load_recording` of `ens491-nkf` (`nkf/data/recording.py` on
 | gyro bias at end | 2.00e-03, -1.02e-03, 1.26e-03 rad/s |
 | accel bias at end | 0.038, -0.041, 0.012 m/s^2 |
 
+## Corruption scenarios (`corruption.py`, step 4 of 8)
+
+Sensor corruptions are added afterwards to the nominal recording `mission_seed0.npz` (section
+"Flight recorder"), so that the same flight is replayed with different errors. The corruption
+layer reads and writes recordings only (no estimator, no simulator call); the nominal file is never
+changed. Each scenario is written as its own file in the common format,
+`simulation/recordings/mission_seed0__<scenario>.npz` (not version-controlled).
+
+### Scenarios
+
+Mission phases (section "Trajectories"): straight 7-16 s, turn 16-22 s, hover with turn 22-25 s,
+figure-eight 25-49 s, aggressive 49-63 s, hover with turn 63-66 s, return 66-74 s, hover 74-77 s,
+landing 77-82 s. Windows are `t_start <= t < t_end` on the sample time stamps. Axes are body axes
+for the IMU and world axes for the position. "Calm" windows contain no aggressive segment.
+
+| # | Scenario | Sensor, axes | Parameters | Window [s] (phases) | Seed | Meant to reveal |
+|---|---|---|---|---|---|---|
+| 1 | `accel_bias_step_small` | accel, x | +0.2 m/s^2 added | 25-49 (figure-eight) | 1001 | detection and estimation of a moderate accelerometer bias change, recovery after it is removed |
+| 2 | `accel_bias_step_large` | accel, x | +1.0 m/s^2 | 25-49 (figure-eight) | 1002 | same for a large step (peak error, recovery time) |
+| 3 | `gyro_bias_step_small` | gyro, x | +0.01 rad/s | 25-49 (figure-eight) | 1003 | roll error from a gyro bias, seen through the tilted specific force |
+| 4 | `gyro_bias_step_large` | gyro, x | +0.05 rad/s | 25-49 (figure-eight) | 1004 | same for a large step |
+| 5 | `accel_bias_ramp` | accel, x | 0 to +0.5 m/s^2, linear, then held | ramp 7-74 (straight to end of return), held to the end | 1005 | slow drift that a bias random-walk model must follow |
+| 6 | `imu_noise_x3` | gyro and accel, all | white-noise standard deviation x3 | whole flight | 1006 | effect of a noise level the filter does not know (process noise mismatch) |
+| 7 | `imu_noise_x10` | gyro and accel, all | x10 | whole flight | 1007 | same, severe |
+| 8 | `pos_burst_short_calm` | position, all | extra white noise, std 3 m per axis | 10-11 (straight) | 1008 | short period with large measurement errors (pos_R unchanged) |
+| 9 | `pos_burst_long_calm` | position, all | std 3 m | 10-15 (straight) | 1009 | same, long |
+| 10 | `pos_burst_short_aggressive` | position, all | std 3 m | 55-56 (aggressive) | 1010 | short burst while the dynamics are hardest |
+| 11 | `pos_burst_long_aggressive` | position, all | std 3 m | 52-57 (aggressive) | 1011 | same, long |
+| 12 | `pos_spike_single` | position, all | one outlier of 10 m in a random direction | at the first epoch at or after 12.0 (straight) | 1012 | reaction to one outlier (innovation, NIS peak) |
+| 13 | `pos_spikes_repeated` | position, all | 10 outliers of 10 m, random directions, random epochs at least 1 s apart | 25-63 (figure-eight, aggressive) | 1013 | repeated outliers, with and without gating |
+| 14 | `outage_5s_calm` | position | no measurement (`pos_valid = False`, `pos_z = NaN`) | 8-13 (straight) | 1014 | dead reckoning on the IMU alone, short |
+| 15 | `outage_20s_calm` | position | outage | 8-28 (straight, turn, hover with turn, start of figure-eight) | 1015 | same, medium |
+| 16 | `outage_40s_calm` | position | outage | 8-48 (straight to end of figure-eight) | 1016 | same, long |
+| 17 | `outage_5s_aggressive` | position | outage | 52-57 (aggressive) | 1017 | dead reckoning during aggressive motion, short |
+| 18 | `outage_20s_aggressive` | position | outage | 49-69 (aggressive, hover with turn, start of return) | 1018 | same, medium |
+| 19 | `outage_40s_aggressive` | position | outage | 42-82 (end of figure-eight to end of landing) | 1019 | same, long |
+
+How each corruption is applied (in this order):
+
+* IMU noise scale `c`: `imu = imu + (c - 1) w`, with `w = imu - imu_clean - truth_b` the white noise
+  of the nominal recording; no new random numbers, the noise standard deviation becomes exactly
+  `c` times the nominal one.
+* IMU bias step or ramp `b(t)`: `imu = imu + b(t)`, and `truth_bg` / `truth_ba` include `b(t)`
+  (the true bias of the corrupted sensor).
+* Position burst: `pos_z = pos_z + n`, `n ~ N(0, sigma^2 I)` in the window (seeded); `pos_R`
+  unchanged (the filter is not told).
+* Position spike: `pos_z = pos_z + m u`, `u` a random unit vector (seeded), `m` the magnitude.
+* Outage: `pos_valid = False` and `pos_z = NaN` in the window.
+
+### Stored truth of the corruption
+
+Every scenario file contains, besides the keys of the common format, the applied corruption as
+arrays (zero, one or false where nothing is applied), so that the peak analysis knows exactly what
+was injected and when:
+
+| Key | Shape | Content |
+|---|---|---|
+| `corr_gyro_bias`, `corr_accel_bias` | [N,3] | added IMU bias (rad/s, m/s^2) |
+| `corr_gyro_noise_scale`, `corr_accel_noise_scale` | [N] | factor on the white noise (1 = nominal) |
+| `corr_pos_noise` | [K,3] | added position noise (m) |
+| `corr_pos_noise_std` | [K] | its standard deviation (m) |
+| `corr_pos_spike` | [K,3] | added outlier vectors (m) |
+| `corr_pos_outage` | [K] bool | true where the outage removed the measurement |
+
+`events` lists the corruptions in the format of the common interface (section 3: `type`
+`bias_step`, `noise_scale`, `noise_burst`, `spike`, `outage`, plus `bias_ramp` for the ramp, which
+that list does not have; `sensor`, `axes`, `t_start`, `t_end`, `magnitude`, `unit`; spikes also
+`count` and `times`). `meta.scenario` holds the scenario name, its parameters, its seed and the
+SHA-256 of the nominal file; the other `meta` fields are those of the nominal recording.
+
+### Done criteria
+
+1. With no corruption, the layer returns the nominal recording, written bit-identically.
+2. For every scenario, the corrupted arrays minus the nominal arrays equal the stored corruption
+   exactly; outside its window nothing changes; `truth_bg` / `truth_ba` include the added bias.
+3. Statistics match the parameters: noise scale (standard deviation ratio `c` within 1e-9, and the
+   white noise of the corrupted IMU within 5 % of `c` times its density), burst standard deviation
+   (within the 99.9 % chi-square bounds of its sample count), spike magnitudes and count, spacing
+   and window, outage mask equal to the window.
+4. Same scenario and seed give a bit-identical file; the nominal file is unchanged (SHA-256 before
+   and after).
+5. The full test suite passes; all files are written and listed below with their sizes.
+
+### Usage and generated files
+
+```bash
+../../.venv/bin/python -m rviz_drone.corruption     # from simulation/rviz_drone/; all 19 scenarios
+```
+
+Generated on 2026-11-27 from `mission_seed0.npz` (SHA-256 `e6138b37...05a079cd`, the same before and
+after) in 2.3 s; 19 files, 91 088 946 bytes in total, not version-controlled. "Changed IMU samples"
+counts the IMU epochs in which the gyro or accelerometer differs from the nominal file.
+
+| Scenario | Size [bytes] | SHA-256 (first 12) | Changed IMU samples | Max added IMU bias | IMU noise scale | Position epochs valid / 831 | Added position noise RMS [m] | Spikes |
+|---|---|---|---|---|---|---|---|---|
+| `accel_bias_step_small` | 4791487 | `fecb1b66f3c5` | 4800 | 0.2 | 1 | 831 | 0 | 0 |
+| `accel_bias_step_large` | 4789387 | `106faf5e74a7` | 4800 | 1 | 1 | 831 | 0 | 0 |
+| `gyro_bias_step_small` | 4790971 | `b625db651827` | 4800 | 0.01 | 1 | 831 | 0 | 0 |
+| `gyro_bias_step_large` | 4790404 | `a521ed46b246` | 4800 | 0.05 | 1 | 831 | 0 | 0 |
+| `accel_bias_ramp` | 4856241 | `8ad7fc1a79c0` | 15200 | 0.5 | 1 | 831 | 0 | 0 |
+| `imu_noise_x3` | 4794617 | `cf5d64a4febc` | 16601 | 0 | 3 | 831 | 0 | 0 |
+| `imu_noise_x10` | 4797305 | `1c54d2a35997` | 16601 | 0 | 10 | 831 | 0 | 0 |
+| `pos_burst_short_calm` | 4792348 | `5b5940e03f89` | 0 | 0 | 1 | 831 | 3.46 | 0 |
+| `pos_burst_long_calm` | 4793300 | `a14dd3015d8f` | 0 | 0 | 1 | 831 | 3.08 | 0 |
+| `pos_burst_short_aggressive` | 4792349 | `a1680d2766a4` | 0 | 0 | 1 | 831 | 3.23 | 0 |
+| `pos_burst_long_aggressive` | 4793319 | `daabb1d323c4` | 0 | 0 | 1 | 831 | 3.23 | 0 |
+| `pos_spike_single` | 4792067 | `b3f02eb4c8a0` | 0 | 0 | 1 | 831 | 0 | 1 |
+| `pos_spikes_repeated` | 4792403 | `fbce77f1386e` | 0 | 0 | 1 | 831 | 0 | 10 |
+| `outage_5s_calm` | 4790889 | `553cb69b1907` | 0 | 0 | 1 | 781 | 0 | 0 |
+| `outage_20s_calm` | 4787490 | `e7ad5d4d232e` | 0 | 0 | 1 | 631 | 0 | 0 |
+| `outage_40s_calm` | 4782962 | `eba99480a021` | 0 | 0 | 1 | 431 | 0 | 0 |
+| `outage_5s_aggressive` | 4790928 | `2007207a4cc0` | 0 | 0 | 1 | 781 | 0 | 0 |
+| `outage_20s_aggressive` | 4787528 | `0ceae7ed3874` | 0 | 0 | 1 | 631 | 0 | 0 |
+| `outage_40s_aggressive` | 4782951 | `a1b2b30908c8` | 0 | 0 | 1 | 431 | 0 | 0 |
+
+The nominal recording was written at commit `f324994` with uncommitted changes (`git_dirty: true`
+in its `meta`); the scenario files keep that `meta` and add `meta.scenario`.
+
 ## ROS 2 graph (simulator, Isaac Sim, RViz)
 
 All names, types, rates, QoS and colours below are defined once in `rviz_drone/topics.py`; the
@@ -448,6 +566,7 @@ visual check in its window is OPEN.
 | `rviz_drone/repo_path.py` | Makes the repository root importable (for `synthetic/`). |
 | `rviz_drone/recorder.py` | Writes one flight in the common recording format (`.npz`). |
 | `rviz_drone/topics.py` | Topic names, types, rates, QoS, frames and colours (single source). |
+| `rviz_drone/corruption.py` | Corruption scenarios added to a recording (common format, stored corruption truth). |
 | `rviz_drone/sim_node.py` | ROS 2 node that publishes the streams in real time. |
 | `launch/rviz_drone.launch.py` | Starts the node and, optionally, Isaac Sim and RViz. |
 | `rviz/rviz_drone.rviz` | RViz configuration. |
