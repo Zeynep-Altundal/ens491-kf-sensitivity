@@ -103,6 +103,32 @@ def test_chase_camera_keeps_its_distance_and_height():
     assert np.linalg.norm(target - p, axis=1).max() < 1.0
 
 
+def test_chase_camera_keeps_the_horizon_in_frame():
+    from rviz_drone import reference
+    t = np.arange(0.0, reference.DURATION, 0.01)
+    p = np.array([reference.reference(x)[0] for x in t])
+    yaw = np.array([reference.yaw_reference(x)[0] for x in t])
+    eye, target = replay.chase_path(t, p, yaw)
+    d = target - eye
+    pitch = np.degrees(np.arctan2(d[:, 2], np.linalg.norm(d[:, :2], axis=1)))
+    half_vfov = np.degrees(np.arctan(np.tan(np.radians(47.18 / 2)) * 9 / 16))
+    # Horizon (elevation 0) inside the upper part of the frame: the line of sight is at most a few
+    # degrees below level, so the horizon is above the image centre and below the top edge.
+    in_frame = (pitch < 0.0) & (pitch > -0.7 * half_vfov)
+    assert in_frame.mean() > 0.9
+    # The drone stays in the frame.
+    to_drone = p - eye
+    below = np.degrees(np.arctan2(to_drone[:, 2], np.linalg.norm(to_drone[:, :2], axis=1))) - pitch
+    assert np.abs(below).max() < half_vfov
+
+
+def test_fill_light_shines_along_the_view_from_above():
+    d = replay.fill_direction(np.array([0.0, 0.0, 1.0]), np.array([3.0, 4.0, 0.5]))
+    assert abs(np.linalg.norm(d) - 1.0) < 1e-12 and d[2] < 0
+    np.testing.assert_allclose(d[:2] / np.linalg.norm(d[:2]), [0.6, 0.8])
+    np.testing.assert_allclose(replay.fill_direction(np.array([0, 0, 50.0]), np.zeros(3)), [0, 0, -1.0])
+
+
 def test_fixed_cameras_frame_the_flight():
     p = np.array([[0.0, 0.0, 0.0], [40.0, 0.0, 3.0], [40.0, 28.0, 3.0]])
     cams = replay.fixed_cameras(p)

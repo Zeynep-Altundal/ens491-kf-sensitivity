@@ -149,6 +149,10 @@ the +x flight moves to the right (east) in the top-down image.
   brightest pixel of the image, azimuth 146.5 deg (north-west) matched to the shadow of the sky
   light, so that both lights give one shadow. (`shadow:enable = false` on the dome light had no
   visible effect; before the alignment the sky and the distant light gave two shadows.)
+* Fill light: a distant light without shadow (`--fill`, intensity 800, apparent size 10 deg),
+  turned every frame to shine along the horizontal view direction of the active camera, 30 deg
+  downwards (`replay.fill_direction`), so that the side of the drone seen by the camera is lit when
+  the drone is between the camera and the sun (before, it was rendered as a dark silhouette).
 * No motion blur (`/rtx/post/motionblur/enabled = false`), fixed exposure (auto exposure off).
 * Propellers: each propeller prim is turned about its z axis in the direction opposite to its
   reaction torque in the allocation matrix (front-right and rear-left counter-clockwise seen from
@@ -157,15 +161,18 @@ the +x flight moves to the right (east) in the top-down image.
 * Front marker: red arrow along body +x (`/World/Quadrotor/nose`).
 * Path display: only the trail behind the drone and the upcoming route. Trail: the last 2 s of the
   flown path with a self-lit orange material (appears yellow-orange), width from 14 mm at the drone
-  to 2 mm at its end. Upcoming route: the reference route of the next 8 s as a faint 1.2 mm line
-  (pale, opacity 0.4). For the fixed cameras, which see the whole area from tens of metres, both
+  to 2 mm at its end. Upcoming route: the reference route of the next 8 s as a 5 mm pale line
+  (slightly self-lit, opacity 0.6), visible in the chase view but thinner and paler than the trail. For the fixed cameras, which see the whole area from tens of metres, both
   widths are multiplied by 6.
 * Cameras (one per run, `--camera`; no automatic switching):
   * `chase` follows the position and the yaw of the drone only, never its roll or pitch: it is
-    2.6 m behind and 0.9 m above the low-pass filtered position (0.35 s), along the low-pass
-    filtered yaw (0.8 s, yaw from the attitude quaternion); target the low-pass filtered position
-    (0.12 s); up vector world z; pushed back if the drone comes closer than 2 m. Mission: 2.64 m to
-    4.83 m from the drone (median 3.13 m).
+    2.6 m behind and 0.45 m above the low-pass filtered position (0.35 s), along the low-pass
+    filtered yaw (0.8 s, yaw from the attitude quaternion); target 0.25 m above the low-pass
+    filtered position (0.12 s), so that the line of sight is nearly level and the horizon and sky
+    are in the upper part of the frame; up vector world z; pushed back if the drone comes closer
+    than 2 m. Mission: 2.60 m to 4.77 m from the drone (median 3.03 m); line of sight 3.9 deg below
+    level (median; 5th to 95th percentile 6.8 to 0.9 deg below), horizon in the frame (half
+    vertical field of view 13.8 deg) for 97.8 % of the flight.
   * `overview` and `topdown` are computed from the extent of the flight: overview from the side of
     the sun, 35 deg above the horizon; top-down above the centre, north up, east to the right.
 * Overlay: time, flight phase, speed and camera, drawn on each frame (headless) or as labels on a
@@ -252,3 +259,4 @@ and `/opt/ros/jazzy` gave 0 differences.
 | 2026-11-27 12:19-12:22 | mission stills (development) | exit 0 |
 | 2026-11-27 12:25-12:47 | 15 s clip of the mission, t = 13-28 s (straight leg, turn, hover with turn, start of the figure-eight), chase, 30 frames/s, path traced | exit 0; 451 frames in 1257 s, `frames/seq_chase_13.00_28.00.mp4` (H.264, 1280x720, 8.6 MB) |
 | 2026-11-27 12:47 | `--gui --camera chase`, mission | window open; frame rate below |
+| 2026-11-27 15:57 | seven chase stills (t = 3, 12, 20, 30, 45, 55, 70 s) and one overview still (t = 30 s) after the camera pitch, fill light and route line changes | exit 0; `frames/stills/`; horizon and sky in all chase stills, drone lit in all |

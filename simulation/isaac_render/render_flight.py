@@ -58,6 +58,8 @@ parser.add_argument("--env", choices=("field", "terrain", "grid"), default="fiel
                          "grid: plain checkerboard (fallback)")
 parser.add_argument("--sky", choices=("hdri", "plain"), default="hdri")
 parser.add_argument("--sun", type=float, default=3000.0, help="distant light intensity")
+parser.add_argument("--fill", type=float, default=800.0,
+                    help="fill light intensity (no shadow, from behind the camera)")
 parser.add_argument("--sky-intensity", type=float, default=400.0, help="dome light intensity")
 parser.add_argument("--sun-elevation", type=float, default=47.9,
                     help="[deg] elevation of the sun in the HDRI (brightest pixel)")
@@ -222,7 +224,16 @@ SUN_DIR = np.array([np.cos(_el) * np.cos(_az), np.cos(_el) * np.sin(_az), np.sin
 _m = Gf.Matrix4d().SetLookAt(Gf.Vec3d(0.0), Gf.Vec3d(*map(float, -SUN_DIR)), Gf.Vec3d(0.0, 0.0, 1.0)).GetInverse()
 UsdGeom.Xformable(sun).AddTransformOp().Set(_m)
 
-# Full path (thin) and the trail behind the drone.
+# Fill light: a distant light without shadow that shines along the view direction of the active
+# camera (updated in set_frame), so that the side of the drone seen by the camera is never black
+# when the drone is between the camera and the sun.
+fill = UsdLux.DistantLight.Define(stage, "/World/Fill")
+fill.CreateIntensityAttr(args.fill)
+fill.CreateAngleAttr(10.0)
+fill.CreateColorAttr(Gf.Vec3f(0.9, 0.95, 1.0))
+UsdLux.ShadowAPI.Apply(fill.GetPrim()).CreateShadowEnableAttr(False)
+fill_op = UsdGeom.Xformable(fill).AddTransformOp()
+
 # Upcoming route: the reference route of the next ROUTE_S seconds as a faint thin line (the flown
 # path is shown only by the trail behind the drone).
 ROUTE_S, ROUTE_N = 8.0, 81
@@ -230,7 +241,8 @@ path_curve = UsdGeom.BasisCurves.Define(stage, "/World/UpcomingRoute")
 path_curve.CreateTypeAttr(UsdGeom.Tokens.linear)
 route_pts_attr = path_curve.CreatePointsAttr([Gf.Vec3f(0.0)] * ROUTE_N)
 path_curve.CreateCurveVertexCountsAttr([ROUTE_N])
-route_width_attr = path_curve.CreateWidthsAttr([0.0012])
+ROUTE_WIDTH = 0.005  # [m] trail: 0.014 at the drone, tapering to 0.002
+route_width_attr = path_curve.CreateWidthsAttr([ROUTE_WIDTH])
 path_curve.SetWidthsInterpolation(UsdGeom.Tokens.constant)
 path_curve.CreateDisplayColorAttr([Gf.Vec3f(0.9, 0.92, 1.0)])
 
@@ -253,7 +265,8 @@ def preview_material(path: str, diffuse, emissive=None, roughness: float = 0.6,
 # Route: thin, pale, partly transparent. Trail: wider, self-lit orange, so that it stands out from
 # the route in light and in shadow; its width tapers with age.
 UsdShade.MaterialBindingAPI.Apply(path_curve.GetPrim()).Bind(
-    preview_material("/World/Looks/Route", (0.9, 0.92, 1.0), roughness=0.8, opacity=0.4))
+    preview_material("/World/Looks/Route", (0.85, 0.9, 1.0), emissive=(0.25, 0.28, 0.35), roughness=0.8,
+                     opacity=0.6))
 
 TRAIL_N = 41
 trail_curve = UsdGeom.BasisCurves.Define(stage, "/World/Trail")
@@ -402,6 +415,7 @@ def set_body(p: np.ndarray, q: np.ndarray) -> None:
 # from tens of metres (set by the caller for each image; in the GUI from --camera).
 LINE_SCALE = {"chase": 1.0, "overview": 6.0, "topdown": 6.0}
 line_scale = LINE_SCALE[args.camera]
+fill_camera = args.camera  # camera whose view direction the fill light follows (set per still)
 
 
 def set_frame(k: int) -> None:
@@ -417,10 +431,14 @@ def set_frame(k: int) -> None:
     pts, age = replay.trail(T, P, k, n=TRAIL_N)
     trail_pts_attr.Set([Gf.Vec3f(*map(float, x)) for x in pts])
     trail_widths_attr.Set([float(line_scale * (0.012 * (1.0 - a) + 0.002)) for a in age])
-    route_width_attr.Set([float(line_scale * 0.0012)])
+    route_width_attr.Set([float(line_scale * ROUTE_WIDTH)])
     for name, (_, op) in cameras.items():
         pose = replay.camera_pose(name, k, CHASE_EYE, CHASE_TARGET, FIXED_CAMERAS)
         op.Set(look_at(pose.eye, pose.target, pose.up))
+        if name == fill_camera:
+            d = replay.fill_direction(pose.eye, pose.target)
+            fill_op.Set(Gf.Matrix4d().SetLookAt(Gf.Vec3d(0.0), Gf.Vec3d(*map(float, d)),
+                                                Gf.Vec3d(0.0, 0.0, 1.0)).GetInverse())
 
 
 # ---- Run-time check of the conversion against the USD transform ------------------------------
@@ -695,7 +713,7 @@ if not args.gui:
         for item in args.stills.split(","):
             time_s, cam_name = item.split(":")
             k = replay.sample_index(T, float(time_s))
-            line_scale = LINE_SCALE[cam_name]
+            line_scale, fill_camera = LINE_SCALE[cam_name], cam_name
             set_frame(k)
             img = capture(str(cameras[cam_name][0].GetPath()), settle_steps=4)
             print(f"RENDER still t={T[k]:.2f} camera={cam_name} {stats(img)}", flush=True)

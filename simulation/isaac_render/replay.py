@@ -76,21 +76,24 @@ def yaw_from_quat(q: np.ndarray) -> np.ndarray:
     return np.arctan2(2 * (w * z + x * y), 1 - 2 * (y * y + z * z))
 
 
-def chase_path(t: np.ndarray, p: np.ndarray, yaw: np.ndarray, distance: float = 2.6, height: float = 0.9,
+def chase_path(t: np.ndarray, p: np.ndarray, yaw: np.ndarray, distance: float = 2.6, height: float = 0.45,
                tau_pos: float = 0.35, tau_yaw: float = 0.8, tau_target: float = 0.12,
-               min_height: float = 0.25, min_distance: float = 2.0) -> tuple[np.ndarray, np.ndarray]:
+               min_height: float = 0.25, min_distance: float = 2.0, target_lift: float = 0.25
+               ) -> tuple[np.ndarray, np.ndarray]:
     """Eye and target of the chase camera.
 
     The camera follows the position and the yaw of the drone only (never roll or pitch): it sits
     ``distance`` behind and ``height`` above the low-pass filtered position, along the low-pass
-    filtered (unwrapped) yaw; the target is the low-pass filtered position. The up vector of the
+    filtered (unwrapped) yaw; the target is ``target_lift`` above the low-pass filtered position, so
+    that the line of sight is nearly level (about 4 deg down at the defaults) and the horizon and
+    the sky stay in the upper part of the frame; the drone is seen slightly below the image centre. The up vector of the
     camera is world z (``camera_pose``). If the drone comes closer than ``min_distance`` (e.g. when
     it brakes), the camera is pushed back along the line of sight (push smoothed as well).
     """
     ps = low_pass(p, t, tau_pos)
     ys = low_pass(np.unwrap(yaw)[:, None], t, tau_yaw)[:, 0]
     eye = ps + np.stack([-distance * np.cos(ys), -distance * np.sin(ys), np.full(len(t), height)], axis=1)
-    target = low_pass(p + np.array([0.0, 0.0, 0.05]), t, tau_target)
+    target = low_pass(p + np.array([0.0, 0.0, target_lift]), t, tau_target)
     los = eye - p
     dist = np.linalg.norm(los, axis=1, keepdims=True)
     push = np.where(dist < min_distance, (min_distance - dist) / np.maximum(dist, 1e-9), 0.0) * los
@@ -118,6 +121,19 @@ def fixed_cameras(p: np.ndarray, sun_azimuth_deg: float = 146.5, hfov_deg: float
     topdown = CameraPose(eye=np.array([centre[0], centre[1], height]), target=np.array([centre[0], centre[1], 0.0]),
                          up=np.array([0.0, 1.0, 0.0]))
     return {"overview": overview, "topdown": topdown}
+
+
+def fill_direction(eye: np.ndarray, target: np.ndarray, down_deg: float = 30.0) -> np.ndarray:
+    """Unit direction of travel of the fill light: the horizontal view direction of the camera,
+    tilted ``down_deg`` towards the ground (light from behind and above the camera). For a camera
+    looking straight down it is straight down."""
+    d = np.asarray(target, float) - np.asarray(eye, float)
+    h = np.array([d[0], d[1], 0.0])
+    n = np.linalg.norm(h)
+    if n < 1e-6 * max(np.linalg.norm(d), 1e-12):
+        return np.array([0.0, 0.0, -1.0])
+    a = np.radians(down_deg)
+    return np.cos(a) * h / n + np.array([0.0, 0.0, -np.sin(a)])
 
 
 def camera_pose(name: str, k: int, chase_eye: np.ndarray, chase_target: np.ndarray,
