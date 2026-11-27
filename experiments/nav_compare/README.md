@@ -26,4 +26,4 @@ python -m experiments.nav_compare.scripts.compare_aiding_outage --seeds 5 --out 
 python -m experiments.nav_compare.scripts.compare_init_attitude --seeds 5 --out results/init_attitude
 ```
 
-Results of week 3 (5 seeds, medians) are in `results/` of this folder.
+Results of week 3 are in `results/` (see its README). EuRoC: `python -m experiments.nav_compare.scripts.run_euroc ~/data/euroc/V1_01_easy --out results/euroc`. Quadrotor simulation of `simulation/rviz_drone`: `python -m experiments.nav_compare.scripts.run_drone_sim --out results/drone_sim`. Peak analysis: `python -m experiments.nav_compare.peaks {nav,knet,curves} ...` (docstring of `peaks.py`).
