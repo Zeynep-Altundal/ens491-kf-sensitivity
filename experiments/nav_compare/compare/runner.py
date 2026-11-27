@@ -53,9 +53,16 @@ def make_init(rec, init_att_err=None, init_seed=0) -> Init:
 
         q0 = c.quat_from_rotvec(c.so3_log(R0))
         std_att = float(init_att_err)
+    bg0, ba0 = z, z.copy()
+    bg_std, ba_std = bg_std * bias_scale, ba_std * bias_scale
+    if (
+        meta.get("init_bias") == "truth"
+    ):  # e.g. EuRoC: start from the reference bias estimate
+        bg0, ba0 = rec["truth_bg"][0].copy(), rec["truth_ba"][0].copy()
+        bg_std, ba_std = meta.get("init_bias_std", (bg_std, ba_std))
     return Init(rec["truth_p"][0].copy(), rec["truth_v"][0].copy(), q0,
-                z, z.copy(), INIT_STD["p"], INIT_STD["v"], std_att,
-                bg_std * bias_scale, ba_std * bias_scale)  # fmt: skip
+                bg0, ba0, INIT_STD["p"], INIT_STD["v"], std_att,
+                bg_std, ba_std)  # fmt: skip
 
 
 def make_noise(rec, sigma_cv=None) -> NoiseSpec:
