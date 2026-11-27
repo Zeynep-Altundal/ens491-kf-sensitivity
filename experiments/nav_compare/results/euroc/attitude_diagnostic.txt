@@ -1,0 +1,11 @@
+1. at rest (1167 samples): |f| = 9.833 m/s^2, tilt between C*(a_m - b_a) and +z = 0.26 deg
+2. gyro integrated over 5 s vs ground truth: median 1.72 deg, max 3.55 deg (28 windows)
+4. time offset scan: best shift +0 ms -> median 1.72 deg (0 ms: 1.72 deg)
+3. ESKF attitude error [deg], body frame (roll x, pitch y, yaw z):
+   mean  [-2.24  0.13  3.24]   std [2.37 0.45 1.26]
+   t =   14.3 s: [ 2.18 -0.71  1.12]
+   t =   35.9 s: [0.25 0.13 3.13]
+   t =   71.8 s: [-1.52 -0.07  3.82]
+   t =  107.7 s: [-5.5   0.53  4.46]
+   t =  143.6 s: [-5.22 -0.08  4.3 ]
+Reading: 1 and 2 small and 3 large -> the filters; 1 or 2 large -> frames / time stamps of the data (the filter result is then not the cause).
