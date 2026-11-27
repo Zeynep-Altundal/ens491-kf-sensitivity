@@ -1,0 +1,20 @@
+platform,condition,filter,peaks,unique,mean_peak,overconfident,surprised,aware,no covariance
+ens491_quadrotor_sim,aggressive,KF-CV,12,12,1.6088625440934141,12,0,0,0
+ens491_quadrotor_sim,ground,EKF,3,0,0.9205572916259781,0,0,3,0
+ens491_quadrotor_sim,ground,ESKF,3,0,0.9205566304507794,0,0,3,0
+ens491_quadrotor_sim,ground,IESKF,3,0,0.9205566304507794,0,0,3,0
+ens491_quadrotor_sim,ground,InEKF,3,0,0.9206292514596216,0,0,3,0
+ens491_quadrotor_sim,ground,UKF,3,0,0.9205140679164208,0,0,3,0
+ens491_quadrotor_sim,outage,EKF,3,0,0.8083958529338204,0,0,3,0
+ens491_quadrotor_sim,outage,ESKF,3,0,0.8124577014640183,0,0,3,0
+ens491_quadrotor_sim,outage,IESKF,3,0,0.8124577014640183,0,0,3,0
+ens491_quadrotor_sim,outage,InEKF,3,0,0.8010031713924173,0,0,3,0
+ens491_quadrotor_sim,outage,KF-CV,6,3,18.25898533762302,0,0,6,0
+ens491_quadrotor_sim,outage,UKF,2,0,0.7056718890593363,0,0,2,0
+ens491_quadrotor_sim,recovery,KF-CV,1,1,1.4888150536553229,1,0,0,0
+ens491_quadrotor_sim,recovery,UKF,1,0,1.0191776575223743,0,0,1,0
+ens491_quadrotor_sim,straight,EKF,4,0,0.6928555120595898,4,0,0,0
+ens491_quadrotor_sim,straight,ESKF,4,0,0.6930004934902646,4,0,0,0
+ens491_quadrotor_sim,straight,IESKF,4,0,0.6930004934902646,4,0,0,0
+ens491_quadrotor_sim,straight,InEKF,4,0,0.6931629954806282,4,0,0,0
+ens491_quadrotor_sim,straight,UKF,4,0,0.6925336483286837,4,0,0,0
