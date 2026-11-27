@@ -20,10 +20,10 @@ from experiments.estimators import data, metrics
 from experiments.estimators.run import run, save
 
 RESULTS = Path(__file__).resolve().parent / "results"
-# Reported estimators of the sweep: KF = the companion KF-CV (adapter); EKF and ESKF = own filters,
-# provisional (the companion EKF and ESKF are stopped, see README.md "Sanity checks: results").
+# Reported estimators of the sweep: KF = the companion KF-CV (adapter); EKF and ESKF = own filters
+# (they pass checks 1-3; the companion EKF and ESKF are cross-checks, see README.md protocol change 6).
 SWEEP = {"KF": "KF", "EKF": "own_EKF", "ESKF": "own_ESKF"}
-PROVISIONAL = {"EKF", "ESKF"}
+PROVISIONAL: set[str] = set()
 
 
 def _commit() -> str:

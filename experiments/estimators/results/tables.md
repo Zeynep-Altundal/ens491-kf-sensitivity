@@ -1,11 +1,11 @@
 # Results of the estimator sweep (Observed only)
 
 Mean over 10 measurement seeds with the 95 % bootstrap interval over seeds in brackets.
-`KF`: companion KF-CV (position only, system-level baseline). `EKF`, `ESKF`: own filters, provisional (the companion EKF and ESKF were stopped; see `../README.md`).
+`KF`: companion KF-CV (position only, system-level baseline). `EKF`, `ESKF`: own filters; the companion EKF and ESKF are cross-checks (see `../README.md`, protocol change 6).
 
 ## Position RMSE over the flight [m]
 
-| Scenario | KF | EKF (provisional) | ESKF (provisional) |
+| Scenario | KF | EKF | ESKF |
 |---|---|---|---|
 | `nominal` | 0.571 [0.563, 0.579] | 0.233 [0.228, 0.238] | 0.233 [0.228, 0.238] |
 | `accel_bias_step_small` | 0.571 [0.563, 0.579] | 0.393 [0.378, 0.410] | 0.393 [0.378, 0.410] |
@@ -42,7 +42,7 @@ Mean over 10 measurement seeds with the 95 % bootstrap interval over seeds in br
 
 ## Velocity RMSE [m/s] and attitude RMSE [deg] over the flight
 
-| Scenario | KF v | EKF (provisional) v | ESKF (provisional) v | EKF (provisional) att | ESKF (provisional) att |
+| Scenario | KF v | EKF v | ESKF v | EKF att | ESKF att |
 |---|---|---|---|---|---|
 | `nominal` | 1.607 [1.595, 1.620] | 0.118 [0.114, 0.122] | 0.118 [0.114, 0.122] | 0.86 [0.78, 0.95] | 0.86 [0.78, 0.95] |
 | `accel_bias_step_small` | 1.607 [1.595, 1.620] | 0.265 [0.258, 0.272] | 0.265 [0.258, 0.272] | 1.38 [1.22, 1.53] | 1.38 [1.22, 1.53] |
@@ -114,7 +114,7 @@ Mean over 10 measurement seeds with the 95 % bootstrap interval over seeds in br
 | `gyro_bias_step_small_onset_aggressive` | 0.491 [0.460, 0.521] | 0.489 [0.469, 0.509] | 0.548 [0.522, 0.575] | 0.532 [0.504, 0.563] | 0.528 [0.502, 0.561] | 0.551 [0.536, 0.567] | 0.739 [0.716, 0.759] | 0.510 [0.487, 0.532] | 0.521 [0.483, 0.563] |
 | `imu_noise_burst_x10_onset_aggressive` | 0.491 [0.460, 0.521] | 0.489 [0.469, 0.509] | 0.548 [0.522, 0.575] | 0.532 [0.504, 0.563] | 0.528 [0.502, 0.561] | 0.551 [0.536, 0.567] | 0.739 [0.716, 0.759] | 0.510 [0.487, 0.532] | 0.521 [0.483, 0.563] |
 
-## Position RMSE per phase [m], EKF (provisional)
+## Position RMSE per phase [m], EKF
 
 | Scenario | takeoff | hover | straight | turn | hover_turn | figure_eight | aggressive | return | landing |
 |---|---|---|---|---|---|---|---|---|---|
@@ -151,7 +151,7 @@ Mean over 10 measurement seeds with the 95 % bootstrap interval over seeds in br
 | `gyro_bias_step_small_onset_aggressive` | 0.274 [0.236, 0.313] | 1.296 [1.270, 1.325] | 0.294 [0.268, 0.316] | 0.240 [0.194, 0.283] | 1.499 [1.446, 1.551] | 0.222 [0.217, 0.227] | 1.087 [1.053, 1.127] | 1.157 [1.103, 1.214] | 1.329 [1.276, 1.381] |
 | `imu_noise_burst_x10_onset_aggressive` | 0.274 [0.236, 0.313] | 0.209 [0.182, 0.233] | 0.294 [0.268, 0.316] | 0.240 [0.194, 0.283] | 0.272 [0.240, 0.302] | 0.222 [0.217, 0.227] | 0.225 [0.195, 0.251] | 0.203 [0.187, 0.219] | 0.216 [0.176, 0.254] |
 
-## Position RMSE per phase [m], ESKF (provisional)
+## Position RMSE per phase [m], ESKF
 
 | Scenario | takeoff | hover | straight | turn | hover_turn | figure_eight | aggressive | return | landing |
 |---|---|---|---|---|---|---|---|---|---|
@@ -190,7 +190,7 @@ Mean over 10 measurement seeds with the 95 % bootstrap interval over seeds in br
 
 ## Peak position error [m] and its time [s] (median, range over seeds)
 
-| Scenario | KF | EKF (provisional) | ESKF (provisional) |
+| Scenario | KF | EKF | ESKF |
 |---|---|---|---|
 | `nominal` | 1.643 [1.560, 1.732] at 57.30 (53.00-62.59) | 0.650 [0.586, 0.719] at 10.34 (0.10-21.89) | 0.650 [0.586, 0.719] at 10.34 (0.10-21.89) |
 | `accel_bias_step_small` | 1.643 [1.560, 1.732] at 57.30 (53.00-62.59) | 0.968 [0.904, 1.037] at 55.45 (53.50-58.40) | 0.967 [0.904, 1.037] at 55.45 (53.50-58.40) |
@@ -229,7 +229,7 @@ Mean over 10 measurement seeds with the 95 % bootstrap interval over seeds in br
 
 Recovered: the estimate stays within 0.1 m of the nominal run's estimate (same estimator and seed) for 2 s. "n/a": the corruption has no end in the flight. "not rec.": number of seeds (of 10) without recovery before the end of the flight.
 
-| Scenario | Event | End [s] | KF | EKF (provisional) | ESKF (provisional) |
+| Scenario | Event | End [s] | KF | EKF | ESKF |
 |---|---|---|---|---|---|
 | `accel_bias_step_small` | bias_step:accel | 49.0 | 0.00 [0.00, 0.00] | 14.49 [14.46, 14.51] | 14.49 [14.47, 14.52] |
 | `accel_bias_step_large` | bias_step:accel | 49.0 | 0.00 [0.00, 0.00] | not rec. 10/10 | not rec. 10/10 |

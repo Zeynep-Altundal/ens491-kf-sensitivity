@@ -115,8 +115,8 @@ def tables(rows: list[dict], rec: dict) -> str:
     scen = list(dict.fromkeys(r["scenario"] for r in rows))
     n = len({r["seed"] for r in rows})
     L = ["# Error peaks of the estimator sweep (Observed only)", "",
-         f"Peak rule, attribution and recovery: `../README.md`. {n} seeds per cell. `(prov.)`: own filter, "
-         "provisional (`../../estimators/README.md`).", "",
+         f"Peak rule, attribution and recovery: `../README.md`. {n} seeds per cell. Estimators: "
+         "`../../estimators/README.md`.", "",
          "## 1. Peaks per scenario and estimator", "",
          "Per cell: seeds with a peak / peaks per run (median) / largest peak: height [m], excess [m] "
          "(median, range over seeds with a peak) / delay from onset [s] (median, range) / recovery [s] "

@@ -125,6 +125,7 @@ One compressed `.npz` per run, `results/runs/<scenario>/<estimator>_seed<k>.npz`
 | `q_hat` | [N,4] | attitude estimate `[w, x, y, z]` (NaN for `KF`) |
 | `bg_hat`, `ba_hat` | [N,3] | bias estimates (NaN where not estimated) |
 | `P_diag` | [N,15] | covariance diagonal in the order `p, v, dtheta, b_g, b_a` (EKF attitude mapped as above; NaN where not estimated) |
+| `P_pos` | [N,6] | position covariance block, upper triangle `xx, xy, xz, yy, yz, zz` [m^2] (added 2026-11-27 for the visual replay) |
 | `err_p`, `err_v` | [N,3] | `truth - estimate` [m, m/s] |
 | `err_att` | [N,3] | `dtheta` [rad] (NaN for `KF`) |
 | `nees` | [N] | NEES (dimension in `meta.nees_dim`) |
@@ -176,6 +177,12 @@ below.
    is not a pass: it is reported as a known property of the constant-velocity model on a
    manoeuvring vehicle (its process noise is tuned for the whole flight, so the 6-state NEES is
    mostly below the bound in calm flight and above it in manoeuvres; Hypothesized, not tested).
+6. 2026-11-27, decision of the project owner after the rerun of the sanity checks: the own `EKF`
+   and `ESKF` pass checks 1 and 2 (check 2 under change 5) and are the reported `EKF` and `ESKF`;
+   the label "provisional" is removed. The companion `EKF` and `ESKF` (interval-mean adapter) are
+   cross-checks: they pass check 2 but fail check 1 with a 0.41 deg disagreement between them,
+   almost all about the yaw axis (cause OPEN, "Open items"). The reported `KF` stays the companion
+   KF-CV (identical to the own `KF`).
 
 ## Companion filters (adapter `vendor.py`)
 
@@ -231,7 +238,8 @@ their code: the companion `EKF` uses central finite-difference Jacobians of the 
 the process noise `G diag(sigma^2 / dt) G^T` of the IMU-input Jacobian, the companion `ESKF` the
 analytic error-state model discretised by `conventions.discretise`; which of these causes the yaw
 difference is not tested (OPEN). Therefore the reported `EKF` and `ESKF` remain the own filters,
-labelled provisional; the reported `KF` is the companion KF-CV.
+labelled provisional at that point; the reported `KF` is the companion KF-CV. (Superseded by
+protocol change 6.)
 
 Differences on the nominal recording (largest over the flight and 10 seeds), with the final adapter:
 
@@ -266,8 +274,13 @@ own `KF` 0.59 s, `EKF` 5.0 s, `ESKF` 2.2 s.
 worker processes (sum of the run times 3020 s), code at commit `620049e` (plus the uncommitted
 adapter change of protocol change 4, which does not affect the swept estimators). Run files: 1.5 GB
 in `results/runs/` (git-ignored). Reported estimators: `KF` = companion KF-CV; `EKF`, `ESKF` = own
-filters, provisional. All metrics are equal to those of the first sweep (largest difference 0; only
+filters (protocol change 6). All metrics are equal to those of the first sweep (largest difference 0; only
 the runtimes differ). Tables with bootstrap intervals: `results/tables.md`.
+
+Rerun 2026-11-27 (after protocol change 6, with the position covariance block `P_pos` added to
+the run files for the visual replay): 960 runs, wall 465.5 s (sum of the run times 6441 s; the full
+test suite ran at the same time on the same machine), code at commit `dc448cf` plus the uncommitted
+`P_pos` change; run files 1.7 GB. All metrics again equal to the first sweep (largest difference 0).
 
 Observed (selection; numbers from `results/tables.md`, mean over 10 seeds with 95 % interval):
 

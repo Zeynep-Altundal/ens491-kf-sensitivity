@@ -8,7 +8,7 @@ Input: the per-run files of the final sweep, `../estimators/results/runs/<scenar
 (git-ignored there; regenerate with `.venv/bin/python -m experiments.estimators.sweep`), the
 recovery times `../estimators/results/recovery.csv`, and the recordings through
 `experiments.estimators.data`. Estimators: `KF` (companion KF-CV), `EKF` and `ESKF` (own filters,
-provisional; see `../estimators/README.md`).
+see `../estimators/README.md`).
 
 The protocol below (sections "Peak rule" to "Figures") was written on 2026-11-27 before any part
 of this analysis was run. Changes after a run are listed under "Protocol changes".

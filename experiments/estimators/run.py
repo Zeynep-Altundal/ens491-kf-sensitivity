@@ -19,6 +19,9 @@ REPORTED = ("KF", "EKF", "ESKF")
 from synthetic.rotation import quat_conjugate, quat_log, quat_multiply
 
 
+IU_POS = np.triu_indices(3)  # P_pos: xx, xy, xz, yy, yz, zz of the position block
+
+
 def position_epochs(imu_t: np.ndarray, pos_t: np.ndarray) -> np.ndarray:
     """IMU index of every position epoch (position stamps are IMU stamps)."""
     idx = np.searchsorted(imu_t, pos_t)
@@ -38,7 +41,7 @@ def run(name: str, rec: dict, tuning: Tuning) -> dict:
     upd_at = {int(k): j for j, k in enumerate(k_pos)}
     out = {"t": t, "p_hat": np.empty((n, 3)), "v_hat": np.empty((n, 3)), "q_hat": np.empty((n, 4)),
            "bg_hat": np.empty((n, 3)), "ba_hat": np.empty((n, 3)), "P_diag": np.empty((n, 15)),
-           "nees": np.empty(n)}
+           "P_pos": np.empty((n, 6)), "nees": np.empty(n)}
     upd_t, nis = [], []
     e15 = np.empty(15)
     for k in range(n):
@@ -53,6 +56,7 @@ def run(name: str, rec: dict, tuning: Tuning) -> dict:
         out["p_hat"][k], out["v_hat"][k], out["q_hat"][k], out["bg_hat"][k], out["ba_hat"][k] = p, v, q, bg, ba
         P, mask = f.cov15()
         out["P_diag"][k] = np.where(mask, np.diag(P), np.nan)
+        out["P_pos"][k] = P[IU_POS]
         e15[0:3] = rec["truth_p"][k] - p
         e15[3:6] = rec["truth_v"][k] - v
         if mask[6]:

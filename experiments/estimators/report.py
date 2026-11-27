@@ -114,8 +114,8 @@ def main() -> None:
 def _tables(rmse_rows, peak_rows, rec_rows) -> None:
     L = ["# Results of the estimator sweep (Observed only)", "",
          "Mean over 10 measurement seeds with the 95 % bootstrap interval over seeds in brackets.",
-         "`KF`: companion KF-CV (position only, system-level baseline). `EKF`, `ESKF`: own filters, "
-         "provisional (the companion EKF and ESKF were stopped; see `../README.md`).", ""]
+         "`KF`: companion KF-CV (position only, system-level baseline). `EKF`, `ESKF`: own filters; "
+         "the companion EKF and ESKF are cross-checks (see `../README.md`, protocol change 6).", ""]
     idx = {(r["estimator"], r["scenario"]): r for r in rmse_rows}
     scen = list(dict.fromkeys(r["scenario"] for r in rmse_rows))
     L += ["## Position RMSE over the flight [m]", "", "| Scenario | " + " | ".join(_label(e) for e in ESTIMATORS) + " |",
