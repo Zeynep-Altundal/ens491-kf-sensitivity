@@ -179,6 +179,30 @@ the +x flight moves to the right (east) in the top-down image.
   dark box in the viewport, 64 px below its top edge so that the viewport toolbar does not cover it
   (GUI).
 
+## ROS 2 live mode (`--source ros2`)
+
+The offline mode (default, `--source replay`) renders the flight generated in memory. In the live
+mode (`--source ros2 --gui`, started by `../rviz_drone/launch/rviz_drone.launch.py`), the drone
+follows `/drone/truth/pose` of the simulator node `rviz_drone_sim`: the Isaac Sim node
+`isaac_drone_render` (rclpy in a background thread) receives the poses; each frame applies the
+latest pose to the body prim (same conversion as offline), steps the online chase camera
+(`replay.ChaseFilter`, equal to `replay.chase_path` within 1e-9 m, tested), draws the trail from the
+received poses and the upcoming route from the reference trajectory at the flight time
+`stamp - t0_ns` of the latched `/drone/sim/info`. The propellers turn at the hover display speed
+(the pose carries no rotor thrust). Every 10 s it logs the frame rate, the received pose rate and
+the latency (receive time minus header stamp).
+
+ROS 2 libraries: `isaac_python.sh` with `ISAACSIM_ROS2=1` sets `ROS_DISTRO=jazzy` and
+`LD_LIBRARY_PATH` to the Jazzy libraries bundled with the extension `isaacsim.ros2.core` 1.9.4
+(`isaacsim.ros2.bridge` 5.1.2; bundled: Fast DDS 2.14.6, `rmw_fastrtps_cpp`, `rmw_cyclonedds_cpp`,
+rclpy for Python 3.12), removes `/opt/ros` from `PATH` and does not source any system ROS 2 setup
+file; the system installation is not changed. With `ROS_DISTRO` set and no ROS 2 sourced, the
+bridge loads its rclpy as `jazzy.rclpy` (code of `isaacsim.ros2.core`, `impl/extension.py`). At
+start-up the live mode prints every ROS 2 / DDS library mapped into the process (from
+`/proc/self/maps`) and how many come from `/opt/ros`. BLOCKED: not run yet (see
+`../rviz_drone/README.md`, "Isolation": Fast DDS shared memory in `/dev/shm`), so which libraries
+are actually loaded is not yet confirmed.
+
 ## GUI replay timing
 
 The replay time is the wall-clock time since the start, modulo the flight duration; each frame
@@ -186,8 +210,10 @@ shows the truth sample nearest to it (200 Hz). The script logs every 10 s the fr
 times and the largest difference between the replay step and the wall-clock step. Measured on
 2026-11-27 (mission, chase camera, 1280x720 window), first six 10 s windows: 92.9 to 102.6 frames/s,
 median frame time 9.1-10.1 ms. Occasional long frames: 506 ms in the first window (start-up), then
-181, 18.4, 223, 73 and 71 ms as the longest frame of the following windows; their cause was not
-investigated (OPEN). Replay step minus wall-clock step: 0.000 ms in all windows (no drift and no
+181, 18.4, 223, 73 and 71 ms as the longest frame of the following windows. Short check
+(2026-11-27): from the sixth to the eleventh window the longest frame was 71.2 to 74.7 ms in every
+window, which suggests a periodic task, but the log has no per-frame time stamps to match against
+its 10 warning and error lines; the cause is still OPEN. Replay step minus wall-clock step: 0.000 ms in all windows (no drift and no
 jumps in time; after a long frame the drone moves on by the elapsed time, which shows as a jump in
 position).
 

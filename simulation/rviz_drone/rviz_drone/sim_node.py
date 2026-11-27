@@ -1,11 +1,13 @@
 """ROS 2 node: simulate the flight once at start-up, then publish truth and sensors in real time.
 
-Topics (see README.md): /drone/truth/pose, TF world -> base_link, /drone/imu (200 Hz),
-/drone/position (10 Hz), /drone/truth/path (2 Hz), /drone/marker (1 Hz).
+Topics (see README.md, names in topics.py): /drone/truth/pose, TF world -> base_link, /drone/imu
+(200 Hz), /drone/position (10 Hz), /drone/truth/path (2 Hz), /drone/marker (1 Hz per id) and
+/drone/sim/info (latched JSON with the trajectory and the time origin t0).
 """
 
 from __future__ import annotations
 
+import json
 import time
 
 import numpy as np
@@ -15,12 +17,14 @@ from nav_msgs.msg import Path
 from rclpy.node import Node
 from rclpy.time import Time
 from sensor_msgs.msg import Imu
+from std_msgs.msg import String
 from tf2_ros import TransformBroadcaster
 from visualization_msgs.msg import Marker
 
 from . import flight
 from .quadrotor import QuadParams
 from . import reference as references
+from . import topics
 
 
 def _pose(p: np.ndarray, q_wxyz: np.ndarray) -> Pose:
@@ -32,12 +36,15 @@ def _pose(p: np.ndarray, q_wxyz: np.ndarray) -> Pose:
 
 class QuadrotorSimNode(Node):
     def __init__(self) -> None:
-        super().__init__("rviz_drone_sim")
+        super().__init__(topics.SIM_NODE)
         self.declare_parameter("seed", 0)
         self.declare_parameter("trajectory", references.DEFAULT_TRAJECTORY)
         self.declare_parameter("duration", 0.0)  # 0: the whole trajectory
-        self.declare_parameter("world_frame", "world")
-        self.declare_parameter("body_frame", "base_link")
+        self.declare_parameter("world_frame", topics.WORLD_FRAME)
+        self.declare_parameter("body_frame", topics.BODY_FRAME)
+        # Name of a node to wait for before publishing (e.g. the Isaac Sim renderer); "" = none.
+        self.declare_parameter("wait_for_node", "")
+        self.declare_parameter("wait_timeout_s", 300.0)
         seed = int(self.get_parameter("seed").value)
         trajectory = str(self.get_parameter("trajectory").value)
         duration = float(self.get_parameter("duration").value) or references.get(trajectory).duration
@@ -57,19 +64,48 @@ class QuadrotorSimNode(Node):
         self.gyro_var = (config.gyro_noise_density / np.sqrt(dt)) ** 2
         self.accel_var = (config.accel_noise_density / np.sqrt(dt)) ** 2
 
-        self.pub_pose = self.create_publisher(PoseStamped, "/drone/truth/pose", 10)
-        self.pub_imu = self.create_publisher(Imu, "/drone/imu", 50)
-        self.pub_pos = self.create_publisher(PointStamped, "/drone/position", 10)
-        self.pub_path = self.create_publisher(Path, "/drone/truth/path", 1)
-        self.pub_marker = self.create_publisher(Marker, "/drone/marker", 10)
+        def pub(msg_type, topic):
+            return self.create_publisher(msg_type, topic.name, topics.qos_profile(topic))
+
+        self.pub_pose = pub(PoseStamped, topics.TRUTH_POSE)
+        self.pub_imu = pub(Imu, topics.IMU)
+        self.pub_pos = pub(PointStamped, topics.POSITION)
+        self.pub_path = pub(Path, topics.TRUTH_PATH)
+        self.pub_marker = pub(Marker, topics.MARKER)
+        self.pub_info = pub(String, topics.SIM_INFO)
         self.tf = TransformBroadcaster(self)
 
         self.path = Path()
         self.path.header.frame_id = self.world
         self.k = 0
         self.n = len(self.data["t"])
+        self.info = {"trajectory": trajectory, "seed": seed, "duration_s": duration,
+                     "imu_rate_hz": config.imu_rate, "pos_rate_hz": config.meas_rate}
+        self.dt = dt
+        self.wait_for = str(self.get_parameter("wait_for_node").value)
+        self.wait_until = time.monotonic() + float(self.get_parameter("wait_timeout_s").value)
+        self.timer = None
+        if self.wait_for:
+            self.get_logger().info(f"waiting for node {self.wait_for}")
+            self.wait_timer = self.create_timer(0.5, self._wait)
+        else:
+            self._start()
+
+    def _wait(self) -> None:
+        if self.wait_for in self.get_node_names():
+            self.get_logger().info(f"node {self.wait_for} found")
+        elif time.monotonic() < self.wait_until:
+            return
+        else:
+            self.get_logger().warning(f"node {self.wait_for} not found; publishing anyway")
+        self.wait_timer.cancel()
+        self._start()
+
+    def _start(self) -> None:
         self.t0_ns = self.get_clock().now().nanoseconds
-        self.timer = self.create_timer(dt, self._tick)
+        self.pub_info.publish(String(data=json.dumps({**self.info, "t0_ns": self.t0_ns}, sort_keys=True)))
+        self.get_logger().info(f"publishing the flight in real time (t0 = {self.t0_ns} ns)")
+        self.timer = self.create_timer(self.dt, self._tick)
 
     def _stamp(self, t: float):
         return Time(nanoseconds=self.t0_ns + int(round(t * 1e9))).to_msg()

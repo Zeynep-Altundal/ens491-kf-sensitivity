@@ -23,7 +23,14 @@ fi
 
 export ROS_DOMAIN_ID=101
 export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
-# Keep the ROS 2 logs of this package in its workspace instead of the shared ~/.ros/log.
+# Keep the ROS 2 logs and the ROS home (ros2 daemon, etc.) of this package in its workspace instead
+# of the shared ~/.ros.
 export ROS_LOG_DIR="${RVIZ_DRONE_WS}/log/ros"
+export ROS_HOME="${RVIZ_DRONE_WS}/ros_home"
+# Fast DDS (also bundled with Isaac Sim 6.0.1, same version 2.14.6). UDP only is requested, but with
+# ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST shared-memory port files in /dev/shm were still rewritten by
+# the ros2 command-line tools (README.md, "Isolation"); /dev/shm is also used by other ROS 2 work.
+export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+export FASTDDS_BUILTIN_TRANSPORTS=UDPv4
 
 unset _rviz_drone_dir

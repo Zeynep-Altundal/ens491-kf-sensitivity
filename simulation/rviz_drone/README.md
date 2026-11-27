@@ -244,26 +244,114 @@ It also loads with `load_recording` of `ens491-nkf` (`nkf/data/recording.py` on
 | gyro bias at end | 2.00e-03, -1.02e-03, 1.26e-03 rad/s |
 | accel bias at end | 0.038, -0.041, 0.012 m/s^2 |
 
-## Topics and rates
+## ROS 2 graph (simulator, Isaac Sim, RViz)
 
-| Topic / TF | Type | Frame | Rate |
-|---|---|---|---|
-| `/drone/truth/pose` | `geometry_msgs/PoseStamped` | `world` | 200 Hz |
-| TF `world` -> `base_link` | `tf2_msgs/TFMessage` on `/tf` | - | 200 Hz |
-| `/drone/imu` | `sensor_msgs/Imu` (orientation not provided: `orientation_covariance[0] = -1`) | `base_link` | 200 Hz |
-| `/drone/position` | `geometry_msgs/PointStamped` (not published during dropout) | `world` | 10 Hz |
-| `/drone/truth/path` | `nav_msgs/Path` (truth, one pose per 0.1 s) | `world` | 2 Hz |
-| `/drone/marker` | `visualization_msgs/Marker`, ids 0-2 (body, arms, rotors), frame-locked | `base_link` | 1 Hz per id (3 messages/s) |
+All names, types, rates, QoS and colours below are defined once in `rviz_drone/topics.py`; the
+node, the launch file and the Isaac Sim subscriber import them from there.
 
-Time stamps are `t0 + t_k`, with `t0` the ROS time at the start of publication. The node simulates the whole flight at start-up (about 21 s for the 83 s mission) before it starts
-publishing. The simulation itself runs at 1 kHz; the published streams are sub-sampled from it. After the end of the flight the
-node stops publishing and logs a message.
+### Node graph
+
+```
+                       /drone/truth/pose (200 Hz) ─────────────────┐
+                       /drone/sim/info (latched, once) ────────────┤
+ rviz_drone_sim ──────┤                                            ├──> isaac_drone_render (Isaac Sim 6.0.1,
+ (system Jazzy rclpy)  │ /tf, /drone/imu, /drone/position,          │     bundled Jazzy rclpy; moves the
+                       │ /drone/truth/path, /drone/marker ─────────>│     drone, renders, no publications)
+                       │                                            └──> rviz2 (optional)
+ (reserved, not implemented) estimators kf | ekf | eskf | spare ──> /drone/estimate/<name>/* ──> rviz2
+ (reserved, not implemented) analysis ─────────────────────────────> /drone/analysis/* ─────────> rviz2
+```
+
+`rviz_drone_sim` simulates the whole flight at start-up (about 21 s for the mission), then, if the
+parameter `wait_for_node` is set (the launch file sets it to `isaac_drone_render` when Isaac Sim is
+started), waits until that node is in the graph (at most `wait_timeout_s`, 300 s) and publishes the
+flight in real time. Isaac Sim follows `/drone/truth/pose` only; the flight time for the overlay and
+the upcoming route comes from the header stamp minus `t0_ns` of `/drone/sim/info`.
+
+### Topics
+
+| Topic | Type | Frame id | Rate | QoS | Publisher |
+|---|---|---|---|---|---|
+| `/drone/truth/pose` | `geometry_msgs/PoseStamped` | `world` | 200 Hz | reliable, volatile, keep last 10 | `rviz_drone_sim` |
+| `/tf` (`world` -> `base_link`) | `tf2_msgs/TFMessage` | `world` | 200 Hz | tf2 default (reliable, volatile, keep last 100) | `rviz_drone_sim` |
+| `/drone/imu` | `sensor_msgs/Imu` (orientation not provided: `orientation_covariance[0] = -1`) | `base_link` | 200 Hz | reliable, volatile, keep last 50 | `rviz_drone_sim` |
+| `/drone/position` | `geometry_msgs/PointStamped` (not published during dropout) | `world` | 10 Hz | reliable, volatile, keep last 10 | `rviz_drone_sim` |
+| `/drone/truth/path` | `nav_msgs/Path` (truth, one pose per 0.1 s) | `world` | 2 Hz | reliable, volatile, keep last 1 | `rviz_drone_sim` |
+| `/drone/marker` | `visualization_msgs/Marker`, ids 0-2 (body, arms, rotors), frame-locked | `base_link` | 3 messages/s | reliable, volatile, keep last 10 | `rviz_drone_sim` |
+| `/drone/sim/info` | `std_msgs/String`, JSON: `trajectory`, `seed`, `duration_s`, `t0_ns`, `imu_rate_hz`, `pos_rate_hz` | - | once, before the first pose | reliable, transient local, keep last 1 | `rviz_drone_sim` |
+
+Reserved for later steps (names, types and colours fixed now; nothing publishes them yet), with
+`<name>` one of `kf`, `ekf`, `eskf`, `spare`:
+
+| Topic | Type | Frame id | Rate | QoS | Content |
+|---|---|---|---|---|---|
+| `/drone/estimate/<name>/pose` | `geometry_msgs/PoseWithCovarianceStamped` | `world` | 200 Hz (every prediction) | reliable, volatile, keep last 50 | estimated pose and its 6x6 covariance |
+| `/drone/estimate/<name>/path` | `nav_msgs/Path` | `world` | 2 Hz | reliable, volatile, keep last 1 | estimate trace |
+| `/drone/estimate/<name>/covariance` | `visualization_msgs/Marker` (sphere scaled to the 3-sigma position ellipsoid) | `world` | 10 Hz | reliable, volatile, keep last 10 | position covariance |
+| `/drone/analysis/peaks` | `visualization_msgs/MarkerArray` (one marker per detected error peak) | `world` | on detection | reliable, transient local, keep last 1 | peak markers |
+| `/drone/analysis/outage` | `std_msgs/Bool` (true while no position measurement is valid) | - | 10 Hz | reliable, volatile, keep last 10 | outage indicator |
+| `/drone/analysis/outage_marker` | `visualization_msgs/Marker` (text above the drone) | `base_link` | 10 Hz | reliable, volatile, keep last 10 | outage indicator in RViz |
+
+### Colours (RGB 0-255, RViz and Isaac Sim)
+
+| Item | Colour |
+|---|---|
+| truth path | green `25, 255, 0` |
+| position measurement | magenta `204, 41, 204` |
+| KF | blue `31, 119, 180` |
+| EKF | orange `255, 127, 14` |
+| ESKF | cyan `23, 190, 207` |
+| spare | yellow `255, 215, 0` |
+| covariance of a filter | the filter colour, alpha 0.25 |
+| error peak markers | red `214, 39, 40` |
+| outage indicator | grey `150, 150, 150` |
+
+The RViz configuration contains displays for the reserved estimate paths with these colours.
+
+### TF tree
+
+`world` (ENU, fixed) -> `base_link` (FLU body = IMU frame, dynamic, 200 Hz, `rviz_drone_sim`).
+No static transforms. The Isaac Sim stage uses the same ENU axes in metres (z up), so the pose of
+`/drone/truth/pose` is applied to the drone prim without any conversion (`../isaac_render/usd_pose.py`).
+Reserved child frames of `world` for the estimators: `base_link_kf`, `base_link_ekf`,
+`base_link_eskf`, `base_link_spare` (not published yet).
+
+### Time stamps
+
+`t0 + t_k`, with `t0` the ROS time at the start of publication (also in `/drone/sim/info`). The
+node simulates the whole flight at start-up before it starts publishing. The simulation itself
+runs at 1 kHz; the published streams are sub-sampled from it. After the end of the flight the node
+stops publishing and logs a message.
 
 ## Isolation from other ROS 2 work on this machine
 
-`env.sh` sets `ROS_DOMAIN_ID=101` and `ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST` for the current
-shell, so that the nodes of this package never discover nodes on the default domain, and
-`ROS_LOG_DIR` to `../rviz_drone_ws/log/ros`, so that ROS 2 logs are not written to `~/.ros/log`.
+`env.sh` sets, for the current shell: `ROS_DOMAIN_ID=101` and
+`ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST`, so that the nodes of this package never discover nodes on
+the default domain; `ROS_LOG_DIR` to `../rviz_drone_ws/log/ros` and `ROS_HOME` to
+`../rviz_drone_ws/ros_home`, so that nothing is written to `~/.ros`; `RMW_IMPLEMENTATION=rmw_fastrtps_cpp`
+and `FASTDDS_BUILTIN_TRANSPORTS=UDPv4`. The launch file starts RViz with `HOME` set to
+`../rviz_drone_ws/ros_home`, so that RViz does not write `~/.rviz2`. Use the command-line tools
+with `--no-daemon` (`ros2 node list --no-daemon`, `ros2 topic list --no-daemon`) and stop a daemon
+that was started anyway with `ros2 daemon stop` in the same environment.
+
+Observation of 2026-11-27 (headless run, `/dev/shm` listed before and after, information only; the
+shared directories of the isolation check, `~/.ros` and `/opt/ros/jazzy` had 0 differences):
+
+* The node alone (launch at 16:11, 83 s flight) changed nothing in `/dev/shm`.
+* During the rate measurement (16:17:01-16:17:02: six `ros2 topic hz`, one `ros2 topic echo`
+  without `--no-daemon`, which started a `ros2-daemon` on domain 101) three existing Fast DDS
+  shared-memory port files of earlier, no longer running processes, `/dev/shm/fastrtps_port7001`,
+  `fastrtps_port7005` and `fastrtps_port7007` (52 400 bytes, last changed before this run), were
+  rewritten (new mtime, same size). `FASTDDS_BUILTIN_TRANSPORTS=UDPv4` did not prevent it.
+  `librmw_fastrtps_shared_cpp.so` of Jazzy creates a `SharedMemTransportDescriptor` itself (seen in
+  its symbols); whether it adds shared memory for the `LOCALHOST` discovery range regardless of
+  the environment variable was not confirmed (OPEN).
+* BLOCKED: `/dev/shm` is shared with the ROS 2 work of the other project on this machine. Further
+  ROS 2 runs (in particular Isaac Sim with its ROS 2 bridge, and RViz) wait for an explicit
+  decision of the project owner: accept the shared-memory files of Fast DDS under
+  `ROS_DOMAIN_ID=101`, or move to a configuration without shared memory (for example a Fast DDS
+  XML profile with UDPv4 on 127.0.0.1 only and the discovery range not set to `LOCALHOST`, still
+  to be tested).
 
 ## Usage
 
@@ -271,16 +359,37 @@ shell, so that the nodes of this package never discover nodes on the default dom
 source simulation/rviz_drone/env.sh          # ROS 2 Jazzy, private domain, workspace overlay
 simulation/rviz_drone/build.sh               # colcon build in simulation/rviz_drone_ws
 source simulation/rviz_drone/env.sh          # again, to pick up the freshly built overlay
-ros2 launch rviz_drone rviz_drone.launch.py              # with RViz
-ros2 launch rviz_drone rviz_drone.launch.py rviz:=false  # headless
+ros2 launch rviz_drone rviz_drone.launch.py              # simulator, Isaac Sim and RViz
+ros2 launch rviz_drone rviz_drone.launch.py isaac:=false             # simulator and RViz
+ros2 launch rviz_drone rviz_drone.launch.py isaac:=false rviz:=false # headless
 ros2 launch rviz_drone rviz_drone.launch.py trajectory:=figure_eights   # the earlier trajectory
 ```
 
 Tests (pure NumPy, no ROS needed): `.venv/bin/python -m pytest -q simulation/rviz_drone/test`.
 
-OPEN: the node and the launch file were changed for the trajectory parameter (2026-11-27) but not
-run again with ROS 2; the RViz view (`Distance: 14` in `rviz/rviz_drone.rviz`) was set for the
-area of `figure_eights` and has to be zoomed out for the mission.
+Launch arguments: `isaac` (default `true`: Isaac Sim 6.0.1 window through
+`../isaac_render/isaac_python.sh` with `ISAACSIM_ROS2=1`, `render_flight.py --source ros2 --gui`;
+the node waits for the Isaac Sim node), `isaac_camera` (`chase`, `overview`, `topdown`), `rviz`
+(default `true`), `trajectory`, `seed`.
+
+Run of 2026-11-27 16:16 (`isaac:=false rviz:=false trajectory:=mission`, rates with `ros2 topic hz`
+over 30 s, window 10 000 messages): the node simulated the 83 s mission in 20.5 s and published it
+in 83.01 s of wall-clock time.
+
+| Topic | Expected | Measured | Min / max period |
+|---|---|---|---|
+| `/drone/truth/pose` | 200 Hz | 200.001 Hz (5816 messages) | 3 / 7 ms |
+| `/tf` | 200 Hz | 199.998 Hz | 3 / 7 ms |
+| `/drone/imu` | 200 Hz | 200.000 Hz | 3 / 7 ms |
+| `/drone/position` | 10 Hz | 10.000 Hz | 99 / 102 ms |
+| `/drone/truth/path` | 2 Hz | 2.000 Hz | 499 / 501 ms |
+| `/drone/marker` | 3 messages/s | 3.000 /s | 0 / 1001 ms (three ids at once) |
+
+`/drone/sim/info` (latched) carried `{"duration_s": 83.0, "imu_rate_hz": 200.0, "pos_rate_hz": 10.0,
+"seed": 0, "t0_ns": ..., "trajectory": "mission"}`; `ros2 node list` showed `/rviz_drone_sim` only.
+
+Not yet run (BLOCKED, see "Isolation"): RViz with the widened view (`rviz/rviz_drone.rviz`, 62 m
+from the centre of the mission area) and the launch with Isaac Sim (`isaac:=true`).
 
 ## Done criteria
 
@@ -291,6 +400,11 @@ area of `figure_eights` and has to be zoomed out for the mission.
    `/drone/position` at 10 Hz within 5 % (measured with `ros2 topic hz`).
 4. With RViz, the drone body, the TF frames, the truth path and the position measurements are
    visible (manual check; not part of the automated tests).
+5. With `isaac:=true`, the drone in the Isaac Sim window follows `/drone/truth/pose`; Isaac Sim
+   logs the ROS 2 libraries it loaded (bundled or `/opt/ros`), the received pose rate (200 Hz
+   within 5 %) and the latency.
+
+Status 2026-11-27: 1 to 3 met (rates in "Usage"); 4 and 5 BLOCKED (see "Isolation").
 
 ## Files
 
@@ -302,8 +416,9 @@ area of `figure_eights` and has to be zoomed out for the mission.
 | `rviz_drone/flight.py` | Simulates the flight and generates the sensor streams with `synthetic/`. |
 | `rviz_drone/repo_path.py` | Makes the repository root importable (for `synthetic/`). |
 | `rviz_drone/recorder.py` | Writes one flight in the common recording format (`.npz`). |
+| `rviz_drone/topics.py` | Topic names, types, rates, QoS, frames and colours (single source). |
 | `rviz_drone/sim_node.py` | ROS 2 node that publishes the streams in real time. |
-| `launch/rviz_drone.launch.py` | Starts the node and, optionally, RViz. |
+| `launch/rviz_drone.launch.py` | Starts the node and, optionally, Isaac Sim and RViz. |
 | `rviz/rviz_drone.rviz` | RViz configuration. |
 | `test/` | Unit tests. |
 | `env.sh`, `build.sh` | Environment and build helpers. |

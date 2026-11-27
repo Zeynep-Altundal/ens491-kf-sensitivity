@@ -10,8 +10,12 @@ Visualization Manager:
       Name: Grid
       Enabled: true
       Reference Frame: <Fixed Frame>
-      Cell Size: 1
-      Plane Cell Count: 20
+      Cell Size: 5
+      Plane Cell Count: 14
+      Offset:
+        X: 20
+        Y: 10
+        Z: 0
     - Class: rviz_default_plugins/TF
       Name: TF
       Enabled: true
@@ -36,6 +40,30 @@ Visualization Manager:
       History Length: 20
       Topic:
         Value: /drone/position
+    - Class: rviz_default_plugins/Path
+      Name: Estimate KF (reserved)
+      Enabled: true
+      Color: 31; 119; 180
+      Topic:
+        Value: /drone/estimate/kf/path
+    - Class: rviz_default_plugins/Path
+      Name: Estimate EKF (reserved)
+      Enabled: true
+      Color: 255; 127; 14
+      Topic:
+        Value: /drone/estimate/ekf/path
+    - Class: rviz_default_plugins/Path
+      Name: Estimate ESKF (reserved)
+      Enabled: true
+      Color: 23; 190; 207
+      Topic:
+        Value: /drone/estimate/eskf/path
+    - Class: rviz_default_plugins/Path
+      Name: Estimate SPARE (reserved)
+      Enabled: true
+      Color: 255; 215; 0
+      Topic:
+        Value: /drone/estimate/spare/path
   Enabled: true
   Global Options:
     Fixed Frame: world
@@ -46,13 +74,13 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 14
+      Distance: 62
       Focal Point:
-        X: 0
-        Y: 0
+        X: 20
+        Y: 10
         Z: 1.5
-      Pitch: 0.6
-      Yaw: 0.8
+      Pitch: 0.75
+      Yaw: -1.9
       Target Frame: <Fixed Frame>
 Window Geometry:
   Height: 900

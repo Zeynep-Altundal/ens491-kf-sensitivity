@@ -12,6 +12,10 @@ Modes:
   --inspect          hover, +x translation, +90 deg yaw and t = 36 s from the side; tilt from the
                      propeller prims (USD) and from the drone silhouette (image)
   --gui              window with real-time replay in a loop until the window is closed
+  --source ros2      live mode (with --gui): the drone follows /drone/truth/pose of the simulator
+                     node of ../rviz_drone/ through the ROS 2 bridge (bundled Jazzy rclpy); started by
+                     ../rviz_drone/launch/rviz_drone.launch.py with ISAACSIM_ROS2=1 in the wrapper.
+                     The in-memory replay (--source replay, default) is the offline mode.
 
 Run through the isolation wrapper only:
     source simulation/isaac_render/env.sh
@@ -43,6 +47,7 @@ from usd_pose import enu_flu_to_usd, quat_normalize, rotmat, usd_matrix  # noqa:
 from rviz_drone import flight  # noqa: E402
 from rviz_drone.quadrotor import QuadParams  # noqa: E402
 from rviz_drone import reference as references  # noqa: E402
+from rviz_drone import topics  # noqa: E402
 
 ASSETS = Path(os.environ.get("ISAACSIM601_ROOT", Path.home() / "isaacsim-6.0.1-ens491")) / "assets"
 
@@ -81,6 +86,8 @@ parser.add_argument("--supersample", type=int, default=None,
 parser.add_argument("--no-overlay", action="store_true")
 parser.add_argument("--renderer", choices=("realtime", "pathtraced"), default="pathtraced",
                     help="headless only: RTX real-time (FXAA, supersampled) or path tracing")
+parser.add_argument("--source", choices=("replay", "ros2"), default="replay",
+                    help="replay: in-memory flight (offline); ros2: follow /drone/truth/pose (needs --gui)")
 parser.add_argument("--spp", type=int, default=64, help="path tracing: samples per pixel and frame")
 args, kit_args = parser.parse_known_args()
 if args.supersample is None:
@@ -88,6 +95,8 @@ if args.supersample is None:
 if args.verify_heading:
     # Low-noise scene for the measurement: flat grid ground and a plain sky.
     args.env, args.sky = "grid", "plain"
+if args.source == "ros2" and not args.gui:
+    sys.exit("--source ros2 needs --gui")
 # Only the Kit arguments (isolation settings of the wrapper) reach SimulationApp.
 sys.argv = [sys.argv[0]] + kit_args
 
@@ -432,8 +441,14 @@ def set_frame(k: int) -> None:
     trail_pts_attr.Set([Gf.Vec3f(*map(float, x)) for x in pts])
     trail_widths_attr.Set([float(line_scale * (0.012 * (1.0 - a) + 0.002)) for a in age])
     route_width_attr.Set([float(line_scale * ROUTE_WIDTH)])
+    apply_cameras(CHASE_EYE[k], CHASE_TARGET[k])
+
+
+def apply_cameras(chase_eye: np.ndarray, chase_target: np.ndarray) -> None:
+    """Camera transforms (chase from the given eye and target, the fixed ones from the flight
+    extent) and the fill light along the view of ``fill_camera``."""
     for name, (_, op) in cameras.items():
-        pose = replay.camera_pose(name, k, CHASE_EYE, CHASE_TARGET, FIXED_CAMERAS)
+        pose = replay.camera_pose(name, 0, chase_eye[None, :], chase_target[None, :], FIXED_CAMERAS)
         op.Set(look_at(pose.eye, pose.target, pose.up))
         if name == fill_camera:
             d = replay.fill_direction(pose.eye, pose.target)
@@ -483,6 +498,148 @@ def write_info(out: Path, extra: dict) -> None:
             "pose_check_max_error": max_err, "pose_tolerance": POSE_TOLERANCE}
     info.update(extra)
     (out / "run_info.json").write_text(json.dumps(info, indent=2) + "\n")
+
+
+def ros2_libraries() -> dict[str, str]:
+    """Paths of the ROS 2 / DDS shared libraries mapped into this process (from /proc/self/maps)."""
+    found = {}
+    with open("/proc/self/maps") as maps:
+        for line in maps:
+            path = line.split()[-1] if len(line.split()) >= 6 else ""
+            name = os.path.basename(path)
+            for key in ("librcl.so", "librclpy", "librmw_implementation.so", "librmw_fastrtps_cpp.so",
+                        "libfastrtps.so", "libfastcdr.so", "librcutils.so"):
+                if name.startswith(key) and key not in found:
+                    found[key] = path
+    return found
+
+
+def run_live(labels, overlay_where: str) -> None:
+    """Live mode: the drone follows /drone/truth/pose; flight time from /drone/sim/info."""
+    import threading
+    from collections import deque
+
+    manager = omni.kit.app.get_app().get_extension_manager()
+    manager.set_extension_enabled_immediate("isaacsim.ros2.bridge", True)
+    simulation_app.update()
+    import rclpy
+    from geometry_msgs.msg import PoseStamped
+    from std_msgs.msg import String
+
+    libs = ros2_libraries()
+    print(f"RENDER ros2: ROS_DISTRO={os.environ.get('ROS_DISTRO')} RMW={os.environ.get('RMW_IMPLEMENTATION')} "
+          f"domain={os.environ.get('ROS_DOMAIN_ID')} rclpy={Path(rclpy.__file__).parent}", flush=True)
+    for key, path in sorted(libs.items()):
+        print(f"RENDER ros2 library: {key} -> {path}", flush=True)
+    system = [p for p in libs.values() if p.startswith("/opt/ros/")]
+    print(f"RENDER ros2: libraries from /opt/ros: {len(system)}; bundled: "
+          f"{sum('isaacsim.ros2' in p for p in libs.values())}", flush=True)
+
+    if not rclpy.ok():
+        rclpy.init()
+    node = rclpy.create_node(topics.ISAAC_NODE)
+    lock = threading.Lock()
+    inbox: list = []
+    info: dict = {}
+    latencies: list = []
+
+    def on_pose(msg) -> None:
+        now = node.get_clock().now().nanoseconds
+        stamp = msg.header.stamp.sec * 1_000_000_000 + msg.header.stamp.nanosec
+        o, x = msg.pose.orientation, msg.pose.position
+        with lock:
+            inbox.append((stamp, np.array([x.x, x.y, x.z]), np.array([o.w, o.x, o.y, o.z])))
+            latencies.append(now - stamp)
+
+    def on_info(msg) -> None:
+        with lock:
+            info.update(json.loads(msg.data))
+
+    node.create_subscription(PoseStamped, topics.TRUTH_POSE.name, on_pose, topics.qos_profile(topics.TRUTH_POSE))
+    node.create_subscription(String, topics.SIM_INFO.name, on_info, topics.qos_profile(topics.SIM_INFO))
+    spin = threading.Thread(target=rclpy.spin, args=(node,), daemon=True)
+    spin.start()
+    print(f"RENDER ros2: node {topics.ISAAC_NODE} subscribed to {topics.TRUTH_POSE.name} and "
+          f"{topics.SIM_INFO.name}; camera={args.camera} overlay={overlay_where}; close the window to exit",
+          flush=True)
+
+    chase = replay.ChaseFilter()
+    hist_t, hist_p = deque(maxlen=600), deque(maxlen=600)
+    prop = np.zeros(4)
+    last_wall = None
+    t0_info = None
+    received, frames, dts, lat_all, report_at = 0, 0, [], [], time.monotonic() + 10.0
+    eye = target = None
+    p = q = None
+    t = 0.0
+    while simulation_app.is_running():
+        wall = time.monotonic()
+        with lock:
+            batch, inbox[:] = list(inbox), []
+            lat, latencies[:] = list(latencies), []
+            t0_ns = info.get("t0_ns")
+            if info and t0_info is None:
+                t0_info = dict(info)
+                print(f"RENDER ros2: sim info {json.dumps(t0_info, sort_keys=True)}", flush=True)
+                if t0_info.get("trajectory") != args.trajectory:
+                    print(f"RENDER ros2: WARNING trajectory {t0_info.get('trajectory')} of the simulator differs "
+                          f"from --trajectory {args.trajectory} (route and phase use --trajectory)", flush=True)
+        received += len(batch)
+        if t0_ns is not None:
+            for stamp, p_k, q_k in batch:
+                t_k = (stamp - t0_ns) * 1e-9
+                if hist_t and t_k <= hist_t[-1]:
+                    continue
+                hist_t.append(t_k)
+                hist_p.append(p_k)
+                eye, target = chase.step(t_k, p_k, float(replay.yaw_from_quat(q_k[None, :])[0]))
+                p, q, t = p_k, q_k, t_k
+        if last_wall is not None:
+            dts.append(wall - last_wall)
+            if p is not None:
+                prop += 2.0 * np.pi * 4.0 * (wall - last_wall) * SPIN  # hover display speed, 4 rev/s
+        last_wall = wall
+        frames += 1
+        if wall >= report_at and dts:
+            d = np.array(dts)
+            msg = (f"RENDER ros2 rate: {len(d) / d.sum():.1f} frames/s, frame time median "
+                   f"{1e3 * np.median(d):.1f} ms, max {1e3 * d.max():.1f} ms; poses received "
+                   f"{received / d.sum():.1f}/s")
+            if lat_all:
+                la = np.array(lat_all) * 1e-6
+                msg += f"; latency median {np.median(la):.2f} ms, max {la.max():.2f} ms"
+            print(msg + f"; flight time {t:.2f} s", flush=True)
+            dts, received, lat_all, report_at = [], 0, [], wall + 10.0
+        lat_all.extend(lat)
+        if p is None:
+            for label, text in zip(labels, ["waiting for", topics.TRUTH_POSE.name, "", f"camera: {args.camera}"]):
+                label.text = text
+            simulation_app.update()
+            continue
+        set_body(p, q)
+        for i, op in enumerate(prop_ops):
+            base = prop_base[i]
+            quat_type, vec_type = (Gf.Quatf, Gf.Vec3f) if isinstance(base, Gf.Quatf) else (Gf.Quatd, Gf.Vec3d)
+            op.Set(base * quat_type(np.cos(prop[i] / 2.0), vec_type(0.0, 0.0, np.sin(prop[i] / 2.0))))
+        k_ref = replay.sample_index(T, min(max(t, 0.0), float(T[-1])))
+        route_pts_attr.Set([Gf.Vec3f(*map(float, x))
+                            for x in replay.upcoming_route(T, P_REF, k_ref, horizon_s=ROUTE_S, n=ROUTE_N)])
+        th, ph = np.array(hist_t), np.array(hist_p)
+        pts, age = replay.trail(th, ph, len(th) - 1, n=TRAIL_N)
+        trail_pts_attr.Set([Gf.Vec3f(*map(float, x)) for x in pts])
+        trail_widths_attr.Set([float(line_scale * (0.012 * (1.0 - a) + 0.002)) for a in age])
+        route_width_attr.Set([float(line_scale * ROUTE_WIDTH)])
+        apply_cameras(eye, target)
+        j = replay.sample_index(th, th[-1] - 0.1)
+        speed = float(np.linalg.norm(ph[-1] - ph[j]) / max(th[-1] - th[j], 1e-6)) if len(th) > 1 else 0.0
+        segment = TRAJ.segment_at(min(max(t, 0.0), TRAJ.duration)).name
+        for label, text in zip(labels, replay.overlay_lines(t, segment, speed, args.camera)):
+            label.text = text
+        simulation_app.update()
+    node.destroy_node()
+    if rclpy.ok():
+        rclpy.shutdown()
+    print("RENDER ros2: window closed", flush=True)
 
 
 if not args.gui:
@@ -784,6 +941,10 @@ else:
                 for _ in range(4):
                     labels.append(ui.Label(""))
         overlay_where = "window"
+    if args.source == "ros2":
+        run_live(labels, overlay_where)
+        simulation_app.close()
+        sys.exit(0)
     print(f"RENDER gui: camera={args.camera} overlay={overlay_where}; replaying in a loop; "
           f"close the window to exit", flush=True)
     # The replay time is the wall-clock time since the start (modulo the flight duration); the

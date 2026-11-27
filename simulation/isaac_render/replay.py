@@ -123,6 +123,46 @@ def fixed_cameras(p: np.ndarray, sun_azimuth_deg: float = 146.5, hfov_deg: float
     return {"overview": overview, "topdown": topdown}
 
 
+class ChaseFilter:
+    """Online (sample by sample) form of ``chase_path`` with the same parameters and filters, for
+    the live ROS 2 mode, in which the pose arrives one message at a time."""
+
+    def __init__(self, distance: float = 2.6, height: float = 0.45, tau_pos: float = 0.35, tau_yaw: float = 0.8,
+                 tau_target: float = 0.12, min_height: float = 0.25, min_distance: float = 2.0,
+                 target_lift: float = 0.25) -> None:
+        self.distance, self.height, self.tau_pos, self.tau_yaw = distance, height, tau_pos, tau_yaw
+        self.tau_target, self.min_height, self.min_distance, self.target_lift = (
+            tau_target, min_height, min_distance, target_lift)
+        self.t = None
+
+    @staticmethod
+    def _lp(y, x, dt: float, tau: float):
+        return y + (1.0 - np.exp(-dt / tau)) * (x - y)
+
+    def step(self, t: float, p: np.ndarray, yaw: float) -> tuple[np.ndarray, np.ndarray]:
+        p = np.asarray(p, dtype=float)
+        lifted = p + np.array([0.0, 0.0, self.target_lift])
+        if self.t is None:
+            self.ps, self.yaw_raw, self.yaw_unwrapped = p.copy(), float(yaw), float(yaw)
+            self.ys, self.target, self.push_f = float(yaw), lifted, None
+        else:
+            dt = t - self.t
+            self.yaw_unwrapped += (float(yaw) - self.yaw_raw + np.pi) % (2.0 * np.pi) - np.pi
+            self.yaw_raw = float(yaw)
+            self.ps = self._lp(self.ps, p, dt, self.tau_pos)
+            self.ys = self._lp(self.ys, self.yaw_unwrapped, dt, self.tau_yaw)
+            self.target = self._lp(self.target, lifted, dt, self.tau_target)
+        eye = self.ps + np.array([-self.distance * np.cos(self.ys), -self.distance * np.sin(self.ys), self.height])
+        los = eye - p
+        dist = float(np.linalg.norm(los))
+        push = (self.min_distance - dist) / max(dist, 1e-9) * los if dist < self.min_distance else np.zeros(3)
+        self.push_f = push if self.push_f is None else self._lp(self.push_f, push, t - self.t, self.tau_pos / 3.0)
+        self.t = t
+        eye = eye + self.push_f
+        eye[2] = max(eye[2], self.min_height)
+        return eye, self.target.copy()
+
+
 def fill_direction(eye: np.ndarray, target: np.ndarray, down_deg: float = 30.0) -> np.ndarray:
     """Unit direction of travel of the fill light: the horizontal view direction of the camera,
     tilted ``down_deg`` towards the ground (light from behind and above the camera). For a camera

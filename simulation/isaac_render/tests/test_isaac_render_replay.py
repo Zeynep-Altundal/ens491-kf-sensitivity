@@ -122,6 +122,17 @@ def test_chase_camera_keeps_the_horizon_in_frame():
     assert np.abs(below).max() < half_vfov
 
 
+def test_online_chase_filter_equals_the_offline_chase_path():
+    t = np.arange(0.0, 20.0, 0.005)
+    p = np.stack([3 * np.sin(t), 1.5 * np.sin(2 * t), 1.0 + 0.5 * np.sin(0.3 * t)], axis=1)
+    yaw = np.arctan2(np.gradient(p[:, 1]), np.gradient(p[:, 0]))  # wraps at +-pi
+    eye, target = replay.chase_path(t, p, yaw)
+    f = replay.ChaseFilter()
+    online = np.array([np.concatenate(f.step(t[k], p[k], yaw[k])) for k in range(len(t))])
+    np.testing.assert_allclose(online[:, :3], eye, atol=1e-9)
+    np.testing.assert_allclose(online[:, 3:], target, atol=1e-9)
+
+
 def test_fill_light_shines_along_the_view_from_above():
     d = replay.fill_direction(np.array([0.0, 0.0, 1.0]), np.array([3.0, 4.0, 0.5]))
     assert abs(np.linalg.norm(d) - 1.0) < 1e-12 and d[2] < 0

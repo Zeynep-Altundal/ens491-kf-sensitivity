@@ -79,6 +79,23 @@ export PATH
 export ROS_LOCALHOST_ONLY=1
 export ROS_DOMAIN_ID=101
 
+# ROS 2 mode (ISAACSIM_ROS2=1, set by the launch file of ../rviz_drone): the ROS 2 bridge of Isaac
+# Sim is meant to use the Jazzy libraries bundled with its extension isaacsim.ros2.core (Fast DDS
+# 2.14.6, the same version as the system Jazzy), never /opt/ros (not yet verified at run time, see
+# README.md). Same domain, discovery range, transport and log location as ../rviz_drone/env.sh.
+if [ "${ISAACSIM_ROS2:-0}" = "1" ]; then
+    _repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+    export ROS_DISTRO=jazzy
+    export LD_LIBRARY_PATH="${ISAACSIM601_ROOT}/venv/lib/python3.12/site-packages/isaacsim/exts/isaacsim.ros2.core/jazzy/lib"
+    export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+    export FASTDDS_BUILTIN_TRANSPORTS=UDPv4
+    unset ROS_LOCALHOST_ONLY
+    export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
+    export ROS_LOG_DIR="${_repo}/simulation/rviz_drone_ws/log/ros"
+    export ROS_HOME="${_repo}/simulation/rviz_drone_ws/ros_home"
+    unset _repo
+fi
+
 if [[ "${1:-}" == *.py ]]; then
     exec "${PYTHON_EXE}" "$@" "${KIT_ISOLATION_ARGS[@]}"
 fi
