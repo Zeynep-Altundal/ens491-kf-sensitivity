@@ -1,12 +1,14 @@
 """Where does the ~5 deg attitude error on EuRoC come from: the filters, or the IMU / ground truth?
 
-Three checks, printed as a short report:
+Four checks, printed as a short report:
   1. Gravity: at rest the accelerometer (minus the reference bias), rotated with the ground-truth
      attitude, must point along +z; the angle between them is the tilt mismatch of the reference.
   2. Gyro vs ground truth: integrate the gyro (minus the reference bias) over 5 s windows from the
      ground-truth attitude; the rotation error at the end of each window (median over windows) shows
      whether gyro and ground-truth attitude agree (frames and time stamps).
   3. ESKF attitude error split into roll, pitch and yaw (body frame), and its value over time.
+  4. Time offset: check 2 repeated with the ground truth shifted by -150 ... +150 ms; the shift with
+     the smallest error estimates a time offset between the IMU and the ground-truth clocks.
 
     python -m experiments.nav_compare.scripts.diag_euroc_attitude ~/data/euroc/V1_01_easy
 """
@@ -49,6 +51,26 @@ def main(argv=None):
         errs.append(np.degrees(np.linalg.norm(kin.log_b(R.T @ C[s + n_win]))))
     print(f"2. gyro integrated over 5 s vs ground truth: median {np.median(errs):.2f} deg, "
           f"max {np.max(errs):.2f} deg ({len(errs)} windows)")  # fmt: skip
+
+    # 4. time offset scan (ground-truth attitude evaluated at t + dt)
+    def window_err(dt_s):
+        q = np.stack(
+            [np.interp(t + dt_s, t, rec["truth_q"][:, i]) for i in range(4)], axis=1
+        )
+        q /= np.linalg.norm(q, axis=1, keepdims=True)
+        Cs = kin.quat_to_rot_b(q)
+        out = []
+        for s in range(0, len(t) - n_win, n_win):
+            R = Cs[s].copy()
+            for k in range(s, s + n_win):
+                R = R @ kin.exp_b((gyro[k] - bg[k]) * (t[k + 1] - t[k]))
+            out.append(np.degrees(np.linalg.norm(kin.log_b(R.T @ Cs[s + n_win]))))
+        return float(np.median(out))
+
+    scan = {dt: window_err(dt / 1000.0) for dt in range(-150, 151, 10)}
+    best = min(scan, key=scan.get)
+    print(f"4. time offset scan: best shift {best:+d} ms -> median {scan[best]:.2f} deg "
+          f"(0 ms: {scan[0]:.2f} deg)")  # fmt: skip
 
     # 3. ESKF attitude error per axis
     E = errors(rec, run_filter(rec, "ESKF"))

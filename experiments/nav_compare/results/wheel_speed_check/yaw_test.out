@@ -1,0 +1,6 @@
+ESKF   nhc        final median  23.20 m  yaw err median  3.62 deg  att NEES(end) median     1.1
+ESKF   nhc+speed  final median  42.52 m  yaw err median  6.34 deg  att NEES(end) median     5.0
+ESKF speed better than nhc in 2 /10
+InEKF  nhc        final median  26.62 m  yaw err median  3.88 deg  att NEES(end) median     1.1
+InEKF  nhc+speed  final median  30.16 m  yaw err median  4.62 deg  att NEES(end) median     1.7
+InEKF speed better than nhc in 3 /10

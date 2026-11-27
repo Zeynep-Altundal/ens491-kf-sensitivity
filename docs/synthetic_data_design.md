@@ -167,4 +167,8 @@ The earlier result "wheel speed sometimes makes the ESKF worse" was checked:
   wheel-speed updates in the wrong direction (the known EKF inconsistency of unobservable
   directions). Support: the right-invariant EKF, designed to avoid this, had 1.7 m instead of
   16.3 m in the same setting (`compare_aiding_outage`, `ugv_static_short`, median of 5 seeds).
-  Not yet proven; a check with first-estimate Jacobians would test it.
+  Check (27 Nov, 10 seeds, `results/wheel_speed_check/yaw_test.py`): with wheel speed the ESKF's
+  yaw error grows from 3.6 to 6.3 deg and its attitude NEES at the end from 1.1 to 5.0 (it becomes
+  overconfident about the attitude); the InEKF's yaw error grows only from 3.9 to 4.6 deg and its
+  NEES stays at 1.7. This supports the hypothesis (the extra error comes from the linearisation of the
+  ESKF, not from the wheel-speed data); a proof would need first-estimate Jacobians.
