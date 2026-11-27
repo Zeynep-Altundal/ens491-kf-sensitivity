@@ -88,6 +88,21 @@ def _scenarios() -> dict[str, Scenario]:
         Scenario("outage_40s_aggressive", 1019, (Corruption("outage", "pos", 42.0, 82.0),),
                  "40 s outage over the aggressive segment to the end of the landing"),
     ]
+    # Same small bias steps (10 s) and a 2 s IMU noise burst (x10) with the onset in four phases.
+    onsets = (("hover", 5.5), ("straight", 9.0), ("figure_eight", 30.0), ("aggressive", 52.0))
+    seed = 1020
+    for phase, t0 in onsets:
+        s.append(Scenario(f"accel_bias_step_small_onset_{phase}", seed,
+                          (Corruption("bias_step", "accel", t0, t0 + 10.0, 0.2, (0,)),),
+                          f"accelerometer bias step +0.2 m/s^2 for 10 s, onset in the {phase} phase"))
+        s.append(Scenario(f"gyro_bias_step_small_onset_{phase}", seed + 1,
+                          (Corruption("bias_step", "gyro", t0, t0 + 10.0, 0.01, (0,)),),
+                          f"gyro bias step +0.01 rad/s for 10 s, onset in the {phase} phase"))
+        s.append(Scenario(f"imu_noise_burst_x10_onset_{phase}", seed + 2,
+                          (Corruption("noise_scale", "gyro", t0, t0 + 2.0, 10.0),
+                           Corruption("noise_scale", "accel", t0, t0 + 2.0, 10.0)),
+                          f"IMU noise x10 for 2 s, onset in the {phase} phase"))
+        seed += 3
     return {x.name: x for x in s}
 
 

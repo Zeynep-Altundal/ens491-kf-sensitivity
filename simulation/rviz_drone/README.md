@@ -256,7 +256,7 @@ changed. Each scenario is written as its own file in the common format,
 
 Mission phases (section "Trajectories"): straight 7-16 s, turn 16-22 s, hover with turn 22-25 s,
 figure-eight 25-49 s, aggressive 49-63 s, hover with turn 63-66 s, return 66-74 s, hover 74-77 s,
-landing 77-82 s. Windows are `t_start <= t < t_end` on the sample time stamps. Axes are body axes
+landing 77-82 s; hover also 5-7 s. Windows are `t_start <= t < t_end` on the sample time stamps. Axes are body axes
 for the IMU and world axes for the position. "Calm" windows contain no aggressive segment.
 
 | # | Scenario | Sensor, axes | Parameters | Window [s] (phases) | Seed | Meant to reveal |
@@ -280,6 +280,18 @@ for the IMU and world axes for the position. "Calm" windows contain no aggressiv
 | 17 | `outage_5s_aggressive` | position | outage | 52-57 (aggressive) | 1017 | dead reckoning during aggressive motion, short |
 | 18 | `outage_20s_aggressive` | position | outage | 49-69 (aggressive, hover with turn, start of return) | 1018 | same, medium |
 | 19 | `outage_40s_aggressive` | position | outage | 42-82 (end of figure-eight to end of landing) | 1019 | same, long |
+| 20 | `accel_bias_step_small_onset_hover` | accel, x | +0.2 m/s^2 | 5.5-15.5 (onset in hover) | 1020 | the small accelerometer step with its onset in the hover phase: dependence of the detection and recovery on the phase |
+| 21 | `gyro_bias_step_small_onset_hover` | gyro, x | +0.01 rad/s | 5.5-15.5 (onset in hover) | 1021 | same for the small gyro step |
+| 22 | `imu_noise_burst_x10_onset_hover` | gyro and accel, all | white-noise std x10 | 5.5-7.5 (onset in hover) | 1022 | short IMU noise burst in the hover phase |
+| 23 | `accel_bias_step_small_onset_straight` | accel, x | +0.2 m/s^2 | 9-19 (onset in straight) | 1023 | the small accelerometer step with its onset in the straight phase: dependence of the detection and recovery on the phase |
+| 24 | `gyro_bias_step_small_onset_straight` | gyro, x | +0.01 rad/s | 9-19 (onset in straight) | 1024 | same for the small gyro step |
+| 25 | `imu_noise_burst_x10_onset_straight` | gyro and accel, all | white-noise std x10 | 9-11 (onset in straight) | 1025 | short IMU noise burst in the straight phase |
+| 26 | `accel_bias_step_small_onset_figure_eight` | accel, x | +0.2 m/s^2 | 30-40 (onset in figure-eight) | 1026 | the small accelerometer step with its onset in the figure-eight phase: dependence of the detection and recovery on the phase |
+| 27 | `gyro_bias_step_small_onset_figure_eight` | gyro, x | +0.01 rad/s | 30-40 (onset in figure-eight) | 1027 | same for the small gyro step |
+| 28 | `imu_noise_burst_x10_onset_figure_eight` | gyro and accel, all | white-noise std x10 | 30-32 (onset in figure-eight) | 1028 | short IMU noise burst in the figure-eight phase |
+| 29 | `accel_bias_step_small_onset_aggressive` | accel, x | +0.2 m/s^2 | 52-62 (onset in aggressive) | 1029 | the small accelerometer step with its onset in the aggressive phase: dependence of the detection and recovery on the phase |
+| 30 | `gyro_bias_step_small_onset_aggressive` | gyro, x | +0.01 rad/s | 52-62 (onset in aggressive) | 1030 | same for the small gyro step |
+| 31 | `imu_noise_burst_x10_onset_aggressive` | gyro and accel, all | white-noise std x10 | 52-54 (onset in aggressive) | 1031 | short IMU noise burst in the aggressive phase |
 
 How each corruption is applied (in this order):
 
@@ -330,11 +342,11 @@ SHA-256 of the nominal file; the other `meta` fields are those of the nominal re
 ### Usage and generated files
 
 ```bash
-../../.venv/bin/python -m rviz_drone.corruption     # from simulation/rviz_drone/; all 19 scenarios
+../../.venv/bin/python -m rviz_drone.corruption     # from simulation/rviz_drone/; all 31 scenarios
 ```
 
 Generated on 2026-11-27 from `mission_seed0.npz` (SHA-256 `e6138b37...05a079cd`, the same before and
-after) in 2.3 s; 19 files, 91 088 946 bytes in total, not version-controlled. "Changed IMU samples"
+after) in 3.8 s (including the start of Python); 31 files, 148 591 631 bytes in total, not version-controlled. "Changed IMU samples"
 counts the IMU epochs in which the gyro or accelerometer differs from the nominal file.
 
 | Scenario | Size [bytes] | SHA-256 (first 12) | Changed IMU samples | Max added IMU bias | IMU noise scale | Position epochs valid / 831 | Added position noise RMS [m] | Spikes |
@@ -358,6 +370,18 @@ counts the IMU epochs in which the gyro or accelerometer differs from the nomina
 | `outage_5s_aggressive` | 4790928 | `2007207a4cc0` | 0 | 0 | 1 | 781 | 0 | 0 |
 | `outage_20s_aggressive` | 4787528 | `0ceae7ed3874` | 0 | 0 | 1 | 631 | 0 | 0 |
 | `outage_40s_aggressive` | 4782951 | `a1b2b30908c8` | 0 | 0 | 1 | 431 | 0 | 0 |
+| `accel_bias_step_small_onset_hover` | 4791914 | `7fc3cfee4faf` | 2000 | 0.2 | 1 | 831 | 0 | 0 |
+| `gyro_bias_step_small_onset_hover` | 4791497 | `39a938e26943` | 2000 | 0.01 | 1 | 831 | 0 | 0 |
+| `imu_noise_burst_x10_onset_hover` | 4792273 | `b9ed048b3dc4` | 400 | 0 | 10 | 831 | 0 | 0 |
+| `accel_bias_step_small_onset_straight` | 4791932 | `96ca8c235d34` | 2000 | 0.2 | 1 | 831 | 0 | 0 |
+| `gyro_bias_step_small_onset_straight` | 4791577 | `19aa5b01dbfa` | 2000 | 0.01 | 1 | 831 | 0 | 0 |
+| `imu_noise_burst_x10_onset_straight` | 4792324 | `d56d22057d0c` | 400 | 0 | 10 | 831 | 0 | 0 |
+| `accel_bias_step_small_onset_figure_eight` | 4791952 | `887deb3997b6` | 2000 | 0.2 | 1 | 831 | 0 | 0 |
+| `gyro_bias_step_small_onset_figure_eight` | 4791575 | `401a2bf61330` | 2000 | 0.01 | 1 | 831 | 0 | 0 |
+| `imu_noise_burst_x10_onset_figure_eight` | 4792340 | `812cbf0680c2` | 400 | 0 | 10 | 831 | 0 | 0 |
+| `accel_bias_step_small_onset_aggressive` | 4791617 | `e3ba44d5f2b5` | 2000 | 0.2 | 1 | 831 | 0 | 0 |
+| `gyro_bias_step_small_onset_aggressive` | 4791497 | `880c875871d9` | 2000 | 0.01 | 1 | 831 | 0 | 0 |
+| `imu_noise_burst_x10_onset_aggressive` | 4792187 | `d70634a2f5d3` | 400 | 0 | 10 | 831 | 0 | 0 |
 
 The nominal recording was written at commit `f324994` with uncommitted changes (`git_dirty: true`
 in its `meta`); the scenario files keep that `meta` and add `meta.scenario`.

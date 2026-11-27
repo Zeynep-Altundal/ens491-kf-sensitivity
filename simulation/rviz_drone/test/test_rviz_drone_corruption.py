@@ -33,8 +33,8 @@ def test_no_corruption_reproduces_the_nominal_file_bit_identically(nominal, tmp_
 
 
 def test_scenario_table_has_the_requested_cases():
-    assert len(SCENARIOS) == 19
-    assert len({s.seed for s in SCENARIOS.values()}) == 19
+    assert len(SCENARIOS) == 31
+    assert len({s.seed for s in SCENARIOS.values()}) == 31
     outages = sorted(c.t_end - c.t_start for s in SCENARIOS.values() for c in s.corruptions if c.type == "outage")
     assert outages == [5.0, 5.0, 20.0, 20.0, 40.0, 40.0]
 
@@ -79,6 +79,37 @@ def test_corruption_equals_its_stored_truth_and_nothing_else_changes(name, nomin
     for key in ("corr_pos_noise", "corr_pos_spike", "corr_pos_outage", "corr_pos_noise_std"):
         assert not np.any(c[key][~pos_win])
     assert c["meta"]["scenario"]["name"] == name and len(c["events"]) == len(SCENARIOS[name].corruptions)
+
+
+PHASE_ONSETS = {"hover": (5.0, 7.0), "straight": (7.0, 16.0), "figure_eight": (25.0, 49.0),
+                "aggressive": (49.0, 63.0)}
+
+
+@pytest.mark.parametrize("phase", sorted(PHASE_ONSETS))
+def test_onset_variants_start_in_their_phase_with_the_small_magnitudes(phase, corrupted, nominal):
+    from rviz_drone.reference import get
+    t = nominal[1]["imu_t"]
+    lo, hi = PHASE_ONSETS[phase]
+    for name, key, value, length in ((f"accel_bias_step_small_onset_{phase}", "corr_accel_bias", 0.2, 10.0),
+                                     (f"gyro_bias_step_small_onset_{phase}", "corr_gyro_bias", 0.01, 10.0)):
+        c = SCENARIOS[name].corruptions[0]
+        assert lo <= c.t_start < hi and c.t_end - c.t_start == length
+        assert get("mission").segment_at(c.t_start).name == ("hover" if phase == "hover" else phase)
+        b = corrupted[name][key][:, 0]
+        win = (t >= c.t_start) & (t < c.t_end)
+        assert np.all(b[win] == value) and not np.any(b[~win])
+    name = f"imu_noise_burst_x10_onset_{phase}"
+    x, rec = corrupted[name], nominal[1]
+    c = SCENARIOS[name].corruptions[0]
+    assert lo <= c.t_start < hi and c.t_end - c.t_start == 2.0
+    win = (t >= c.t_start) & (t < c.t_end)
+    for sensor, bias in (("gyro", "truth_bg"), ("accel", "truth_ba")):
+        assert np.all(x[f"corr_{sensor}_noise_scale"][win] == 10.0)
+        assert np.all(x[f"corr_{sensor}_noise_scale"][~win] == 1.0)
+        w0 = rec[f"imu_{sensor}"] - rec[f"imu_{sensor}_clean"] - rec[bias]
+        w1 = x[f"imu_{sensor}"] - x[f"imu_{sensor}_clean"] - x[bias]
+        np.testing.assert_allclose(w1[win], 10.0 * w0[win], rtol=1e-9, atol=1e-15)
+        assert np.array_equal(w1[~win], w0[~win])
 
 
 def test_bias_steps_and_ramp_have_the_stated_values(corrupted, nominal):
