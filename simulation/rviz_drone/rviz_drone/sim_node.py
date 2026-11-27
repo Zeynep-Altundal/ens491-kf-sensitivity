@@ -20,7 +20,7 @@ from visualization_msgs.msg import Marker
 
 from . import flight
 from .quadrotor import QuadParams
-from .reference import DURATION
+from . import reference as references
 
 
 def _pose(p: np.ndarray, q_wxyz: np.ndarray) -> Pose:
@@ -34,19 +34,22 @@ class QuadrotorSimNode(Node):
     def __init__(self) -> None:
         super().__init__("rviz_drone_sim")
         self.declare_parameter("seed", 0)
-        self.declare_parameter("duration", DURATION)
+        self.declare_parameter("trajectory", references.DEFAULT_TRAJECTORY)
+        self.declare_parameter("duration", 0.0)  # 0: the whole trajectory
         self.declare_parameter("world_frame", "world")
         self.declare_parameter("body_frame", "base_link")
         seed = int(self.get_parameter("seed").value)
-        duration = float(self.get_parameter("duration").value)
+        trajectory = str(self.get_parameter("trajectory").value)
+        duration = float(self.get_parameter("duration").value) or references.get(trajectory).duration
         self.world = str(self.get_parameter("world_frame").value)
         self.body = str(self.get_parameter("body_frame").value)
 
         t_start = time.monotonic()
         config = flight.default_config(seed=seed, duration=duration)
-        self.data = flight.run(seed=seed, duration=duration, config=config)
+        self.data = flight.run(seed=seed, duration=duration, config=config, trajectory=trajectory)
         self.get_logger().info(
-            f"simulated {duration:.1f} s flight (seed {seed}) in {time.monotonic() - t_start:.1f} s")
+            f"simulated {duration:.1f} s of trajectory {trajectory} (seed {seed}) in "
+            f"{time.monotonic() - t_start:.1f} s")
 
         self.imu_rate = config.imu_rate
         self.meas_step = int(round(config.imu_rate / config.meas_rate))

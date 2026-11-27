@@ -42,7 +42,7 @@ import replay  # noqa: E402
 from usd_pose import enu_flu_to_usd, quat_normalize, rotmat, usd_matrix  # noqa: E402
 from rviz_drone import flight  # noqa: E402
 from rviz_drone.quadrotor import QuadParams  # noqa: E402
-from rviz_drone.reference import segment_at  # noqa: E402
+from rviz_drone import reference as references  # noqa: E402
 
 ASSETS = Path(os.environ.get("ISAACSIM601_ROOT", Path.home() / "isaacsim-6.0.1-ens491")) / "assets"
 
@@ -69,6 +69,7 @@ parser.add_argument("--fps", type=float, default=30.0)
 parser.add_argument("--mp4", action="store_true", help="also encode the PNG sequence with /usr/bin/ffmpeg")
 parser.add_argument("--out", default=str(HERE / "frames"))
 parser.add_argument("--seed", type=int, default=0)
+parser.add_argument("--trajectory", choices=sorted(references.TRAJECTORIES), default=references.DEFAULT_TRAJECTORY)
 parser.add_argument("--width", type=int, default=1280)
 parser.add_argument("--height", type=int, default=720)
 parser.add_argument("--rt-subframes", type=int, default=8)
@@ -100,13 +101,16 @@ for f in [DRONE_USD] + ([TERRAIN_USD[args.env][0], GRASS_MDL] if args.env in TER
 
 # ---- Flight, generated in memory before Isaac Sim starts ------------------------------------
 t_wall = time.monotonic()
-result = flight.run(seed=args.seed)
+result = flight.run(seed=args.seed, trajectory=args.trajectory)
+TRAJ = references.get(args.trajectory)
+P_REF = result["p_ref"]
 T, P, V, Q, ROTOR = result["t"], result["p"], result["v"], result["q"], result["rotor"]
 PARAMS = QuadParams()
 SPIN = replay.rotor_spin_direction(PARAMS.allocation())
 PROP_ANGLE = replay.prop_angles(T, ROTOR, PARAMS.mass * 9.81 / 4.0, SPIN)
-CHASE_EYE, CHASE_TARGET = replay.chase_path(T, P)
-print(f"RENDER flight: seed={args.seed} samples={len(T)} duration={T[-1]:.3f} s "
+CHASE_EYE, CHASE_TARGET = replay.chase_path(T, P, replay.yaw_from_quat(Q))
+FIXED_CAMERAS = replay.fixed_cameras(P, sun_azimuth_deg=args.sun_azimuth)
+print(f"RENDER flight: trajectory={args.trajectory} seed={args.seed} samples={len(T)} duration={T[-1]:.3f} s "
       f"generated in {time.monotonic() - t_wall:.1f} s; model m={PARAMS.mass} arm={PARAMS.arm}",
       flush=True)
 
@@ -219,17 +223,20 @@ _m = Gf.Matrix4d().SetLookAt(Gf.Vec3d(0.0), Gf.Vec3d(*map(float, -SUN_DIR)), Gf.
 UsdGeom.Xformable(sun).AddTransformOp().Set(_m)
 
 # Full path (thin) and the trail behind the drone.
-path_curve = UsdGeom.BasisCurves.Define(stage, "/World/FlightPath")
-path_pts = [Gf.Vec3f(*map(float, x)) for x in P[::10]]
+# Upcoming route: the reference route of the next ROUTE_S seconds as a faint thin line (the flown
+# path is shown only by the trail behind the drone).
+ROUTE_S, ROUTE_N = 8.0, 81
+path_curve = UsdGeom.BasisCurves.Define(stage, "/World/UpcomingRoute")
 path_curve.CreateTypeAttr(UsdGeom.Tokens.linear)
-path_curve.CreatePointsAttr(path_pts)
-path_curve.CreateCurveVertexCountsAttr([len(path_pts)])
-path_curve.CreateWidthsAttr([0.0015])
+route_pts_attr = path_curve.CreatePointsAttr([Gf.Vec3f(0.0)] * ROUTE_N)
+path_curve.CreateCurveVertexCountsAttr([ROUTE_N])
+route_width_attr = path_curve.CreateWidthsAttr([0.0012])
 path_curve.SetWidthsInterpolation(UsdGeom.Tokens.constant)
-path_curve.CreateDisplayColorAttr([Gf.Vec3f(0.85, 0.9, 1.0)])
+path_curve.CreateDisplayColorAttr([Gf.Vec3f(0.9, 0.92, 1.0)])
 
 
-def preview_material(path: str, diffuse, emissive=None, roughness: float = 0.6) -> UsdShade.Material:
+def preview_material(path: str, diffuse, emissive=None, roughness: float = 0.6,
+                     opacity: float = 1.0) -> UsdShade.Material:
     material = UsdShade.Material.Define(stage, path)
     shader = UsdShade.Shader.Define(stage, f"{path}/Shader")
     shader.CreateIdAttr("UsdPreviewSurface")
@@ -237,16 +244,18 @@ def preview_material(path: str, diffuse, emissive=None, roughness: float = 0.6) 
     shader.CreateInput("roughness", Sdf.ValueTypeNames.Float).Set(roughness)
     if emissive is not None:
         shader.CreateInput("emissiveColor", Sdf.ValueTypeNames.Color3f).Set(Gf.Vec3f(*emissive))
+    if opacity < 1.0:
+        shader.CreateInput("opacity", Sdf.ValueTypeNames.Float).Set(opacity)
     material.CreateSurfaceOutput().ConnectToSource(shader.ConnectableAPI(), "surface")
     return material
 
 
-# Path: thin, pale grey-blue, matte. Trail: wider, self-lit orange, so that it stands out from the
-# path in light and in shadow; its width tapers with age.
+# Route: thin, pale, partly transparent. Trail: wider, self-lit orange, so that it stands out from
+# the route in light and in shadow; its width tapers with age.
 UsdShade.MaterialBindingAPI.Apply(path_curve.GetPrim()).Bind(
-    preview_material("/World/Looks/Path", (0.8, 0.85, 0.95)))
+    preview_material("/World/Looks/Route", (0.9, 0.92, 1.0), roughness=0.8, opacity=0.4))
 
-TRAIL_N = 31
+TRAIL_N = 41
 trail_curve = UsdGeom.BasisCurves.Define(stage, "/World/Trail")
 trail_curve.CreateTypeAttr(UsdGeom.Tokens.linear)
 trail_curve.CreateCurveVertexCountsAttr([TRAIL_N])
@@ -389,6 +398,12 @@ def set_body(p: np.ndarray, q: np.ndarray) -> None:
     op_q.Set(Gf.Quatd(float(qu[0]), Gf.Vec3d(*map(float, qu[1:]))))
 
 
+# Line widths are multiplied by this factor for the fixed cameras, which see the whole flight area
+# from tens of metres (set by the caller for each image; in the GUI from --camera).
+LINE_SCALE = {"chase": 1.0, "overview": 6.0, "topdown": 6.0}
+line_scale = LINE_SCALE[args.camera]
+
+
 def set_frame(k: int) -> None:
     """Drone pose, propellers, trail and cameras for truth sample k."""
     set_body(P[k], Q[k])
@@ -397,11 +412,14 @@ def set_frame(k: int) -> None:
         base = prop_base[i]
         quat_type, vec_type = (Gf.Quatf, Gf.Vec3f) if isinstance(base, Gf.Quatf) else (Gf.Quatd, Gf.Vec3d)
         op.Set(base * quat_type(np.cos(a / 2.0), vec_type(0.0, 0.0, np.sin(a / 2.0))))
+    route_pts_attr.Set([Gf.Vec3f(*map(float, x))
+                        for x in replay.upcoming_route(T, P_REF, k, horizon_s=ROUTE_S, n=ROUTE_N)])
     pts, age = replay.trail(T, P, k, n=TRAIL_N)
     trail_pts_attr.Set([Gf.Vec3f(*map(float, x)) for x in pts])
-    trail_widths_attr.Set([float(0.012 * (1.0 - a) + 0.002) for a in age])
+    trail_widths_attr.Set([float(line_scale * (0.012 * (1.0 - a) + 0.002)) for a in age])
+    route_width_attr.Set([float(line_scale * 0.0012)])
     for name, (_, op) in cameras.items():
-        pose = replay.camera_pose(name, k, CHASE_EYE, CHASE_TARGET)
+        pose = replay.camera_pose(name, k, CHASE_EYE, CHASE_TARGET, FIXED_CAMERAS)
         op.Set(look_at(pose.eye, pose.target, pose.up))
 
 
@@ -425,7 +443,7 @@ if max_err > POSE_TOLERANCE:
 
 def overlay(image, k: int, camera: str):
     from PIL import ImageDraw, ImageFont
-    lines = replay.overlay_lines(float(T[k]), segment_at(float(T[k])).name,
+    lines = replay.overlay_lines(float(T[k]), TRAJ.segment_at(float(T[k])).name,
                                  float(np.linalg.norm(V[k])), camera)
     draw = ImageDraw.Draw(image, "RGBA")
     font = ImageFont.load_default(size=max(14, args.height // 34))
@@ -677,6 +695,7 @@ if not args.gui:
         for item in args.stills.split(","):
             time_s, cam_name = item.split(":")
             k = replay.sample_index(T, float(time_s))
+            line_scale = LINE_SCALE[cam_name]
             set_frame(k)
             img = capture(str(cameras[cam_name][0].GetPath()), settle_steps=4)
             print(f"RENDER still t={T[k]:.2f} camera={cam_name} {stats(img)}", flush=True)
@@ -749,12 +768,29 @@ else:
         overlay_where = "window"
     print(f"RENDER gui: camera={args.camera} overlay={overlay_where}; replaying in a loop; "
           f"close the window to exit", flush=True)
+    # The replay time is the wall-clock time since the start (modulo the flight duration); the
+    # frame rate and the difference between replay steps and wall-clock steps are logged.
     t0 = time.monotonic()
+    last_wall, last_s, frames, dts, max_step_err, report_at = None, None, 0, [], 0.0, t0 + 10.0
     while simulation_app.is_running():
-        s = (time.monotonic() - t0) % T[-1]
+        wall = time.monotonic()
+        s = (wall - t0) % T[-1]
+        if last_wall is not None:
+            dt_wall, dt_s = wall - last_wall, s - last_s
+            if dt_s >= 0.0:  # not at the wrap to the start of the flight
+                max_step_err = max(max_step_err, abs(dt_s - dt_wall))
+            dts.append(dt_wall)
+        last_wall, last_s = wall, s
+        frames += 1
+        if wall >= report_at and dts:
+            d = np.array(dts)
+            print(f"RENDER gui rate: {len(d) / d.sum():.1f} frames/s over {d.sum():.1f} s, frame time "
+                  f"median {1e3 * np.median(d):.1f} ms, max {1e3 * d.max():.1f} ms; "
+                  f"max |replay step - wall step| {1e3 * max_step_err:.3f} ms", flush=True)
+            dts, report_at = [], wall + 10.0
         k = replay.sample_index(T, s)
         set_frame(k)
-        for label, text in zip(labels, replay.overlay_lines(float(T[k]), segment_at(float(T[k])).name,
+        for label, text in zip(labels, replay.overlay_lines(float(T[k]), TRAJ.segment_at(float(T[k])).name,
                                                            float(np.linalg.norm(V[k])), args.camera)):
             label.text = text
         simulation_app.update()

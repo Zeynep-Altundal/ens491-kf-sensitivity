@@ -15,7 +15,8 @@ import numpy as np
 ROTOR_PRIMS = ("front_right_prop", "back_left_prop", "front_left_prop", "back_right_prop")
 
 PHASE_LABELS = {"ground": "on ground", "takeoff": "take-off", "hover": "hover",
-                "figure_eight": "figure-eight", "aggressive": "aggressive figure-eight",
+                "straight": "straight leg", "turn": "coordinated turn", "hover_turn": "hover, turning",
+                "figure_eight": "figure-eight", "aggressive": "aggressive", "return": "return",
                 "landing": "landing"}
 
 CAMERAS = ("chase", "overview", "topdown")
@@ -67,45 +68,74 @@ def prop_angles(t: np.ndarray, rotor_thrust: np.ndarray, hover_thrust: float, sp
     return np.cumsum(rate * dt[:, None], axis=0) * spin[None, :]
 
 
-def chase_path(t: np.ndarray, p: np.ndarray, offset=(-1.7, 1.1, 0.65), tau_eye: float = 0.6,
-               tau_target: float = 0.12, min_height: float = 0.25, min_distance: float = 2.0
-               ) -> tuple[np.ndarray, np.ndarray]:
-    """Eye and target of the chase camera: a world-fixed offset, both low-pass filtered.
+def yaw_from_quat(q: np.ndarray) -> np.ndarray:
+    """Yaw [rad] (rotation about world z of the body x axis) of Hamilton quaternions (n, 4) [w, x, y, z];
+    independent of roll and pitch below 90 deg."""
+    q = np.atleast_2d(q)
+    w, x, y, z = q[:, 0], q[:, 1], q[:, 2], q[:, 3]
+    return np.arctan2(2 * (w * z + x * y), 1 - 2 * (y * y + z * z))
 
-    The default offset puts the camera on the side of the sun of the sky image (north-west, see
-    ``render_flight.py``), so that the drone is lit from the front.
+
+def chase_path(t: np.ndarray, p: np.ndarray, yaw: np.ndarray, distance: float = 2.6, height: float = 0.9,
+               tau_pos: float = 0.35, tau_yaw: float = 0.8, tau_target: float = 0.12,
+               min_height: float = 0.25, min_distance: float = 2.0) -> tuple[np.ndarray, np.ndarray]:
+    """Eye and target of the chase camera.
+
+    The camera follows the position and the yaw of the drone only (never roll or pitch): it sits
+    ``distance`` behind and ``height`` above the low-pass filtered position, along the low-pass
+    filtered (unwrapped) yaw; the target is the low-pass filtered position. The up vector of the
+    camera is world z (``camera_pose``). If the drone comes closer than ``min_distance`` (e.g. when
+    it brakes), the camera is pushed back along the line of sight (push smoothed as well).
     """
-    eye = low_pass(p + np.asarray(offset), t, tau_eye)
+    ps = low_pass(p, t, tau_pos)
+    ys = low_pass(np.unwrap(yaw)[:, None], t, tau_yaw)[:, 0]
+    eye = ps + np.stack([-distance * np.cos(ys), -distance * np.sin(ys), np.full(len(t), height)], axis=1)
     target = low_pass(p + np.array([0.0, 0.0, 0.05]), t, tau_target)
-    # When the drone flies towards the lagging camera, push the camera back along the line of sight
-    # (the push itself is smoothed with the same time constant).
     los = eye - p
     dist = np.linalg.norm(los, axis=1, keepdims=True)
     push = np.where(dist < min_distance, (min_distance - dist) / np.maximum(dist, 1e-9), 0.0) * los
-    eye = eye + low_pass(push, t, tau_eye / 3.0)
+    eye = eye + low_pass(push, t, tau_pos / 3.0)
     eye[:, 2] = np.maximum(eye[:, 2], min_height)
     return eye, target
 
 
-# Overview from the north-west (sun side), looking at the centre of the figure-eight.
-OVERVIEW = CameraPose(eye=np.array([-5.0, 7.0, 3.6]), target=np.array([0.0, 0.0, 1.2]),
-                      up=np.array([0.0, 0.0, 1.0]))
-# Top-down: looking along -z with north (+y) up in the image, so east (+x) is to the right.
-TOPDOWN = CameraPose(eye=np.array([0.0, 0.0, 11.0]), target=np.array([0.0, 0.0, 0.0]),
-                     up=np.array([0.0, 1.0, 0.0]))
+def fixed_cameras(p: np.ndarray, sun_azimuth_deg: float = 146.5, hfov_deg: float = 47.18,
+                  aspect: float = 16 / 9) -> dict[str, CameraPose]:
+    """Overview and top-down cameras that frame the whole flight ``p`` (n, 3).
+
+    Overview: from the side of the sun (the drone is lit from the front), 35 deg above the
+    horizon. Top-down: straight above the centre, north up (east to the right)."""
+    lo, hi = p.min(axis=0), p.max(axis=0)
+    centre = np.array([(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, 1.0])
+    half = np.array([(hi[0] - lo[0]) / 2 + 3.0, (hi[1] - lo[1]) / 2 + 3.0])
+    tan_h = np.tan(np.radians(hfov_deg) / 2)
+    radius = float(np.hypot(*half))
+    az, el = np.radians(sun_azimuth_deg), np.radians(35.0)
+    direction = np.array([np.cos(el) * np.cos(az), np.cos(el) * np.sin(az), np.sin(el)])
+    overview = CameraPose(eye=centre + direction * (1.15 * radius / tan_h), target=centre,
+                          up=np.array([0.0, 0.0, 1.0]))
+    height = max(half[0], half[1] * aspect) / tan_h
+    topdown = CameraPose(eye=np.array([centre[0], centre[1], height]), target=np.array([centre[0], centre[1], 0.0]),
+                         up=np.array([0.0, 1.0, 0.0]))
+    return {"overview": overview, "topdown": topdown}
 
 
-def camera_pose(name: str, k: int, chase_eye: np.ndarray, chase_target: np.ndarray) -> CameraPose:
+def camera_pose(name: str, k: int, chase_eye: np.ndarray, chase_target: np.ndarray,
+                fixed: dict[str, CameraPose]) -> CameraPose:
     if name == "chase":
         return CameraPose(eye=chase_eye[k], target=chase_target[k], up=np.array([0.0, 0.0, 1.0]))
-    if name == "overview":
-        return OVERVIEW
-    if name == "topdown":
-        return TOPDOWN
+    if name in fixed:
+        return fixed[name]
     raise ValueError(f"unknown camera {name!r}; choose from {CAMERAS}")
 
 
-def trail(t: np.ndarray, p: np.ndarray, k: int, length_s: float = 1.5, n: int = 31
+def upcoming_route(t: np.ndarray, p_ref: np.ndarray, k: int, horizon_s: float = 8.0, n: int = 81) -> np.ndarray:
+    """Points of the reference route from now to ``horizon_s`` ahead (clipped at the end)."""
+    times = np.minimum(t[k] + np.linspace(0.0, horizon_s, n), t[-1])
+    return p_ref[[sample_index(t, x) for x in times]]
+
+
+def trail(t: np.ndarray, p: np.ndarray, k: int, length_s: float = 2.0, n: int = 41
           ) -> tuple[np.ndarray, np.ndarray]:
     """Points of the trail behind the drone (oldest first) and their age fraction in [0, 1]."""
     times = t[k] - np.linspace(length_s, 0.0, n)

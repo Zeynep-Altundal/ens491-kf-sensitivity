@@ -13,7 +13,8 @@ import numpy as np
 
 from . import repo_path  # noqa: F401
 from .quadrotor import (ControllerGains, QuadParams, Wrench, control, derivative, rk4_step)
-from .reference import DURATION, reference
+from . import reference as references
+from .reference import DURATION
 from synthetic.imu_model import corrupt_sensor, ideal_imu
 from synthetic.measurements import position_measurements
 from synthetic.scenario import RNG_STREAMS, ScenarioConfig, sensor_to_body_rotation
@@ -25,10 +26,13 @@ def default_config(seed: int = 0, duration: float = DURATION) -> ScenarioConfig:
     return ScenarioConfig(duration=duration, seed=seed)
 
 
-def simulate_truth(duration: float = DURATION, sim_rate: float = 1000.0, out_rate: float = 200.0,
-                   params: QuadParams = QuadParams(), gains: ControllerGains = ControllerGains()
-                   ) -> dict[str, np.ndarray]:
-    """Closed-loop flight; returns truth at ``out_rate`` including the true acceleration."""
+def simulate_truth(duration: float | None = None, sim_rate: float = 1000.0, out_rate: float = 200.0,
+                   params: QuadParams = QuadParams(), gains: ControllerGains = ControllerGains(),
+                   trajectory: str | None = None) -> dict[str, np.ndarray]:
+    """Closed-loop flight of the named trajectory (default: ``reference.DEFAULT_TRAJECTORY``);
+    returns truth at ``out_rate`` including the true acceleration and the yaw reference."""
+    traj = references.get(trajectory)
+    duration = traj.duration if duration is None else duration
     step = int(round(sim_rate / out_rate))
     if abs(sim_rate / out_rate - step) > 1e-9:
         raise ValueError("sim_rate must be an integer multiple of out_rate")
@@ -40,14 +44,16 @@ def simulate_truth(duration: float = DURATION, sim_rate: float = 1000.0, out_rat
            (("p", 3), ("v", 3), ("a", 3), ("q", 4), ("w_b", 3), ("p_ref", 3), ("rotor", 4))}
     out["t"] = np.arange(n_out) * step * dt
     out["thrust"] = np.zeros(n_out)
+    out["yaw_ref"] = np.zeros(n_out)
 
     x = np.zeros(13)
     x[6] = 1.0
     wrench = Wrench(thrust=0.0)
     for k in range(n_sim + 1):
         t = k * dt
-        p_ref, v_ref, a_ref = reference(t)
-        wrench = control(x, p_ref, v_ref, a_ref, params, gains)
+        p_ref, v_ref, a_ref = traj.reference(t)
+        yaw_ref, yaw_rate_ref = traj.yaw(t)
+        wrench = control(x, p_ref, v_ref, a_ref, params, gains, yaw_ref, yaw_rate_ref)
         if k % step == 0:
             i = k // step
             xd = derivative(x, wrench, params)
@@ -56,6 +62,7 @@ def simulate_truth(duration: float = DURATION, sim_rate: float = 1000.0, out_rat
             out["p_ref"][i] = p_ref
             out["rotor"][i] = wrench.rotor_thrusts
             out["thrust"][i] = wrench.thrust
+            out["yaw_ref"][i] = yaw_ref
         if k < n_sim:
             x = rk4_step(x, wrench, params, dt)
     return out
@@ -101,13 +108,14 @@ def sensor_streams(truth: dict[str, np.ndarray], config: ScenarioConfig) -> dict
     }
 
 
-def run(seed: int = 0, duration: float = DURATION, config: ScenarioConfig | None = None
-        ) -> dict[str, np.ndarray]:
+def run(seed: int = 0, duration: float | None = None, config: ScenarioConfig | None = None,
+        trajectory: str | None = None) -> dict[str, np.ndarray]:
     """Truth plus sensor streams for one flight; ``config`` overrides the sensor configuration."""
+    duration = references.get(trajectory).duration if duration is None else duration
     config = config or default_config(seed=seed, duration=duration)
     if config.duration != duration:
         config = dataclasses.replace(config, duration=duration)
-    truth = simulate_truth(duration=duration, out_rate=config.imu_rate)
+    truth = simulate_truth(duration=duration, out_rate=config.imu_rate, trajectory=trajectory)
     result = dict(truth)
     result.update(sensor_streams(truth, config))
     result["config_json"] = np.array(config.to_json())

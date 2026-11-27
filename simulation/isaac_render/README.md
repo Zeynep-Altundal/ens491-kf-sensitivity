@@ -28,21 +28,23 @@ window (GUI replay). Isaac Sim only renders; the flight comes from the simulator
 source simulation/isaac_render/env.sh
 bash simulation/isaac_render/fetch_assets.sh            # once
 R=simulation/isaac_render/render_flight.py
-# 10 s clip (PNG sequence + MP4) of the chase camera
-OMNI_KIT_ACCEPT_EULA=YES "$ISAACSIM_PYTHON" $R --start 22 --end 32 --camera chase --mp4
+# 15 s clip (PNG sequence + MP4) of the chase camera: straight leg, turn, start of the figure-eight
+OMNI_KIT_ACCEPT_EULA=YES "$ISAACSIM_PYTHON" $R --start 13 --end 28 --camera chase --mp4
 # stills TIME:CAMERA
 OMNI_KIT_ACCEPT_EULA=YES "$ISAACSIM_PYTHON" $R --stills 3:chase,29.5:chase,20:overview,36:chase --rt-subframes 16
 # heading check (pure +x flight and pure yaw, seen from above)
 OMNI_KIT_ACCEPT_EULA=YES "$ISAACSIM_PYTHON" $R --verify-heading
 # inspection views: hover, +x translation, +90 deg yaw and t = 36 s, with the expected geometry drawn
-OMNI_KIT_ACCEPT_EULA=YES "$ISAACSIM_PYTHON" $R --inspect
+# (the results below were recorded with the figure_eights trajectory)
+OMNI_KIT_ACCEPT_EULA=YES "$ISAACSIM_PYTHON" $R --inspect --trajectory figure_eights
 # window: real-time replay in a loop; close the window to exit
 OMNI_KIT_ACCEPT_EULA=YES "$ISAACSIM_PYTHON" $R --gui --camera chase
 ```
 
 | Option | Values (default first) |
 |---|---|
-| `--camera` | `chase` (smoothed follow camera), `overview` (fixed), `topdown` (fixed, north up) |
+| `--trajectory` | `mission` (default), `figure_eights` (see `../rviz_drone/README.md`) |
+| `--camera` | `chase` (follows position and yaw), `overview` (fixed), `topdown` (fixed, north up); chosen once per run, never switched automatically |
 | `--env` | `field` (Isaac flat terrain with grass), `terrain` (Isaac rough terrain with grass), `grid` (plain checkerboard, fallback) |
 | `--sky` | `hdri` (sky image), `plain` (uniform dome) |
 | `--renderer` (headless) | `pathtraced` (`--spp 64`), `realtime` (RTX real-time, FXAA, `--supersample 2`) |
@@ -61,7 +63,7 @@ redistributed here):
 | Use | Source path | Files | Licence |
 |---|---|---|---|
 | Drone | `Isaac/Robots/NTNU/ARL-Robot-1/` | `arl_robot_1.usd`, `configuration/arl_robot_1_{base,physics,robot,sensor}.usd`, `LICENSE` (22 MB) | BSD 3-Clause, copyright 2025 NTNU Autonomous Robots Lab (`LICENSE` in the folder) |
-| Sky | `NVIDIA/Assets/Skies/Cloudy/` | `kloofendal_48d_partly_cloudy_4k.hdr` (25 MB) | no licence file in the folder: NVIDIA Omniverse License Agreement (see below); an upstream licence of the image itself is OPEN |
+| Sky | `NVIDIA/Assets/Skies/Cloudy/` | `kloofendal_48d_partly_cloudy_4k.hdr` (25 MB) | CC0 (Poly Haven). The file is byte-identical to the 4k HDR "Kloofendal 48d Partly Cloudy" of Poly Haven (`https://polyhaven.com/a/kloofendal_48d_partly_cloudy`): same size, 25 820 705 bytes, and same MD5, `afb5e5f0c035d24567e8d778dd35c752`, as listed by `https://api.polyhaven.com/files/kloofendal_48d_partly_cloudy` (checked 2026-11-27). Poly Haven licenses all its assets as CC0 (`https://polyhaven.com/license`); no attribution required. |
 | Terrain, `--env field` (default) | `Isaac/Environments/Terrains/` | `flat_plane.usd`, prim `/World/GroundPlane` (12 kB) | no licence file in the folder: NVIDIA Omniverse License Agreement |
 | Terrain, `--env terrain` | `Isaac/Environments/Terrains/` | `rough_plane.usd`, prim `/World/mesh` (171 MB) | no licence file in the folder: NVIDIA Omniverse License Agreement |
 | Ground material (both terrains) | `NVIDIA/Materials/Base/Natural/` | `Grass_Countryside.mdl`, `Grass_Countryside/Grass_Countryside_{BaseColor,H,Normal,ORM}.png` (15 MB) | no licence file in the folder: NVIDIA Omniverse License Agreement |
@@ -117,7 +119,7 @@ Two changes to the asset are made in the render stage only (the asset file is un
 * The physics description (12 applied Physics/Physx schemas, 4 joints, collision prims) is removed,
   because the replay is kinematic. Removing it alone did not change the delayed visuals.
 
-Inspection (`--inspect`, 2026-11-27 11:46; camera 24 mm; the expected rotor quadrilateral (cyan) and
+Inspection (`--inspect`, trajectory `figure_eights`, 2026-11-27 11:46; camera 24 mm; the expected rotor quadrilateral (cyan) and
 body z axis (yellow) from the simulator pose are drawn over each image; "image angle" is the major
 axis of the drone silhouette in views where the rotor plane is seen edge-on):
 
@@ -153,16 +155,34 @@ the +x flight moves to the right (east) in the top-down image.
   above, the other two clockwise); displayed speed `4 sqrt(f / f_hover)` rev/s, at most 7 rev/s, so
   that it stays below half the frame rate at 30 frames/s (not the physical speed).
 * Front marker: red arrow along body +x (`/World/Quadrotor/nose`).
-* Path: whole truth path as a 1.5 mm line with a matte pale grey-blue material. Trail: the last
-  1.5 s with a self-lit orange material (appears yellow-orange), width from 14 mm at the drone to
-  2 mm at its end, so that it stands out from the path in light and in shadow.
-* Cameras: `chase` follows with a world-fixed offset `(-1.7, 1.1, 0.65) m` (sun side), eye and target
-  low-pass filtered (0.6 s and 0.12 s), pushed back to keep at least about 2 m (1.68 m to 3.23 m over
-  the flight, median 2.17 m); `overview` at `(-5, 7, 3.6) m` looking at `(0, 0, 1.2) m`; `topdown` at
-  11 m, north up, east to the right.
+* Path display: only the trail behind the drone and the upcoming route. Trail: the last 2 s of the
+  flown path with a self-lit orange material (appears yellow-orange), width from 14 mm at the drone
+  to 2 mm at its end. Upcoming route: the reference route of the next 8 s as a faint 1.2 mm line
+  (pale, opacity 0.4). For the fixed cameras, which see the whole area from tens of metres, both
+  widths are multiplied by 6.
+* Cameras (one per run, `--camera`; no automatic switching):
+  * `chase` follows the position and the yaw of the drone only, never its roll or pitch: it is
+    2.6 m behind and 0.9 m above the low-pass filtered position (0.35 s), along the low-pass
+    filtered yaw (0.8 s, yaw from the attitude quaternion); target the low-pass filtered position
+    (0.12 s); up vector world z; pushed back if the drone comes closer than 2 m. Mission: 2.64 m to
+    4.83 m from the drone (median 3.13 m).
+  * `overview` and `topdown` are computed from the extent of the flight: overview from the side of
+    the sun, 35 deg above the horizon; top-down above the centre, north up, east to the right.
 * Overlay: time, flight phase, speed and camera, drawn on each frame (headless) or as labels on a
   dark box in the viewport, 64 px below its top edge so that the viewport toolbar does not cover it
   (GUI).
+
+## GUI replay timing
+
+The replay time is the wall-clock time since the start, modulo the flight duration; each frame
+shows the truth sample nearest to it (200 Hz). The script logs every 10 s the frame rate, the frame
+times and the largest difference between the replay step and the wall-clock step. Measured on
+2026-11-27 (mission, chase camera, 1280x720 window), first six 10 s windows: 92.9 to 102.6 frames/s,
+median frame time 9.1-10.1 ms. Occasional long frames: 506 ms in the first window (start-up), then
+181, 18.4, 223, 73 and 71 ms as the longest frame of the following windows; their cause was not
+investigated (OPEN). Replay step minus wall-clock step: 0.000 ms in all windows (no drift and no
+jumps in time; after a long frame the drone moves on by the elapsed time, which shows as a jump in
+position).
 
 ## Pose conversion (ENU/FLU/Hamilton to USD)
 
@@ -229,3 +249,6 @@ and `/opt/ros/jazzy` gave 0 differences.
 | 2026-11-27 11:50 | four stills (t = 3, 29.5, 36 s chase; t = 20 s overview), path traced, `--rt-subframes 16` | exit 0; `frames/stills/` |
 | 2026-11-27 11:50-12:05 | 10 s clip t = 22-32 s, chase, 30 frames/s, path traced | exit 0; 301 frames in 836 s (2.8 s per frame), `frames/seq_chase_22.00_32.00.mp4` (H.264, 1280x720, 13.4 MB) |
 | 2026-11-27 12:05 | `--gui --camera chase` | window open, overlay below the viewport toolbar, real-time replay (RTX real-time renderer of the app) |
+| 2026-11-27 12:19-12:22 | mission stills (development) | exit 0 |
+| 2026-11-27 12:25-12:47 | 15 s clip of the mission, t = 13-28 s (straight leg, turn, hover with turn, start of the figure-eight), chase, 30 frames/s, path traced | exit 0; 451 frames in 1257 s, `frames/seq_chase_13.00_28.00.mp4` (H.264, 1280x720, 8.6 MB) |
+| 2026-11-27 12:47 | `--gui --camera chase`, mission | window open; frame rate below |

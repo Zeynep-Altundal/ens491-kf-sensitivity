@@ -125,8 +125,13 @@ def rk4_step(x: np.ndarray, wrench: Wrench, params: QuadParams, dt: float) -> np
 
 
 def control(x: np.ndarray, p_ref: np.ndarray, v_ref: np.ndarray, a_ref: np.ndarray,
-            params: QuadParams, gains: ControllerGains, yaw_ref: float = 0.0) -> Wrench:
-    """Cascaded controller: position PD -> desired force -> desired attitude -> torques."""
+            params: QuadParams, gains: ControllerGains, yaw_ref: float = 0.0,
+            yaw_rate_ref: float = 0.0) -> Wrench:
+    """Cascaded controller: position PD -> desired force -> desired attitude -> torques.
+
+    ``yaw_rate_ref`` [rad/s] is a feed-forward of the yaw rate (about world z) in the rate damping;
+    with the default 0 the controller is the one used before it was added.
+    """
     p, v, q, w = x[0:3], x[3:6], x[6:10], x[10:13]
     a_des = a_ref + np.asarray(gains.kp) * (p_ref - p) + np.asarray(gains.kd) * (v_ref - v)
     f_des = params.mass * (a_des - GRAVITY_W) + params.drag * v
@@ -151,7 +156,8 @@ def control(x: np.ndarray, p_ref: np.ndarray, v_ref: np.ndarray, a_ref: np.ndarr
     j = params.J
     k_att = np.array([gains.k_att, gains.k_att, gains.k_att_yaw])
     k_rate = np.array([gains.k_rate, gains.k_rate, gains.k_rate_yaw])
-    torque = j @ (-k_att * e_r - k_rate * w) + np.cross(w, j @ w)
+    w_d = r_wb.T @ np.array([0.0, 0.0, yaw_rate_ref])  # desired angular velocity, body frame
+    torque = j @ (-k_att * e_r - k_rate * (w - w_d)) + np.cross(w, j @ w)
     return saturate(params, thrust, torque)
 
 

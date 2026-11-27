@@ -16,12 +16,15 @@ def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument("rviz", default_value="true", description="start RViz"),
         DeclareLaunchArgument("seed", default_value="0", description="seed of the sensor errors"),
+        DeclareLaunchArgument("trajectory", default_value="mission",
+                              description="reference trajectory: mission or figure_eights"),
         Node(
             package="rviz_drone",
             executable="sim_node",
             name="rviz_drone_sim",
             output="screen",
-            parameters=[{"seed": ParameterValue(LaunchConfiguration("seed"), value_type=int)}],
+            parameters=[{"seed": ParameterValue(LaunchConfiguration("seed"), value_type=int),
+                         "trajectory": LaunchConfiguration("trajectory")}],
         ),
         Node(
             package="rviz2",

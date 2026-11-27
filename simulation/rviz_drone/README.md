@@ -30,9 +30,10 @@ The package is built in its own workspace `../rviz_drone_ws/` inside this reposi
 * **Ground**: the plane `z = 0` supports the vehicle; while the net vertical force does not lift it,
   position, velocity and angular rate stay at their ground values (acceleration 0).
 * **Controller** (1 kHz, zero-order hold): position PD with acceleration feed-forward and drag
-  compensation gives the desired force; its direction and a fixed yaw of 0 give the desired attitude
-  (tilt limited to 45 deg); geometric attitude controller on SO(3) with angular-rate damping gives
-  the torques, with lower gains on yaw. When the rotor thrusts would saturate, the yaw torque is
+  compensation gives the desired force; its direction and the yaw reference of the trajectory give
+  the desired attitude (tilt limited to 45 deg); geometric attitude controller on SO(3) with
+  angular-rate damping (with a feed-forward of the reference yaw rate) gives the torques, with lower
+  gains on yaw. When the rotor thrusts would saturate, the yaw torque is
   reduced first, because the rotors have little yaw authority (at most 0.32 N m).
 * **Parameters**: mass, inertia and arm are those of the vehicle rendered in Isaac Sim
   (`../isaac_render/`, NTNU ARL-Robot-1 asset), so that the visual and the dynamics describe the same
@@ -43,7 +44,37 @@ The package is built in its own workspace `../rviz_drone_ws/` inside this reposi
   `c_d = 0.1 N s/m`. (Until 2026-11-27 the illustrative values `m = 1.5 kg`,
   `J = diag(0.029, 0.029, 0.055) kg m^2` and arm 0.25 m were used.)
 
-## Trajectory (`reference.py`, closed form, analytic velocity and acceleration)
+## Trajectories (`reference.py`, closed form, analytic velocity and acceleration)
+
+Two trajectories, selected by name (`flight.run(trajectory=...)`, ROS parameter / launch argument
+`trajectory`); the default is `mission`.
+
+### `mission` (default, 83 s, area about 42 m x 28 m, cruise height 3 m)
+
+Every moving segment starts and ends at rest: its path is traversed with minimum-jerk timing, so
+that position, velocity and acceleration are continuous at the joints. The heading reference is the
+direction of the path tangent (direction of travel); heading changes between segments are made while
+hovering (minimum-jerk yaw). In the slalom the heading is the direction of the velocity with the
+westward speed taken as at least 2 m/s, so that it is defined at the slow ends. Positions in metres
+(east, north).
+
+| Segment | Time [s] | Content |
+|---|---|---|
+| ground | 0-1 | on the ground at home (0, 0), heading east |
+| take-off | 1-5 | minimum-jerk climb to 3 m |
+| hover | 5-7 | hover at (0, 0, 3) |
+| straight | 7-16 | straight leg east to (30, 0); peak speed 6.25 m/s |
+| turn | 16-22 | coordinated 90 deg left turn, radius 8 m, to (38, 8), heading north; peak speed 3.9 m/s |
+| hover_turn | 22-25 | hover, heading north to west |
+| figure_eight | 25-49 | one figure-eight from its south tip (38, 8): `x = 38 - 3.5 sin 2u`, `y = 8 + 10 (1 - cos u)`, `u` from 0 to 2 pi |
+| aggressive | 49-63 | slalom west to (18, 8): lateral 1.5 m at period 2.8 s and vertical 0.5 m at period 3.5 s, envelope 2 s; peak acceleration 8.3 m/s^2 |
+| hover_turn | 63-66 | hover, heading west to the direction of home (-156 deg) |
+| return | 66-74 | straight back to home |
+| hover | 74-77 | hover at (0, 0, 3) |
+| landing | 77-82 | minimum-jerk descent to the ground |
+| ground | 82-83 | on the ground |
+
+### `figure_eights` (50 s, the default until 2026-11-27, unchanged)
 
 | Segment | Time [s] | Content |
 |---|---|---|
@@ -56,21 +87,45 @@ The package is built in its own workspace `../rviz_drone_ws/` inside this reposi
 | landing | 44-49 | minimum-jerk descent to the ground |
 | ground | 49-50 | on the ground |
 
-Closed-loop tracking of this trajectory with the default parameters (seed-independent; position
-error `|p - p_ref|`, tilt and yaw from the simulated attitude; produced by
-`python -m rviz_drone.tracking`). With the earlier illustrative parameters the figure-eight yaw was
-2.9 deg and the aggressive errors 0.619 m (max) and 0.287 m (RMS); all other entries were equal.
+Yaw reference 0 throughout.
 
-| Segment | max `|a_ref|` [m/s^2] | max error [m] | RMS error [m] | max tilt [deg] | max yaw [deg] |
+### Tracking
+
+Closed-loop tracking with the default parameters (seed-independent; position error `|p - p_ref|`,
+tilt and yaw error from the simulated attitude; produced by `python -m rviz_drone.tracking
+[mission|figure_eights]`).
+
+`mission`:
+
+| Segment | max `|a_ref|` [m/s^2] | max error [m] | RMS error [m] | max tilt [deg] | max yaw error [deg] |
+|---|---|---|---|---|---|
+| take-off | 1.08 | < 0.001 | < 0.001 | 0.0 | 0.0 |
+| hover (all) | 0.00 | 0.037 | 0.012 | 1.8 | 0.0 |
+| straight leg | 2.14 | 0.042 | 0.024 | 13.7 | 0.0 |
+| coordinated turn | 2.06 | 0.064 | 0.038 | 12.8 | 1.5 |
+| hover with turn | 0.00 | 0.208 | 0.054 | 18.6 | 6.0 |
+| figure-eight | 3.57 | 0.069 | 0.033 | 20.6 | 2.7 |
+| aggressive | 8.34 | 1.309 | 0.618 | 45.5 (tilt limit) | 15.8 |
+| return | 1.78 | 0.038 | 0.022 | 11.3 | 0.4 |
+| landing | 0.69 | < 0.001 | < 0.001 | 0.0 | 0.0 |
+
+The "hover with turn" maximum (0.208 m, 18.6 deg) is the settling after the aggressive segment, at
+the start of the hover that follows it. In the aggressive segment the tilt limit is reached and the
+heading lags the commanded swing of +-59 deg (low yaw authority); this segment is meant to excite
+the filters, not to be tracked exactly.
+
+`figure_eights` (unchanged by the yaw-rate feed-forward, which is 0 for this trajectory):
+
+| Segment | max `|a_ref|` [m/s^2] | max error [m] | RMS error [m] | max tilt [deg] | max yaw error [deg] |
 |---|---|---|---|---|---|
 | take-off | 0.72 | < 0.001 | < 0.001 | 0.0 | 0.0 |
-| hover (both) | 0 | 0.036 | 0.008 | 4.1 | 0.4 |
+| hover (all) | 0.00 | 0.036 | 0.008 | 4.1 | 0.4 |
 | figure-eight | 3.10 | 0.089 | 0.052 | 19.2 | 2.8 |
 | aggressive | 7.53 | 0.611 | 0.284 | 45.5 (tilt limit) | 21.6 |
 | landing | 0.46 | < 0.001 | < 0.001 | 0.0 | 0.0 |
 
-In the aggressive segment the tilt limit is reached and the yaw is not held at 0 (low yaw
-authority); this segment is meant to excite the filters, not to be tracked exactly.
+With the earlier illustrative vehicle parameters the `figure_eights` figure-eight yaw was 2.9 deg
+and the aggressive errors 0.619 m (max) and 0.287 m (RMS); all other entries were equal.
 
 ## Sensors (from `synthetic/`)
 
@@ -91,7 +146,7 @@ same seed always gives the same flight and the same measurements.
 | `/drone/truth/path` | `nav_msgs/Path` (truth, one pose per 0.1 s) | `world` | 2 Hz |
 | `/drone/marker` | `visualization_msgs/Marker`, ids 0-2 (body, arms, rotors), frame-locked | `base_link` | 1 Hz per id (3 messages/s) |
 
-Time stamps are `t0 + t_k`, with `t0` the ROS time at the start of publication. The node simulates the whole flight at start-up (about 11 s for 50 s of flight) before it starts
+Time stamps are `t0 + t_k`, with `t0` the ROS time at the start of publication. The node simulates the whole flight at start-up (about 21 s for the 83 s mission) before it starts
 publishing. The simulation itself runs at 1 kHz; the published streams are sub-sampled from it. After the end of the flight the
 node stops publishing and logs a message.
 
@@ -109,9 +164,14 @@ simulation/rviz_drone/build.sh               # colcon build in simulation/rviz_d
 source simulation/rviz_drone/env.sh          # again, to pick up the freshly built overlay
 ros2 launch rviz_drone rviz_drone.launch.py              # with RViz
 ros2 launch rviz_drone rviz_drone.launch.py rviz:=false  # headless
+ros2 launch rviz_drone rviz_drone.launch.py trajectory:=figure_eights   # the earlier trajectory
 ```
 
 Tests (pure NumPy, no ROS needed): `.venv/bin/python -m pytest -q simulation/rviz_drone/test`.
+
+OPEN: the node and the launch file were changed for the trajectory parameter (2026-11-27) but not
+run again with ROS 2; the RViz view (`Distance: 14` in `rviz/rviz_drone.rviz`) was set for the
+area of `figure_eights` and has to be zoomed out for the mission.
 
 ## Done criteria
 
@@ -128,7 +188,8 @@ Tests (pure NumPy, no ROS needed): `.venv/bin/python -m pytest -q simulation/rvi
 | File | Purpose |
 |---|---|
 | `rviz_drone/quadrotor.py` | Parameters, rigid-body dynamics with rotor allocation and ground contact, controller. |
-| `rviz_drone/reference.py` | Waypoint trajectory with analytic derivatives. |
+| `rviz_drone/reference.py` | Reference trajectories (`mission`, `figure_eights`) with analytic derivatives and yaw reference. |
+| `rviz_drone/tracking.py` | Tracking table of the closed-loop flight. |
 | `rviz_drone/flight.py` | Simulates the flight and generates the sensor streams with `synthetic/`. |
 | `rviz_drone/repo_path.py` | Makes the repository root importable (for `synthetic/`). |
 | `rviz_drone/sim_node.py` | ROS 2 node that publishes the streams in real time. |

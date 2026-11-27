@@ -49,24 +49,85 @@ def test_low_pass_converges_and_is_causal():
     np.testing.assert_allclose(y[k], 1.0 - np.exp(-1.0), atol=0.02)
 
 
-def test_chase_camera_stays_above_ground_and_near_the_drone():
+def _quat(yaw_deg, pitch_deg=0.0, roll_deg=0.0):
+    """Hamilton quaternion of R = Rz(yaw) Ry(pitch) Rx(roll)."""
+    def q(axis, deg):
+        a = np.radians(deg) / 2
+        v = np.zeros(4)
+        v[0], v[axis] = np.cos(a), np.sin(a)
+        return v
+
+    def mul(a, b):
+        aw, ax, ay, az = a
+        bw, bx, by, bz = b
+        return np.array([aw * bw - ax * bx - ay * by - az * bz, aw * bx + ax * bw + ay * bz - az * by,
+                         aw * by - ax * bz + ay * bw + az * bx, aw * bz + ax * by - ay * bx + az * bw])
+    return mul(mul(q(3, yaw_deg), q(2, pitch_deg)), q(1, roll_deg))
+
+
+def test_yaw_is_independent_of_roll_and_pitch():
+    for yaw in (-170.0, -30.0, 0.0, 45.0, 120.0):
+        for pitch, roll in ((0, 0), (30, 0), (0, 40), (-35, 25)):
+            got = np.degrees(replay.yaw_from_quat(_quat(yaw, pitch, roll))[0])
+            assert abs((got - yaw + 180) % 360 - 180) < 1e-9
+
+
+def test_chase_camera_follows_position_and_yaw_only():
+    t = np.arange(0.0, 6.0, 0.005)
+    p = np.stack([2.0 * t, 0 * t, 3.0 + 0 * t], axis=1)
+    level = np.array([_quat(0.0) for _ in t])
+    rolling = np.array([_quat(0.0, 20 * np.sin(x), 35 * np.sin(3 * x)) for x in t])
+    e1, g1 = replay.chase_path(t, p, replay.yaw_from_quat(level))
+    e2, g2 = replay.chase_path(t, p, replay.yaw_from_quat(rolling))
+    np.testing.assert_allclose(e1, e2, atol=1e-12)  # roll and pitch do not move the camera
+    np.testing.assert_allclose(g1, g2, atol=1e-12)
+    # Behind the drone (heading +x) and above it; target near the drone.
+    k = replay.sample_index(t, 5.0)
+    assert e1[k, 0] < p[k, 0] - 2.0 and e1[k, 2] > p[k, 2]
+    assert np.linalg.norm(g1[k] - p[k]) < 0.5
+    # A heading of +90 deg puts the camera south of the drone; yaw is smoothed (no jump).
+    yaw = np.where(t < 3.0, 0.0, np.pi / 2)
+    e3, _ = replay.chase_path(t, p * 0, yaw)
+    assert e3[-1, 1] < -2.0 and abs(e3[-1, 0]) < 0.1
+    assert np.abs(np.diff(e3, axis=0)).max() < 0.05
+
+
+def test_chase_camera_keeps_its_distance_and_height():
     t = np.arange(0.0, 10.0, 0.005)
     p = np.stack([3 * np.sin(t), 1.5 * np.sin(2 * t), 0.1 + 0 * t], axis=1)
-    eye, target = replay.chase_path(t, p)
+    yaw = np.arctan2(np.gradient(p[:, 1]), np.gradient(p[:, 0]))
+    eye, target = replay.chase_path(t, p, yaw)
     assert eye[:, 2].min() >= 0.25
     dist = np.linalg.norm(eye - p, axis=1)
-    assert dist.max() < 4.0
-    assert dist.min() > 1.5  # minimum distance (2 m, with a smoothed push-back)
+    assert dist.min() > 1.5 and dist.max() < 5.0
     assert np.linalg.norm(target - p, axis=1).max() < 1.0
 
 
-def test_topdown_camera_has_north_up():
-    cam = replay.camera_pose("topdown", 0, np.zeros((1, 3)), np.zeros((1, 3)))
-    look = cam.target - cam.eye
-    right = np.cross(look, cam.up)
-    np.testing.assert_allclose(right / np.linalg.norm(right), [1.0, 0.0, 0.0])
+def test_fixed_cameras_frame_the_flight():
+    p = np.array([[0.0, 0.0, 0.0], [40.0, 0.0, 3.0], [40.0, 28.0, 3.0]])
+    cams = replay.fixed_cameras(p)
+    top = cams["topdown"]
+    look = top.target - top.eye
+    right = np.cross(look, top.up)
+    np.testing.assert_allclose(right / np.linalg.norm(right), [1.0, 0.0, 0.0])  # north up, east right
+    uv = replay.project(p, top.eye, top.target, top.up, 24.0, 20.955, 1280, 720)
+    assert np.all((uv >= 0) & (uv <= [1280, 720]))
+    ov = cams["overview"]
+    uv = replay.project(p, ov.eye, ov.target, ov.up, 24.0, 20.955, 1280, 720)
+    assert np.all((uv >= 0) & (uv <= [1280, 720]))
     with pytest.raises(ValueError):
-        replay.camera_pose("side", 0, np.zeros((1, 3)), np.zeros((1, 3)))
+        replay.camera_pose("side", 0, np.zeros((1, 3)), np.zeros((1, 3)), cams)
+
+
+def test_upcoming_route_starts_at_the_reference_and_looks_ahead():
+    t = np.arange(0.0, 20.0, 0.005)
+    p_ref = np.stack([t, 0 * t, 0 * t], axis=1)
+    k = replay.sample_index(t, 5.0)
+    pts = replay.upcoming_route(t, p_ref, k, horizon_s=8.0, n=81)
+    np.testing.assert_allclose(pts[0], [5.0, 0, 0])
+    np.testing.assert_allclose(pts[-1], [13.0, 0, 0], atol=0.005)
+    end = replay.upcoming_route(t, p_ref, len(t) - 10)
+    assert np.all(end[:, 0] <= t[-1] + 1e-12)
 
 
 def test_trail_is_ordered_and_bounded():

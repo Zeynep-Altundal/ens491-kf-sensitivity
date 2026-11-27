@@ -90,14 +90,57 @@ def flight_truth():
     return flight.simulate_truth()
 
 
-def test_flight_tracks_the_reference(flight_truth):
+@pytest.fixture(scope="module")
+def flight_truth_figure_eights():
+    from rviz_drone import flight
+    return flight.simulate_truth(trajectory="figure_eights")
+
+
+def _yaw(q):
+    from synthetic.rotation import quat_to_rotmat
+    r = np.array([quat_to_rotmat(x) for x in q])
+    return np.arctan2(r[:, 1, 0], r[:, 0, 0])
+
+
+def test_mission_tracks_the_reference(flight_truth):
     t, p, p_ref = flight_truth["t"], flight_truth["p"], flight_truth["p_ref"]
     assert t[-1] == pytest.approx(DURATION)
     err = np.linalg.norm(p - p_ref, axis=1)
     names = np.array([segment_at(x).name for x in t])
-    assert err[np.isin(names, ["takeoff", "hover", "landing", "ground"])].max() < 0.05
+    assert err[np.isin(names, ["takeoff", "landing", "ground", "straight", "turn", "return"])].max() < 0.1
     assert err[names == "figure_eight"].max() < 0.15
-    assert err[names == "aggressive"].max() < 1.0
+    assert err[names == "aggressive"].max() < 1.5
+    # The heading follows the direction of travel outside the aggressive segment.
+    yaw_err = np.abs((_yaw(flight_truth["q"]) - flight_truth["yaw_ref"] + np.pi) % (2 * np.pi) - np.pi)
+    moving = np.isin(names, ["straight", "turn", "figure_eight", "return"])
+    assert np.degrees(yaw_err[moving]).max() < 5.0
     # Lands where it took off and ends on the ground.
     np.testing.assert_allclose(p[-1], [0.0, 0.0, 0.0], atol=1e-3)
     assert p[:, 2].min() >= 0.0
+
+
+def test_mission_heading_reference_is_the_direction_of_travel():
+    from rviz_drone import reference as references
+    m = references.get("mission")
+    for t in np.arange(7.5, 49.0, 0.5):
+        if m.segment_at(t).name in ("straight", "turn", "figure_eight"):
+            v = m.reference(t)[1]
+            yaw, _ = m.yaw(t)
+            assert abs(references.wrap(np.arctan2(v[1], v[0]) - yaw)) < 1e-6
+
+
+def test_old_trajectory_is_still_available_and_unchanged(flight_truth_figure_eights):
+    from rviz_drone import reference as references
+    old = references.get("figure_eights")
+    assert old.duration == 50.0
+    assert [s.name for s in old.segments] == ["ground", "takeoff", "hover", "figure_eight", "aggressive",
+                                              "hover", "landing", "ground"]
+    t, p, p_ref = (flight_truth_figure_eights[k] for k in ("t", "p", "p_ref"))
+    err = np.linalg.norm(p - p_ref, axis=1)
+    names = np.array([old.segment_at(x).name for x in t])
+    assert err[np.isin(names, ["takeoff", "hover", "landing", "ground"])].max() < 0.05
+    assert err[names == "figure_eight"].max() < 0.15
+    assert err[names == "aggressive"].max() < 1.0
+    np.testing.assert_allclose(flight_truth_figure_eights["yaw_ref"], 0.0)
+    with pytest.raises(ValueError):
+        references.get("unknown")
