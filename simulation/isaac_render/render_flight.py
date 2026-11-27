@@ -12,6 +12,9 @@ Modes:
   --inspect          hover, +x translation, +90 deg yaw and t = 36 s from the side; tilt from the
                      propeller prims (USD) and from the drone silhouette (image)
   --gui              window with real-time replay in a loop until the window is closed
+  --results SCENARIO estimator replay of one results run of experiments/estimators (measurement seed
+                     --seed): truth, estimates, covariance ellipsoids, peaks, corruption indicator
+                     (README.md, "Estimator replay"); works with the PNG sequence, --stills and --gui
   --source ros2      live mode (with --gui): the drone follows /drone/truth/pose of the simulator
                      node of ../rviz_drone/ through the ROS 2 bridge (bundled Jazzy rclpy); started by
                      ../rviz_drone/launch/rviz_drone.launch.py with ISAACSIM_ROS2=1 in the wrapper.
@@ -89,6 +92,8 @@ parser.add_argument("--renderer", choices=("realtime", "pathtraced"), default="p
 parser.add_argument("--source", choices=("replay", "ros2"), default="replay",
                     help="replay: in-memory flight (offline); ros2: follow /drone/truth/pose (needs --gui)")
 parser.add_argument("--spp", type=int, default=64, help="path tracing: samples per pixel and frame")
+parser.add_argument("--results", default="", metavar="SCENARIO",
+                    help="estimator replay of a results run (scenario name or 'nominal'; seed: --seed)")
 args, kit_args = parser.parse_known_args()
 if args.supersample is None:
     args.supersample = 2 if args.renderer == "realtime" else 1
@@ -97,6 +102,8 @@ if args.verify_heading:
     args.env, args.sky = "grid", "plain"
 if args.source == "ros2" and not args.gui:
     sys.exit("--source ros2 needs --gui")
+if args.results and args.source == "ros2":
+    sys.exit("--results is an offline mode; the ROS 2 topics come from rviz_drone results_node")
 # Only the Kit arguments (isolation settings of the wrapper) reach SimulationApp.
 sys.argv = [sys.argv[0]] + kit_args
 
@@ -112,15 +119,34 @@ for f in [DRONE_USD] + ([TERRAIN_USD[args.env][0], GRASS_MDL] if args.env in TER
 
 # ---- Flight, generated in memory before Isaac Sim starts ------------------------------------
 t_wall = time.monotonic()
-result = flight.run(seed=args.seed, trajectory=args.trajectory)
+RESULTS = bool(args.results)
+if RESULTS:
+    # Estimator replay: truth from the recording, estimates from the results run (estimate_view.py).
+    from rviz_drone import estimate_view as ev  # noqa: E402
+    args.trajectory = ev.TRAJECTORY
+    VIEW = ev.load(REPO, args.results, args.seed)
+    T, P, V, Q, ROTOR, P_REF = VIEW.t, VIEW.truth_p, VIEW.truth_v, VIEW.truth_q, VIEW.rotor, VIEW.p_ref
+    OVER, FAR, DMAX = ev.camera_modes(T, P, VIEW.est_p)
+    print(f"RENDER results: scenario={args.results} seed={args.seed} windows={len(VIEW.windows)} peaks="
+          f"{ {n: len(v) for n, v in VIEW.peaks.items()} } overview share={OVER.mean():.3f}; sources "
+          f"{json.dumps(VIEW.sources)}", flush=True)
+else:
+    result = flight.run(seed=args.seed, trajectory=args.trajectory)
+    P_REF = result["p_ref"]
+    T, P, V, Q, ROTOR = result["t"], result["p"], result["v"], result["q"], result["rotor"]
 TRAJ = references.get(args.trajectory)
-P_REF = result["p_ref"]
-T, P, V, Q, ROTOR = result["t"], result["p"], result["v"], result["q"], result["rotor"]
 PARAMS = QuadParams()
 SPIN = replay.rotor_spin_direction(PARAMS.allocation())
 PROP_ANGLE = replay.prop_angles(T, ROTOR, PARAMS.mass * 9.81 / 4.0, SPIN)
 CHASE_EYE, CHASE_TARGET = replay.chase_path(T, P, replay.yaw_from_quat(Q))
 FIXED_CAMERAS = replay.fixed_cameras(P, sun_azimuth_deg=args.sun_azimuth)
+OVERVIEW_SCALE = 1.0
+if RESULTS:
+    # The overview frames the truth and every estimate of the run (drifting estimates stay in view).
+    _all = np.vstack([P] + [VIEW.est_p[n] for n in ev.SHOWN])
+    FIXED_CAMERAS = replay.fixed_cameras(_all, sun_azimuth_deg=args.sun_azimuth)
+    _ext = lambda x: float(np.hypot(*(x.max(axis=0)[:2] - x.min(axis=0)[:2] + 6.0)))  # noqa: E731
+    OVERVIEW_SCALE = _ext(_all) / _ext(P)
 print(f"RENDER flight: trajectory={args.trajectory} seed={args.seed} samples={len(T)} duration={T[-1]:.3f} s "
       f"generated in {time.monotonic() - t_wall:.1f} s; model m={PARAMS.mass} arm={PARAMS.arm}",
       flush=True)
@@ -139,6 +165,9 @@ print("RENDER kit:", KIT_VERSION, flush=True)
 settings = carb.settings.get_settings()
 settings.set("/rtx/post/motionblur/enabled", False)  # no motion blur
 settings.set("/rtx/post/histogram/enabled", False)  # fixed exposure, comparable frames
+# Partial opacity (covariance ellipsoids of the estimator replay) as blended translucency in the
+# real-time renderer; without it, opacity below 1 is treated as a cut-out.
+settings.set("/rtx/raytracing/fractionalCutoutOpacity", True)
 
 # ---- Stage ----------------------------------------------------------------------------------
 ctx = omni.usd.get_context()
@@ -178,7 +207,7 @@ def make_grid(path: str, half: float = 30.0, tile: float = 1.0) -> None:
 def make_mdl_material(path: str, mdl: Path, name: str, inputs: dict) -> UsdShade.Material:
     material = UsdShade.Material.Define(stage, path)
     shader = UsdShade.Shader.Define(stage, f"{path}/Shader")
-    shader.SetSourceAsset(Sdf.AssetPath(str(mdl)), "mdl")
+    shader.SetSourceAsset(Sdf.AssetPath(str(mdl) if mdl.is_absolute() else mdl.name), "mdl")
     shader.SetSourceAssetSubIdentifier(name, "mdl")
     for key, (type_name, value) in inputs.items():
         shader.CreateInput(key, type_name).Set(value)
@@ -395,6 +424,136 @@ head.AddTranslateOp().Set(Gf.Vec3d(0.41, 0.0, 0.0))
 for g in (shaft, head):
     g.CreateDisplayColorAttr([NOSE_COLOR])
 
+# ---- Estimator replay prims (README.md, "Estimator replay") --------------------------------
+EST_PRIMS, PEAK_PRIMS, TRUTH_TRAIL = {}, [], None
+EST_TRAIL_N = 61
+# EKF and ESKF estimates differ by millimetres: the EKF trail and marker are drawn wider than the
+# ESKF ones, so that the EKF colour shows as a border around the ESKF line instead of being hidden.
+TRAIL_WIDTH = {"kf": 0.010, "ekf": 0.018, "eskf": 0.008}  # [m] at line scale 1
+MARKER_RADIUS = {"kf": 0.05, "ekf": 0.07, "eskf": 0.045}  # [m]
+
+
+def _colour(name: str) -> tuple[float, float, float]:
+    return topics.rgba(name)[:3]
+
+
+def _line(path: str, rgb, look: str):
+    c = UsdGeom.BasisCurves.Define(stage, path)
+    c.CreateTypeAttr(UsdGeom.Tokens.linear)
+    c.CreateCurveVertexCountsAttr([EST_TRAIL_N])
+    pts = c.CreatePointsAttr([Gf.Vec3f(0.0)] * EST_TRAIL_N)
+    widths = c.CreateWidthsAttr([0.01] * EST_TRAIL_N)
+    c.SetWidthsInterpolation(UsdGeom.Tokens.vertex)
+    UsdShade.MaterialBindingAPI.Apply(c.GetPrim()).Bind(
+        preview_material(f"/World/Looks/{look}", rgb, emissive=tuple(0.8 * x for x in rgb), roughness=0.4))
+    return pts, widths
+
+
+def _sphere(path: str, radius: float, material):
+    sph = UsdGeom.Sphere.Define(stage, path)
+    sph.CreateRadiusAttr(radius)
+    UsdShade.MaterialBindingAPI.Apply(sph.GetPrim()).Bind(material)
+    return sph
+
+
+if RESULTS:
+    trail_curve.MakeInvisible()  # the orange trail of the plain replay is replaced by the truth trail
+    TRUTH_TRAIL = _line("/World/Estimates/truth_trail", _colour("truth"), "TruthTrail")
+    peak_mat = preview_material("/World/Looks/Peak", _colour("peak"), emissive=_colour("peak"), roughness=0.4)
+    for name in ev.SHOWN:
+        rgb = _colour(name)
+        solid = preview_material(f"/World/Looks/Est_{name}", rgb, emissive=tuple(0.8 * x for x in rgb), roughness=0.4)
+        # Covariance shell: tinted thin-walled glass without refraction (index 1.0). The real-time
+        # renderer drew UsdPreviewSurface opacity < 1 as opaque (2026-11-27 test), glass is drawn
+        # as translucent by both renderers. Tint: the estimator colour mixed with white (weight 0.15;
+        # with COVARIANCE_ALPHA = 0.25 the shells darkened the view too much, 2026-11-27 test).
+        a = 0.15
+        glass = make_mdl_material(f"/World/Looks/Cov_{name}", Path("OmniGlass.mdl"), "OmniGlass", {
+            "glass_color": (Sdf.ValueTypeNames.Color3f, Gf.Vec3f(*[1.0 - a + a * x for x in rgb])),
+            "glass_ior": (Sdf.ValueTypeNames.Float, 1.0),
+            "thin_walled": (Sdf.ValueTypeNames.Bool, True),
+            "reflection_color": (Sdf.ValueTypeNames.Color3f, Gf.Vec3f(*[0.1 * x for x in rgb])),
+        })
+        root = f"/World/Estimates/{name}"
+        trail_pts, trail_w = _line(f"{root}/trail", rgb, f"Trail_{name}")
+        marker = UsdGeom.Xform.Define(stage, f"{root}/marker")
+        m_t, m_s = marker.AddTranslateOp(UsdGeom.XformOp.PrecisionDouble), marker.AddScaleOp()
+        _sphere(f"{root}/marker/sphere", MARKER_RADIUS[name], solid)
+        ell = UsdGeom.Xform.Define(stage, f"{root}/ellipsoid")
+        ell_op = ell.AddTransformOp()
+        shell = _sphere(f"{root}/ellipsoid/unit", 1.0, glass)
+        # The shells grow to tens of metres during outages; casting shadows, they darkened the whole
+        # scene (2026-11-27 stills). They cast no shadow and are not seen in reflections.
+        pv = UsdGeom.PrimvarsAPI(shell)
+        pv.CreatePrimvar("doNotCastShadows", Sdf.ValueTypeNames.Bool).Set(True)
+        pv.CreatePrimvar("invisibleToSecondaryRays", Sdf.ValueTypeNames.Bool).Set(True)
+        EST_PRIMS[name] = (trail_pts, trail_w, m_t, m_s, ell_op)
+        for i, (t_start, _t_peak, where) in enumerate(VIEW.peaks[name]):
+            pin = UsdGeom.Xform.Define(stage, f"{root}/peak_{i}")
+            pin.AddTranslateOp(UsdGeom.XformOp.PrecisionDouble).Set(Gf.Vec3d(*map(float, where)))
+            pin_s = pin.AddScaleOp()
+            stick = UsdGeom.Cylinder.Define(stage, f"{root}/peak_{i}/stick")
+            stick.CreateRadiusAttr(0.012)
+            stick.CreateHeightAttr(0.4)
+            stick.AddTranslateOp().Set(Gf.Vec3d(0.0, 0.0, 0.2))
+            UsdShade.MaterialBindingAPI.Apply(stick.GetPrim()).Bind(peak_mat)
+            _sphere(f"{root}/peak_{i}/base", 0.03, peak_mat)
+            head = UsdGeom.Xform.Define(stage, f"{root}/peak_{i}/head")
+            head.AddTranslateOp().Set(Gf.Vec3d(0.0, 0.0, 0.42))
+            _sphere(f"{root}/peak_{i}/head/sphere", 0.06, solid)
+            pin.MakeInvisible()
+            PEAK_PRIMS.append((t_start, pin, pin_s))
+
+
+def _vec3f_list(pts) -> list:
+    return [Gf.Vec3f(*map(float, x)) for x in pts]
+
+
+NEAR_CLIP_M = (0.8, 1.5)  # trail width 0 within 0.8 m of the chase camera, full beyond 1.5 m
+
+
+def _trail_widths(pts: np.ndarray, width: float, k: int) -> list:
+    """Per-vertex widths; in the chase view the part of a trail close to the camera (the camera
+    flies along the path just flown) is faded out, otherwise it fills the image."""
+    w = np.full(len(pts), width)
+    if fill_camera == "chase":
+        d = np.linalg.norm(pts - CHASE_EYE[k], axis=1)
+        w *= np.clip((d - NEAR_CLIP_M[0]) / (NEAR_CLIP_M[1] - NEAR_CLIP_M[0]), 0.0, 1.0)
+    return [float(x) for x in w]
+
+
+def set_results(k: int) -> None:
+    """Truth trail, estimator trails, markers, ellipsoids and peak pins for sample k."""
+    pts = ev.trail(T, P, k, n=EST_TRAIL_N)
+    TRUTH_TRAIL[0].Set(_vec3f_list(pts))
+    TRUTH_TRAIL[1].Set(_trail_widths(pts, line_scale * 0.012, k))
+    for name, (trail_pts, trail_w, m_t, m_s, ell_op) in EST_PRIMS.items():
+        p_hat = VIEW.est_p[name]
+        pts = ev.trail(T, p_hat, k, n=EST_TRAIL_N)
+        trail_pts.Set(_vec3f_list(pts))
+        trail_w.Set(_trail_widths(pts, line_scale * TRAIL_WIDTH[name], k))
+        m_t.Set(Gf.Vec3d(*map(float, p_hat[k])))
+        m_s.Set(Gf.Vec3f(float(line_scale)))
+        semi, rot = ev.ellipsoid(VIEW.est_P[name][k])
+        a = rot * np.maximum(semi, 1e-3)[None, :]  # world = a @ unit + p
+        m = np.eye(4)
+        m[:3, :3] = a.T  # USD row vectors
+        m[3, :3] = p_hat[k]
+        ell_op.Set(Gf.Matrix4d(*map(float, m.flatten())))
+    for t_start, pin, pin_s in PEAK_PRIMS:
+        pin_s.Set(Gf.Vec3f(float(line_scale)))
+        pin.MakeVisible() if T[k] >= t_start else pin.MakeInvisible()
+
+
+def results_camera(k: int) -> tuple[str, str]:
+    """Camera of sample k under the camera rule (chase unless --camera names a fixed one)."""
+    if args.camera != "chase":
+        return args.camera, ""
+    if not OVER[k]:
+        return "chase", ""
+    return "overview", ev.camera_reason(str(FAR[k]), float(DMAX[k]))
+
+
 # Cameras.
 cameras = {}
 for name in replay.CAMERAS:
@@ -422,7 +581,7 @@ def set_body(p: np.ndarray, q: np.ndarray) -> None:
 
 # Line widths are multiplied by this factor for the fixed cameras, which see the whole flight area
 # from tens of metres (set by the caller for each image; in the GUI from --camera).
-LINE_SCALE = {"chase": 1.0, "overview": 6.0, "topdown": 6.0}
+LINE_SCALE = {"chase": 1.0, "overview": 6.0 * OVERVIEW_SCALE, "topdown": 6.0 * OVERVIEW_SCALE}
 line_scale = LINE_SCALE[args.camera]
 fill_camera = args.camera  # camera whose view direction the fill light follows (set per still)
 
@@ -441,6 +600,8 @@ def set_frame(k: int) -> None:
     trail_pts_attr.Set([Gf.Vec3f(*map(float, x)) for x in pts])
     trail_widths_attr.Set([float(line_scale * (0.012 * (1.0 - a) + 0.002)) for a in age])
     route_width_attr.Set([float(line_scale * ROUTE_WIDTH)])
+    if RESULTS:
+        set_results(k)
     apply_cameras(CHASE_EYE[k], CHASE_TARGET[k])
 
 
@@ -489,6 +650,55 @@ def overlay(image, k: int, camera: str):
     return image
 
 
+def overlay_results(image, k: int, camera: str, reason: str):
+    """Overlay of the estimator replay: tint and banner while a corruption is active, text box with
+    time, phase, errors and camera, legend (README.md, "Estimator replay")."""
+    from PIL import Image as PILImage, ImageDraw, ImageFont
+    act = ev.active(VIEW.windows, float(T[k]))
+    image = image.convert("RGBA")
+    if act:
+        rgb = topics.COLOURS[act[0].colour]
+        image = PILImage.alpha_composite(image, PILImage.new("RGBA", image.size, rgb + (40,)))
+    draw = ImageDraw.Draw(image, "RGBA")
+    w, h = image.size
+    if act:
+        b = max(6, h // 120)
+        rgb = topics.COLOURS[act[0].colour]
+        for box in ([0, 0, w, b], [0, h - b, w, h], [0, 0, b, h], [w - b, 0, w, h]):
+            draw.rectangle(box, fill=rgb + (230,))
+    font = ImageFont.load_default(size=max(14, h // 36))
+    small = ImageFont.load_default(size=max(12, h // 46))
+    pad, line_h = 10, int(font.size * 1.3)
+    lines = ev.overlay_lines(VIEW, k, camera, reason)
+    colours = [None, None] + [topics.COLOURS[n] for n in ev.SHOWN] + [None]
+    sw = font.size
+    width = max(int(draw.textlength(s_, font=font)) for s_ in lines) + 3 * pad + sw
+    x0, y0 = 16, 16
+    draw.rectangle([x0, y0, x0 + width, y0 + pad + line_h * len(lines)], fill=(0, 0, 0, 150))
+    for i, (s_, c) in enumerate(zip(lines, colours)):
+        y = y0 + pad // 2 + i * line_h
+        if c is not None:
+            draw.rectangle([x0 + pad, y + 3, x0 + pad + sw - 4, y + sw - 1], fill=c + (255,))
+        draw.text((x0 + 2 * pad + sw, y), s_, font=font, fill=(255, 255, 255, 255))
+    text = ev.banner(act)
+    if text:
+        tw = int(draw.textlength(text, font=font))
+        bx0 = (w - tw) // 2 - pad
+        draw.rectangle([bx0, y0, bx0 + tw + 2 * pad, y0 + line_h + pad],
+                       fill=topics.COLOURS[act[0].colour] + (220,))
+        draw.text((bx0 + pad, y0 + pad // 2), text, font=font, fill=(255, 255, 255, 255))
+    items = ev.legend()
+    lx, ly = 16, h - 16 - (int(small.size * 1.4) + 4)
+    widths = [int(draw.textlength(name, font=small)) + small.size + 18 for name, _ in items]
+    draw.rectangle([lx, ly - 6, lx + sum(widths) + 12, h - 12], fill=(0, 0, 0, 150))
+    x = lx + 8
+    for (name, c), wd in zip(items, widths):
+        draw.rectangle([x, ly + 3, x + small.size - 3, ly + small.size], fill=c + (255,))
+        draw.text((x + small.size + 4, ly), name, font=small, fill=(255, 255, 255, 255))
+        x += wd
+    return image.convert("RGB")
+
+
 def write_info(out: Path, extra: dict) -> None:
     info = {"seed": args.seed, "kit": KIT_VERSION, "width": args.width, "height": args.height,
             "rt_subframes": args.rt_subframes, "supersample": args.supersample, "renderer": args.renderer,
@@ -496,6 +706,9 @@ def write_info(out: Path, extra: dict) -> None:
             "sky_intensity": args.sky_intensity, "sun_elevation": args.sun_elevation,
             "sun_azimuth": args.sun_azimuth, "assets": asset_info,
             "pose_check_max_error": max_err, "pose_tolerance": POSE_TOLERANCE}
+    if RESULTS:
+        info["results"] = {"scenario": args.results, "seed": args.seed, "sources": VIEW.sources,
+                           "overview_share": float(OVER.mean())}
     info.update(extra)
     (out / "run_info.json").write_text(json.dumps(info, indent=2) + "\n")
 
@@ -648,6 +861,101 @@ def run_live(labels, overlay_where: str) -> None:
     if rclpy.ok():
         rclpy.shutdown()
     print("RENDER ros2: window closed", flush=True)
+
+
+def _ui_colour(rgb, alpha: int = 255) -> int:
+    """omni.ui colour 0xAABBGGRR."""
+    r, g, b = rgb
+    return (alpha << 24) | (b << 16) | (g << 8) | r
+
+
+def run_results_gui(ui, get_active_viewport, get_active_viewport_window) -> None:
+    """Window with the estimator replay in real time, in a loop until the window is closed."""
+    global line_scale, fill_camera
+    vp = get_active_viewport()
+    frame = get_active_viewport_window().get_frame("results_overlay")
+    labels, legend_items = [], ev.legend()
+    with frame:
+        with ui.ZStack():
+            tint = ui.Rectangle(style={"background_color": 0x00000000})
+            with ui.VStack():
+                ui.Spacer(height=64)
+                with ui.HStack(height=0):
+                    ui.Spacer(width=16)
+                    with ui.ZStack(width=520, height=0):
+                        ui.Rectangle(style={"background_color": 0x99000000, "border_radius": 4})
+                        with ui.VStack(spacing=2, height=0):
+                            ui.Spacer(height=4)
+                            for i in range(6):
+                                with ui.HStack(height=24):
+                                    ui.Spacer(width=8)
+                                    c = topics.COLOURS[ev.SHOWN[i - 2]] if 2 <= i <= 4 else None
+                                    ui.Rectangle(width=16, height=16, style={
+                                        "background_color": _ui_colour(c) if c else 0x00000000})
+                                    ui.Spacer(width=8)
+                                    labels.append(ui.Label("", style={"font_size": 20, "color": 0xFFFFFFFF}))
+                            ui.Spacer(height=4)
+                    ui.Spacer()
+                ui.Spacer(height=8)
+                with ui.HStack(height=36):
+                    ui.Spacer()
+                    banner_box = ui.ZStack(width=900, height=36)
+                    with banner_box:
+                        banner_bg = ui.Rectangle(style={"background_color": 0xDD000000, "border_radius": 4})
+                        banner = ui.Label("", alignment=ui.Alignment.CENTER,
+                                          style={"font_size": 22, "color": 0xFFFFFFFF})
+                    ui.Spacer()
+                ui.Spacer()
+                with ui.HStack(height=28):
+                    ui.Spacer(width=16)
+                    with ui.ZStack(width=0, height=28):
+                        ui.Rectangle(style={"background_color": 0x99000000, "border_radius": 4})
+                        with ui.HStack(spacing=6):
+                            ui.Spacer(width=6)
+                            for name, c in legend_items:
+                                ui.Rectangle(width=14, height=14, style={"background_color": _ui_colour(c)})
+                                ui.Label(name, width=0, style={"font_size": 18, "color": 0xFFFFFFFF})
+                                ui.Spacer(width=8)
+                    ui.Spacer()
+                ui.Spacer(height=16)
+    banner_box.visible = False
+    print(f"RENDER gui results: scenario={args.results} seed={args.seed}; replaying in a loop; close the "
+          f"window to exit", flush=True)
+    t0 = time.monotonic()
+    cam_now, switches, frames, dts, last_wall, report_at = None, 0, 0, [], None, t0 + 10.0
+    while simulation_app.is_running():
+        wall = time.monotonic()
+        k = replay.sample_index(T, (wall - t0) % T[-1])
+        cam_name, reason = results_camera(k)
+        if cam_name != cam_now:
+            vp.camera_path = str(cameras[cam_name][0].GetPath())
+            switches += int(cam_now is not None)
+            cam_now = cam_name
+        line_scale, fill_camera = LINE_SCALE[cam_name], cam_name
+        set_frame(k)
+        for label, text in zip(labels, ev.overlay_lines(VIEW, k, cam_name, reason)):
+            label.text = text
+        act = ev.active(VIEW.windows, float(T[k]))
+        if act:
+            c = topics.COLOURS[act[0].colour]
+            tint.set_style({"background_color": _ui_colour(c, 40)})
+            banner_bg.set_style({"background_color": _ui_colour(c, 220), "border_radius": 4})
+            banner.text = ev.banner(act)
+            banner_box.visible = True
+        else:
+            tint.set_style({"background_color": 0x00000000})
+            banner_box.visible = False
+        if last_wall is not None:
+            dts.append(wall - last_wall)
+        last_wall = wall
+        frames += 1
+        if wall >= report_at and dts:
+            d = np.array(dts)
+            print(f"RENDER gui results rate: {len(d) / d.sum():.1f} frames/s, frame time median "
+                  f"{1e3 * np.median(d):.1f} ms, max {1e3 * d.max():.1f} ms; camera switches {switches}",
+                  flush=True)
+            dts, report_at = [], wall + 10.0
+        simulation_app.update()
 
 
 if not args.gui:
@@ -873,37 +1181,55 @@ if not args.gui:
     elif args.stills:
         sdir = out / "stills"
         sdir.mkdir(exist_ok=True)
-        for cam_name in dict.fromkeys(item.split(":")[1] for item in args.stills.split(",")):
+        if RESULTS:
+            sdir = out / f"results_{args.results}_seed{args.seed}" / "stills"
+            sdir.mkdir(parents=True, exist_ok=True)
+        wanted = [item.split(":")[1] for item in args.stills.split(",")]
+        for cam_name in dict.fromkeys(c for w in wanted for c in (("chase", "overview") if w == "auto" else (w,))):
             prime(str(cameras[cam_name][0].GetPath()))
         for item in args.stills.split(","):
-            time_s, cam_name = item.split(":")
+            time_s, cam_req = item.split(":")
             k = replay.sample_index(T, float(time_s))
+            reason = ""
+            cam_name = cam_req
+            if cam_req == "auto":
+                cam_name, reason = results_camera(k) if RESULTS else ("chase", "")
             line_scale, fill_camera = LINE_SCALE[cam_name], cam_name
             set_frame(k)
             img = capture(str(cameras[cam_name][0].GetPath()), settle_steps=4)
             print(f"RENDER still t={T[k]:.2f} camera={cam_name} {stats(img)}", flush=True)
             if not args.no_overlay:
-                img = overlay(img, k, cam_name)
+                img = overlay_results(img, k, cam_name, reason) if RESULTS else overlay(img, k, cam_name)
             img.save(sdir / f"still_t{T[k]:05.2f}_{cam_name}.png")
         write_info(sdir, {"stills": args.stills})
     else:
         seq = out / f"seq_{args.camera}_{args.start:05.2f}_{args.end:05.2f}"
+        if RESULTS:
+            seq = out / f"results_{args.results}_seed{args.seed}" / f"clip_{args.start:05.2f}_{args.end:05.2f}"
         if seq.exists():
             shutil.rmtree(seq)
-        seq.mkdir()
+        seq.mkdir(parents=True)
         times = np.arange(args.start, args.end + 1e-9, 1.0 / args.fps)
-        prime(str(cameras[args.camera][0].GetPath()))
+        used = ("chase", "overview") if RESULTS and args.camera == "chase" else (args.camera,)
+        for cam_name in used:
+            prime(str(cameras[cam_name][0].GetPath()))
+        switches = 0
+        last_cam = None
         for n, time_s in enumerate(times):
             k = replay.sample_index(T, float(time_s))
+            cam_name, reason = results_camera(k) if RESULTS else (args.camera, "")
+            switches += int(last_cam is not None and cam_name != last_cam)
+            last_cam = cam_name
+            line_scale, fill_camera = LINE_SCALE[cam_name], cam_name
             set_frame(k)
-            img = capture(str(cameras[args.camera][0].GetPath()))
+            img = capture(str(cameras[cam_name][0].GetPath()))
             if n % 50 == 0:
-                print(f"RENDER frame {n}/{len(times)} t={T[k]:.2f} {stats(img)}", flush=True)
+                print(f"RENDER frame {n}/{len(times)} t={T[k]:.2f} camera={cam_name} {stats(img)}", flush=True)
             if not args.no_overlay:
-                img = overlay(img, k, args.camera)
+                img = overlay_results(img, k, cam_name, reason) if RESULTS else overlay(img, k, args.camera)
             img.save(seq / f"frame_{n:05d}.png")
         extra = {"camera": args.camera, "start": args.start, "end": args.end, "fps": args.fps,
-                 "frames": int(len(times))}
+                 "frames": int(len(times)), "camera_switches": switches}
         if args.mp4:
             mp4 = seq.parent / f"{seq.name}.mp4"
             cmd = ["/usr/bin/ffmpeg", "-nostdin", "-loglevel", "error", "-y", "-framerate", f"{args.fps}",
@@ -922,6 +1248,10 @@ else:
     from omni.kit.viewport.utility import get_active_viewport, get_active_viewport_window
 
     get_active_viewport().camera_path = str(cameras[args.camera][0].GetPath())
+    if RESULTS:
+        run_results_gui(ui, get_active_viewport, get_active_viewport_window)
+        simulation_app.close()
+        sys.exit(0)
     labels = []
     try:
         frame = get_active_viewport_window().get_frame("flight_overlay")

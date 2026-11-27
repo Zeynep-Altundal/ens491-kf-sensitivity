@@ -22,6 +22,7 @@ setup(
     entry_points={
         "console_scripts": [
             "sim_node = rviz_drone.sim_node:main",
+            "results_node = rviz_drone.results_node:main",
         ],
     },
 )

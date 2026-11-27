@@ -400,9 +400,17 @@ node, the launch file and the Isaac Sim subscriber import them from there.
  (system Jazzy rclpy)  │ /tf, /drone/imu, /drone/position,          │     bundled Jazzy rclpy; moves the
                        │ /drone/truth/path, /drone/marker ─────────>│     drone, renders, no publications)
                        │                                            └──> rviz2 (optional)
- (reserved, not implemented) estimators kf | ekf | eskf | spare ──> /drone/estimate/<name>/* ──> rviz2
- (reserved, not implemented) analysis ─────────────────────────────> /drone/analysis/* ─────────> rviz2
+ rviz_drone_results (results:=SCENARIO, instead of rviz_drone_sim): truth topics as above and
+   estimators kf | ekf | eskf (spare empty) ──> /drone/estimate/<name>/* ──> rviz2
+   analysis (peaks, outage, corruption banner) ──> /drone/analysis/* ─────> rviz2
 ```
+
+`rviz_drone_results` (`results_node.py`, launch argument `results:=SCENARIO`, measurement seed
+`seed:=k`) publishes one results run of `experiments/estimators/` in real time, in a loop, through
+the visual model `estimate_view.py` shared with the Isaac Sim estimator replay
+(`../isaac_render/README.md`, "Estimator replay"). With `isaac:=true` Isaac Sim shows the same run
+offline (`render_flight.py --results`, without the ROS 2 bridge); both start at their own start-up,
+so they are not synchronised.
 
 `rviz_drone_sim` simulates the whole flight at start-up (about 21 s for the mission), then, if the
 parameter `wait_for_node` is set (the launch file sets it to `isaac_drone_render` when Isaac Sim is
@@ -422,17 +430,18 @@ the upcoming route comes from the header stamp minus `t0_ns` of `/drone/sim/info
 | `/drone/marker` | `visualization_msgs/Marker`, ids 0-2 (body, arms, rotors), frame-locked | `base_link` | 3 messages/s | reliable, volatile, keep last 10 | `rviz_drone_sim` |
 | `/drone/sim/info` | `std_msgs/String`, JSON: `trajectory`, `seed`, `duration_s`, `t0_ns`, `imu_rate_hz`, `pos_rate_hz` | - | once, before the first pose | reliable, transient local, keep last 1 | `rviz_drone_sim` |
 
-Reserved for later steps (names, types and colours fixed now; nothing publishes them yet), with
-`<name>` one of `kf`, `ekf`, `eskf`, `spare`:
+Estimator and analysis topics (`reserved` in `topics.py`: not published by `rviz_drone_sim`;
+published by `rviz_drone_results`, the spare slot not at all), with `<name>` one of `kf`, `ekf`,
+`eskf`, `spare`:
 
 | Topic | Type | Frame id | Rate | QoS | Content |
 |---|---|---|---|---|---|
-| `/drone/estimate/<name>/pose` | `geometry_msgs/PoseWithCovarianceStamped` | `world` | 200 Hz (every prediction) | reliable, volatile, keep last 50 | estimated pose and its 6x6 covariance |
+| `/drone/estimate/<name>/pose` | `geometry_msgs/PoseWithCovarianceStamped` | `world` | 200 Hz (every prediction) | reliable, volatile, keep last 50 | estimated position (orientation identity) and the 6x6 covariance with the position block filled, the rest 0 |
 | `/drone/estimate/<name>/path` | `nav_msgs/Path` | `world` | 2 Hz | reliable, volatile, keep last 1 | estimate trace |
 | `/drone/estimate/<name>/covariance` | `visualization_msgs/Marker` (sphere scaled to the 3-sigma position ellipsoid) | `world` | 10 Hz | reliable, volatile, keep last 10 | position covariance |
-| `/drone/analysis/peaks` | `visualization_msgs/MarkerArray` (one marker per detected error peak) | `world` | on detection | reliable, transient local, keep last 1 | peak markers |
-| `/drone/analysis/outage` | `std_msgs/Bool` (true while no position measurement is valid) | - | 10 Hz | reliable, volatile, keep last 10 | outage indicator |
-| `/drone/analysis/outage_marker` | `visualization_msgs/Marker` (text above the drone) | `base_link` | 10 Hz | reliable, volatile, keep last 10 | outage indicator in RViz |
+| `/drone/analysis/peaks` | `visualization_msgs/MarkerArray` (DELETEALL, then a pin and a head in the estimator colour per peak that has started) | `world` | on detection | reliable, transient local, keep last 1 | peak markers |
+| `/drone/analysis/outage` | `std_msgs/Bool` (true while a position outage window is active) | - | 10 Hz | reliable, volatile, keep last 10 | outage indicator |
+| `/drone/analysis/outage_marker` | `visualization_msgs/Marker` (text above the drone naming every active corruption; DELETE when none) | `base_link` | 10 Hz | reliable, volatile, keep last 10 | corruption banner in RViz |
 
 ### Colours (RGB 0-255, RViz and Isaac Sim)
 
@@ -447,8 +456,10 @@ Reserved for later steps (names, types and colours fixed now; nothing publishes 
 | covariance of a filter | the filter colour, alpha 0.25 |
 | error peak markers | red `214, 39, 40` |
 | outage indicator | grey `150, 150, 150` |
+| other corruption windows (results replay) | purple `148, 103, 189` |
 
-The RViz configuration contains displays for the reserved estimate paths with these colours.
+The RViz configuration contains displays for the estimate paths with these colours, the covariance
+markers, the peaks and the corruption banner.
 
 ### TF tree
 
@@ -456,7 +467,8 @@ The RViz configuration contains displays for the reserved estimate paths with th
 No static transforms. The Isaac Sim stage uses the same ENU axes in metres (z up), so the pose of
 `/drone/truth/pose` is applied to the drone prim without any conversion (`../isaac_render/usd_pose.py`).
 Reserved child frames of `world` for the estimators: `base_link_kf`, `base_link_ekf`,
-`base_link_eskf`, `base_link_spare` (not published yet).
+`base_link_eskf`, `base_link_spare`; `rviz_drone_results` publishes the first three (position
+only, identity orientation).
 
 ### Time stamps
 
@@ -592,6 +604,8 @@ visual check in its window is OPEN.
 | `rviz_drone/topics.py` | Topic names, types, rates, QoS, frames and colours (single source). |
 | `rviz_drone/corruption.py` | Corruption scenarios added to a recording (common format, stored corruption truth). |
 | `rviz_drone/sim_node.py` | ROS 2 node that publishes the streams in real time. |
+| `rviz_drone/estimate_view.py` | Visual model of one estimator results run (pure numpy), shared by the Isaac Sim replay and `results_node.py`. |
+| `rviz_drone/results_node.py` | ROS 2 node that publishes one estimator results run on the estimator and analysis topics. |
 | `launch/rviz_drone.launch.py` | Starts the node and, optionally, Isaac Sim and RViz. |
 | `rviz/rviz_drone.rviz` | RViz configuration. |
 | `test/` | Unit tests. |

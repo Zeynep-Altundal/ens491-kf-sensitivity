@@ -39,12 +39,18 @@ OMNI_KIT_ACCEPT_EULA=YES "$ISAACSIM_PYTHON" $R --verify-heading
 OMNI_KIT_ACCEPT_EULA=YES "$ISAACSIM_PYTHON" $R --inspect --trajectory figure_eights
 # window: real-time replay in a loop; close the window to exit
 OMNI_KIT_ACCEPT_EULA=YES "$ISAACSIM_PYTHON" $R --gui --camera chase
+# estimator replay of one results run (section "Estimator replay"): stills (camera "auto" follows the
+# camera rule), a 10 s clip, the window
+OMNI_KIT_ACCEPT_EULA=YES "$ISAACSIM_PYTHON" $R --results outage_40s_calm --seed 0 --renderer realtime --stills 7:auto,11:auto
+OMNI_KIT_ACCEPT_EULA=YES "$ISAACSIM_PYTHON" $R --results outage_40s_calm --seed 0 --renderer realtime --start 5 --end 15 --mp4
+OMNI_KIT_ACCEPT_EULA=YES "$ISAACSIM_PYTHON" $R --results outage_40s_calm --seed 0 --gui
 ```
 
 | Option | Values (default first) |
 |---|---|
 | `--trajectory` | `mission` (default), `figure_eights` (see `../rviz_drone/README.md`) |
-| `--camera` | `chase` (follows position and yaw), `overview` (fixed), `topdown` (fixed, north up); chosen once per run, never switched automatically |
+| `--camera` | `chase` (follows position and yaw), `overview` (fixed), `topdown` (fixed, north up); chosen once per run; with `--results` and `chase`, the camera rule switches to `overview` and back |
+| `--results` | scenario name or `nominal` (estimator replay; output in `frames/results_<scenario>_seed<k>/`) |
 | `--env` | `field` (Isaac flat terrain with grass), `terrain` (Isaac rough terrain with grass), `grid` (plain checkerboard, fallback) |
 | `--sky` | `hdri` (sky image), `plain` (uniform dome) |
 | `--renderer` (headless) | `pathtraced` (`--spp 64`), `realtime` (RTX real-time, FXAA, `--supersample 2`) |
@@ -225,6 +231,109 @@ The receive time minus the header stamp is not the transport latency: the stamp 
 published at 200 Hz; the constant 146 ms is this offset. The transport latency itself was not
 measured separately (OPEN). At shutdown the spin thread raised `ExternalShutdownException` (the
 bridge closes the rclpy context first); it is caught since then (not yet run again).
+
+## Estimator replay (`--results SCENARIO`; protocol)
+
+Step 6 of 8, visual half. Written on 2026-11-27 before the mode was implemented; changes after a
+run are listed at the end of this section. The replay is offline: it reads one results run
+(scenario, measurement seed `--seed`) of `experiments/estimators/` and shows the drone at the true
+pose. Isaac Sim only renders. The same elements are published on the reserved ROS 2 topics by
+`../rviz_drone/rviz_drone/results_node.py`, so RViz shows them too. The visual model (trails,
+ellipsoids, peaks, corruption windows, camera rule, overlay text) is one numpy module used by both,
+`../rviz_drone/rviz_drone/estimate_view.py`; colours come from `../rviz_drone/rviz_drone/topics.py`.
+
+| Element | Encodes | Colour (`topics.COLOURS`) | Source file |
+|---|---|---|---|
+| Drone (asset) | true pose | asset | `simulation/recordings/mission_seed0.npz`: `truth_p`, `truth_q`, `sim_rotor_thrust` (propellers) |
+| Truth trail | true position over the last 5 s | `truth` | same |
+| Estimator trails | `p_hat` of `KF`, `EKF`, `ESKF` over the last 5 s | `kf`, `ekf`, `eskf`; slot `spare` empty | `experiments/estimators/results/runs/<scenario>/<EST>_seed<k>.npz`: `p_hat` |
+| Estimate marker | small sphere at the current `p_hat` | same as the trail | same |
+| Covariance ellipsoid | 3-sigma ellipsoid of the position covariance at the current estimate (semi-axes `3 sqrt(eig(P_pos))`), semi-transparent | estimator colour, alpha `COVARIANCE_ALPHA` (0.25) in RViz; tinted glass in Isaac Sim (change 2) | same file: `P_pos` (position block, added to the run files for this mode) |
+| Peak markers | one pin per peak of the peak rule, at the estimate position at the time the rule fired (peak start), shown from that time on | pin `peak`, head in the estimator colour | `experiments/peak_analysis/results/peaks.csv` (`t_start`, `t_peak`) |
+| Corruption indicator | banner naming each active corruption (position outage, bias step or ramp, IMU noise, position noise burst, position spike; a spike is shown for 0.5 s) and a tint of the image while a window is active | tint `outage` for outages, `corruption` for the others | `simulation/recordings/mission_seed0__<scenario>.npz`: `events` |
+| Overlay | time, mission phase, position error `||p_hat - p_true||` of each estimator [m], camera, legend | text white; legend swatches in the element colours | run files and the recording |
+| Upcoming route | reference route of the next 8 s | pale (unchanged) | recording: `sim_p_ref` |
+
+Camera: chase camera by default. It sees about +-1.5 m around the drone at its 2.6 m distance;
+when an estimate is more than 5 m from the true position, the view switches to the overview camera
+and the overlay says so ("camera: overview (EKF estimate 12.3 m from the drone > 5 m)"); it switches
+back when every estimate has been within 4 m for 2 s. In this mode the overview camera frames the
+truth and all estimates of the run, so a drifting estimate stays in view.
+
+Scenarios for the clips (measurement seed 0). The request named four categories; the outage
+reversal is a pair, so there are five scenarios:
+
+| Scenario | Reason | Onset [s] | 10 s clip [s] | Stills [s] |
+|---|---|---|---|---|
+| `nominal` | baseline: all estimates near the truth, KF visibly noisier | - | 47-57 (start of the aggressive segment) | 10, 30, 52, 70 |
+| `outage_40s_calm` | outage reversal, calm side: the EKF/ESKF drift beyond the KF | 8.0 | 5-15 | onset - 1, onset + 3, EKF peak time, outage end + 3 |
+| `outage_40s_aggressive` | outage reversal, aggressive side: the KF drifts beyond the EKF/ESKF | 42.0 | 39-49 | same rule |
+| `gyro_bias_step_small_onset_aggressive` | bias case: peak in EKF/ESKF only, not recovered, KF unaffected | 52.0 | 49-59 | same rule |
+| `pos_spike_single` | spike case: the KF peak is higher and shorter than the EKF/ESKF one | 12.0 | 9-19 | same rule |
+
+"EKF peak time": `t_peak` of the largest EKF peak of the run in `peaks.csv`.
+
+Changes after the protocol (before any render): (1) 2026-11-27, the still times computed by the
+rule coincide in two scenarios (`outage_40s_aggressive`: EKF peak 82.0 s and outage end + 3 s past
+the flight end; `pos_spike_single`: onset + 3 s = 15.0 s and spike end + 3 s = 15.1 s). The stills
+used: `outage_40s_calm` 7, 11, 48.0 (EKF peak), 51 s; `outage_40s_aggressive` 41, 45, 62 (middle of
+the outage), 82.0 s (EKF peak, outage end); `gyro_bias_step_small_onset_aggressive` 51, 55, 62.6
+(EKF peak), 65 s; `pos_spike_single` 11, 12.1 (spike, EKF peak), 13 (onset + 1 s), 15 s. (2) 2026-11-27,
+after test stills of `pos_spike_single`: the real-time renderer drew `UsdPreviewSurface` with
+opacity 0.25 as opaque (also with `/rtx/raytracing/fractionalCutoutOpacity`), so the KF shell hid the
+drone; the covariance shells use a thin-walled glass (`OmniGlass`, index 1.0, no refraction) tinted
+with the estimator colour (weight 0.15; 0.25 darkened the view), translucent in both renderers.
+(3) The estimator trails passed next to the chase camera (it flies along the path just flown) and
+filled the image; in the chase view every trail fades out within 1.5 m of the camera (width 0
+within 0.8 m). (4) EKF and ESKF estimates differ by millimetres, so the EKF line was hidden under
+the ESKF line; the EKF trail (18 mm) and marker (70 mm) are drawn wider than the ESKF ones (8 mm,
+45 mm), so the EKF colour shows as a border. (5) Clips and stills use the real-time renderer (as
+the window), not path tracing (2.8 s per frame in earlier clips). (6) During outages the KF shell grows to
+hundreds of metres (3-sigma radius 270 m at 62 s of `outage_40s_aggressive`); casting a shadow, it
+darkened the whole scene (still at 62 s: mean brightness 10 of 255). The shells cast no shadow and
+are invisible to reflections (`primvars:doNotCastShadows`, `primvars:invisibleToSecondaryRays`).
+(7) A drifting estimate can go below the ground (KF at 62 s: z = -9.4 m), where the ground hides
+it; the overlay then adds "below ground, z = ... m" to that estimator's line (the estimate itself is
+drawn where it is). Renders: four stills
+and one 10 s clip (30 frames/s) per scenario; no full-length render yet. The GUI is started once
+on `outage_40s_calm` (all elements appear: long corruption window, growing ellipsoids, peaks of all
+three estimators, the camera switch).
+
+### Estimator replay: runs of 2026-11-27
+
+All through `isaac_python.sh`, real-time renderer, 1280x720, seed 0; outputs in
+`frames/results_<scenario>_seed0/` (git-ignored): `stills/` (four PNGs) and `clip_<start>_<end>/`
+(301 PNGs, 30 frames/s) with `clip_<start>_<end>.mp4` (55-62 MB each). Every run exited with 0, and
+the comparison after each run (five shared directories, screenshots metadata, `~/isaacsim-venv`,
+`~/.ros`, `/opt/ros/jazzy`) gave 0 differences.
+
+| Scenario | Stills [s] (camera) | Clip [s] | Clip run, start to exit | Camera switches in the clip |
+|---|---|---|---|---|
+| `nominal` | 10, 30, 52, 70 (chase) | 47-57 | 8 min 22 s | 0 |
+| `outage_40s_calm` | 7 (chase), 11, 48 (overview), 51 (chase) | 5-15 | 10 min 14 s | 1 |
+| `outage_40s_aggressive` | 41 (chase), 45, 62, 82 (overview) | 39-49 | 9 min 54 s | 1 |
+| `gyro_bias_step_small_onset_aggressive` | 51, 55, 62.6, 65 (chase) | 49-59 | 8 min 15 s | 0 |
+| `pos_spike_single` | 11 (chase), 12.1, 13 (overview), 15 (chase) | 9-19 | 8 min 7 s | 2 |
+
+Overview share of the flight under the camera rule (whole run): `outage_40s_calm` 0.484,
+`outage_40s_aggressive` 0.468, `pos_spike_single` 0.024, `nominal` 0.
+
+Observed in the renders: the EKF colour (orange in `topics.py`) is rendered close to yellow (the
+self-lit material with lighting), near the spare colour; not corrected (OPEN). Real-time images
+show grain on the ground and the sky (no denoiser at 8 subframes).
+
+ROS 2 check of `results_node` (2026-11-27 19:20, `results:=outage_40s_calm`, no RViz, no Isaac
+Sim, 20 s of `ros2 topic hz`): truth pose 196.1 Hz, `/tf` 199.8 Hz, estimate poses 196.1-199.7 Hz,
+EKF covariance marker 9.8 Hz, ESKF path 1.96 Hz, outage flag and corruption banner 9.8 Hz; samples:
+outage flag `true`, banner "CORRUPTION: position outage (8.0-48.0 s)", the peaks array with the pins
+of the three estimators. No process was left after the shutdown, the ROS 2 daemon was stopped; 0
+differences in the compared directories; `/dev/shm`: Fast DDS port and lock files of this user
+replaced (accepted transient state). RViz was not started; its view of these topics is OPEN.
+
+GUI (2026-11-27 20:57, `--results outage_40s_calm --gui`, left open): 59-77 frames/s, median frame
+time 12.9-15.7 ms, longest frame 509 ms at start-up; one camera switch in the first 40 s. Comparison with
+the window open: 0 differences; `/dev/shm` holds two `carb-RStringInternals-<pid>` entries of the
+running Kit process.
 
 ## GUI replay timing
 

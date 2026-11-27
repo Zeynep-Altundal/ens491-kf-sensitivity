@@ -34,6 +34,39 @@ def _pose(p: np.ndarray, q_wxyz: np.ndarray) -> Pose:
     return pose
 
 
+def drone_markers(stamp, body_frame: str) -> list[Marker]:
+    """Body, arms and rotor discs of the quadrotor in the body frame (frame-locked)."""
+    params = QuadParams()
+    rotors = params.rotor_positions()
+    specs = []
+    body = Marker(type=Marker.CUBE)
+    body.scale.x, body.scale.y, body.scale.z = 0.12, 0.12, 0.05
+    body.color.r, body.color.g, body.color.b, body.color.a = 0.2, 0.2, 0.2, 1.0
+    specs.append(body)
+    arms = Marker(type=Marker.LINE_LIST)
+    arms.scale.x = 0.02
+    arms.color.r, arms.color.g, arms.color.b, arms.color.a = 0.1, 0.1, 0.8, 1.0
+    for i, j in ((0, 1), (2, 3)):
+        for r in (rotors[i], rotors[j]):
+            pt = Pose().position
+            pt.x, pt.y, pt.z = (float(v) for v in r)
+            arms.points.append(pt)
+    specs.append(arms)
+    props = Marker(type=Marker.SPHERE_LIST)
+    props.scale.x, props.scale.y, props.scale.z = 0.18, 0.18, 0.01
+    props.color.r, props.color.g, props.color.b, props.color.a = 0.9, 0.3, 0.1, 0.8
+    for r in rotors:
+        pt = Pose().position
+        pt.x, pt.y, pt.z = float(r[0]), float(r[1]), 0.03
+        props.points.append(pt)
+    specs.append(props)
+    for i, m in enumerate(specs):
+        m.header.stamp, m.header.frame_id = stamp, body_frame
+        m.ns, m.id, m.action, m.frame_locked = "drone", i, Marker.ADD, True
+        m.pose.orientation.w = 1.0
+    return specs
+
+
 class QuadrotorSimNode(Node):
     def __init__(self) -> None:
         super().__init__(topics.SIM_NODE)
@@ -161,34 +194,7 @@ class QuadrotorSimNode(Node):
         self.k += 1
 
     def _publish_markers(self, stamp) -> None:
-        params = QuadParams()
-        rotors = params.rotor_positions()
-        specs = []
-        body = Marker(type=Marker.CUBE)
-        body.scale.x, body.scale.y, body.scale.z = 0.12, 0.12, 0.05
-        body.color.r, body.color.g, body.color.b, body.color.a = 0.2, 0.2, 0.2, 1.0
-        specs.append(body)
-        arms = Marker(type=Marker.LINE_LIST)
-        arms.scale.x = 0.02
-        arms.color.r, arms.color.g, arms.color.b, arms.color.a = 0.1, 0.1, 0.8, 1.0
-        for i, j in ((0, 1), (2, 3)):
-            for r in (rotors[i], rotors[j]):
-                pt = Pose().position
-                pt.x, pt.y, pt.z = (float(v) for v in r)
-                arms.points.append(pt)
-        specs.append(arms)
-        props = Marker(type=Marker.SPHERE_LIST)
-        props.scale.x, props.scale.y, props.scale.z = 0.18, 0.18, 0.01
-        props.color.r, props.color.g, props.color.b, props.color.a = 0.9, 0.3, 0.1, 0.8
-        for r in rotors:
-            pt = Pose().position
-            pt.x, pt.y, pt.z = float(r[0]), float(r[1]), 0.03
-            props.points.append(pt)
-        specs.append(props)
-        for i, m in enumerate(specs):
-            m.header.stamp, m.header.frame_id = stamp, self.body
-            m.ns, m.id, m.action, m.frame_locked = "drone", i, Marker.ADD, True
-            m.pose.orientation.w = 1.0
+        for m in drone_markers(stamp, self.body):
             self.pub_marker.publish(m)
 
 

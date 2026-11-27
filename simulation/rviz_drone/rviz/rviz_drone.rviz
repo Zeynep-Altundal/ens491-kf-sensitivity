@@ -41,23 +41,49 @@ Visualization Manager:
       Topic:
         Value: /drone/position
     - Class: rviz_default_plugins/Path
-      Name: Estimate KF (reserved)
+      Name: Estimate KF path
       Enabled: true
       Color: 31; 119; 180
       Topic:
         Value: /drone/estimate/kf/path
     - Class: rviz_default_plugins/Path
-      Name: Estimate EKF (reserved)
+      Name: Estimate EKF path
       Enabled: true
       Color: 255; 127; 14
       Topic:
         Value: /drone/estimate/ekf/path
     - Class: rviz_default_plugins/Path
-      Name: Estimate ESKF (reserved)
+      Name: Estimate ESKF path
       Enabled: true
       Color: 23; 190; 207
       Topic:
         Value: /drone/estimate/eskf/path
+    - Class: rviz_default_plugins/Marker
+      Name: Covariance KF (3 sigma)
+      Enabled: true
+      Topic:
+        Value: /drone/estimate/kf/covariance
+    - Class: rviz_default_plugins/Marker
+      Name: Covariance EKF (3 sigma)
+      Enabled: true
+      Topic:
+        Value: /drone/estimate/ekf/covariance
+    - Class: rviz_default_plugins/Marker
+      Name: Covariance ESKF (3 sigma)
+      Enabled: true
+      Topic:
+        Value: /drone/estimate/eskf/covariance
+    - Class: rviz_default_plugins/MarkerArray
+      Name: Peaks
+      Enabled: true
+      Topic:
+        Durability Policy: Transient Local
+        Value: /drone/analysis/peaks
+    - Class: rviz_default_plugins/Marker
+      Name: Corruption banner
+      Enabled: true
+      Topic:
+        Value: /drone/analysis/outage_marker
     - Class: rviz_default_plugins/Path
       Name: Estimate SPARE (reserved)
       Enabled: true

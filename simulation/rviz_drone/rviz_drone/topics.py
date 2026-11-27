@@ -30,7 +30,7 @@ class Topic:
     frame_id: str | None
     rate_hz: float | None  # None: once or on events
     qos: Qos
-    reserved: bool = False  # True: name fixed now, nothing publishes it yet
+    reserved: bool = False  # True: estimator and analysis topics, not published by the simulator node
 
 
 TRUTH_POSE = Topic("/drone/truth/pose", "geometry_msgs/msg/PoseStamped", WORLD_FRAME, 200.0, Qos(depth=10))
@@ -43,7 +43,7 @@ TF = Topic("/tf", "tf2_msgs/msg/TFMessage", WORLD_FRAME, 200.0, Qos(depth=100))
 
 PUBLISHED = (TRUTH_POSE, TF, IMU, POSITION, TRUTH_PATH, MARKER, SIM_INFO)
 
-# Estimators and analysis: reserved, not implemented.
+# Estimators and analysis: published by the results replay node (results_node.py) only.
 ESTIMATORS = ("kf", "ekf", "eskf", "spare")
 
 
@@ -82,6 +82,7 @@ COLOURS = {
     "spare": (255, 215, 0),
     "peak": (214, 39, 40),
     "outage": (150, 150, 150),
+    "corruption": (148, 103, 189),  # any corruption window other than an outage (results replay)
 }
 COVARIANCE_ALPHA = 0.25  # covariance markers use the colour of their filter with this alpha
 
