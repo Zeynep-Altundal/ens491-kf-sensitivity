@@ -19,8 +19,8 @@ Measurements (each filter implements what its state allows, otherwise returns No
   update_zupt(var)               zero velocity while the vehicle stands still
   update_zaru(gyro, var)         zero angular rate while standing still: gyro = b_g (calibration)
 
-Notation follows docs/notation.md: P covariance, F transition, Q process noise, H measurement
-matrix, R_meas measurement covariance, innov innovation, S innovation covariance, K gain.
+Notation: docs/notation.md (code names: P covariance, F transition, Q process noise, H measurement
+matrix, R_meas measurement covariance, innov innovation, S innovation covariance, K gain).
 """
 
 from __future__ import annotations

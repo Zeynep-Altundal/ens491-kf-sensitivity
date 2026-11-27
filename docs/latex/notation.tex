@@ -1,60 +1,44 @@
-% Notation macros for the ENS491 report. Use these instead of typing the symbols by hand,
-% so that every section uses the same symbols. Source of truth: docs/notation.md.
-% Requires: amsmath, amssymb, bm (or use \mathbf as below).
+% Notation macros of the ENS491 progress report (copied from its main.tex; same notation as
+% Revach et al., KalmanNet). Use them in every section. Table of symbols: docs/notation.md.
+% Requires: amsmath, amssymb, bm.
 
-% --- frames and rotation
-\newcommand{\Rot}{\mathbf{R}}                   % orientation, b -> w
-\newcommand{\quat}{\mathbf{q}}                  % unit quaternion, scalar first
-\newcommand{\skewm}[1]{\left[#1\right]_{\times}}
-\newcommand{\Exp}{\operatorname{Exp}}
-\newcommand{\Log}{\operatorname{Log}}
-\newcommand{\grav}{\mathbf{g}}
-
-% --- states
-\newcommand{\x}{\mathbf{x}}
-\newcommand{\p}{\mathbf{p}}
-\newcommand{\vel}{\mathbf{v}}
-\newcommand{\bg}{\mathbf{b}_g}
-\newcommand{\ba}{\mathbf{b}_a}
-\newcommand{\xpred}[1][k]{\hat{\mathbf{x}}_{#1}^{-}}
-\newcommand{\xupd}[1][k]{\hat{\mathbf{x}}_{#1}^{+}}
-\newcommand{\Ppred}[1][k]{\mathbf{P}_{#1}^{-}}
-\newcommand{\Pupd}[1][k]{\mathbf{P}_{#1}^{+}}
-\newcommand{\Pzero}{\mathbf{P}_0}
-\newcommand{\dx}{\delta\mathbf{x}}
-\newcommand{\dtheta}{\delta\boldsymbol{\theta}}
-\newcommand{\err}[1][k]{\mathbf{e}_{#1}}
-
-% --- models and noise
-\newcommand{\fmodel}{\mathbf{f}}
-\newcommand{\Fk}[1][k]{\mathbf{F}_{#1}}
-\newcommand{\Acont}{\mathbf{A}}
-\newcommand{\Gnoise}{\mathbf{G}}
-\newcommand{\uin}[1][k]{\mathbf{u}_{#1}}
-\newcommand{\Qc}{\mathbf{Q}_c}
-\newcommand{\Qk}[1][k]{\mathbf{Q}_{#1}}
-\newcommand{\omegam}{\boldsymbol{\omega}_m}
-\newcommand{\fm}{\mathbf{f}_m}
-\newcommand{\ng}{\mathbf{n}_g}
-\newcommand{\na}{\mathbf{n}_a}
-\newcommand{\nbg}{\mathbf{n}_{bg}}
-\newcommand{\nba}{\mathbf{n}_{ba}}
-
-% --- measurements and update
-\newcommand{\z}[1][k]{\mathbf{z}_{#1}}
-\newcommand{\hmodel}{\mathbf{h}}
-\newcommand{\Hk}[1][k]{\mathbf{H}_{#1}}
-\newcommand{\etak}[1][k]{\boldsymbol{\eta}_{#1}}
-\newcommand{\Rk}[1][k]{\mathbf{R}_{#1}}       % measurement covariance (always with an index)
-\newcommand{\innov}[1][k]{\tilde{\mathbf{y}}_{#1}}
-\newcommand{\Sk}[1][k]{\mathbf{S}_{#1}}
-\newcommand{\Kk}[1][k]{\mathbf{K}_{#1}}
-
-% --- evaluation
-\newcommand{\NEES}{\mathrm{NEES}}
-\newcommand{\NIS}{\mathrm{NIS}}
-
-% Example:
-%   \Kk = \Ppred \Hk^\top \Sk^{-1}, \quad
-%   \xupd = \xpred + \Kk \innov, \quad
-%   \Pupd = (\mathbf{I} - \Kk\Hk)\Ppred
+%############################ Notation ###############
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\bx}{\mathbf{x}}
+\newcommand{\by}{\mathbf{y}}
+\newcommand{\bw}{\mathbf{w}}
+\newcommand{\bv}{\mathbf{v}}
+\newcommand{\bh}{\mathbf{h}}
+\newcommand{\bp}{\mathbf{p}}
+\newcommand{\bq}{\mathbf{q}}
+\newcommand{\bg}{\mathbf{g}}
+\newcommand{\be}{\mathbf{e}}
+\newcommand{\ba}{\mathbf{a}}
+\newcommand{\bb}{\mathbf{b}}
+\newcommand{\bom}{\bm{\omega}}
+\newcommand{\bth}{\bm{\theta}}
+\newcommand{\ff}{\mathbf{f}}
+\newcommand{\bF}{\mathbf{F}}
+\newcommand{\bG}{\mathbf{G}}
+\newcommand{\bH}{\mathbf{H}}
+\newcommand{\bQ}{\mathbf{Q}}
+\newcommand{\bR}{\mathbf{R}}
+\newcommand{\bK}{\mathbf{K}}
+\newcommand{\bS}{\mathbf{S}}
+\newcommand{\bI}{\mathbf{I}}
+\newcommand{\bzero}{\mathbf{0}}
+\newcommand{\Rot}{\mathbf{C}}            % rotation matrix body -> world (R is taken by the noise covariance)
+\newcommand{\bSigma}{\bm{\Sigma}}
+\newcommand{\bTheta}{\bm{\Theta}}
+\newcommand{\cN}{\mathcal{N}}
+\newcommand{\cK}{\mathcal{K}}
+\newcommand{\cD}{\mathcal{D}}
+\newcommand{\xh}[2]{\hat{\bx}_{#1\mid #2}}
+\newcommand{\yh}[2]{\hat{\by}_{#1\mid #2}}
+\newcommand{\Sg}[2]{\bSigma_{#1\mid #2}}
+\newcommand{\dy}{\Delta\by}
+\newcommand{\T}{\top}
+\newcommand{\skw}[1]{[#1]_\times}
+\DeclareMathOperator{\tr}{tr}
+\DeclareMathOperator{\Exp}{Exp}

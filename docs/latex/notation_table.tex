@@ -1,0 +1,37 @@
+% ---- Notation table. Proposed place: end of Section 2.1 (after the paragraph that ends with
+% ``... and differ in how the gain $\bK_t$ is obtained.''). Uses only the macros of main.tex.
+\begin{table}[H]
+\centering\small
+\caption{Notation used throughout the report.}
+\label{tab:notation}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{3.3cm}>{\raggedright\arraybackslash}X@{}}
+\toprule
+Symbol & Meaning\\
+\midrule
+\multicolumn{2}{@{}l}{\emph{General filter (Sections~\ref{sec:ssm}--\ref{sec:kalmannet})}}\\
+$t$, $T$ & time step, number of steps\\
+$\bx_t\in\R^m$, $\by_t\in\R^n$ & hidden state, observation\\
+$\ff$, $\bh$; $\bF$, $\bH$ & state-evolution and observation maps; their matrices (linear case) or Jacobians $\hat\bF_t$, $\hat\bH_t$\\
+$\bw_t\sim\cN(\bzero,\bQ)$, $\bv_t\sim\cN(\bzero,\bR)$ & process and observation noise\\
+$\xh{t}{t-1}$, $\xh{t}{t}$ & prior (predicted) and posterior (filtered) estimate\\
+$\Sg{t}{t-1}$, $\Sg{t}{t}$ & error covariance of the prior and of the posterior ($\mathbf{P}$ in the code)\\
+$\dy_t$, $\bS_t$, $\bK_t$ & innovation $\by_t-\bh(\xh{t}{t-1})$, its covariance, gain\\
+$\cK_t(\bTheta)$ & gain produced by KalmanNet with weights $\bTheta$\\
+\midrule
+\multicolumn{2}{@{}l}{\emph{Inertial navigation (Section~\ref{sec:eskf} and the drone / car experiments)}}\\
+$\bp$, $\bv$ & position and velocity in the world frame (ENU, $z$ up); here $\bv$ is the velocity\\
+$\bq$, $\Rot=\Rot(\bq)$ & attitude: unit quaternion (Hamilton, scalar first) and rotation matrix, body to world\\
+$\bb_g$, $\bb_a$ & gyroscope and accelerometer biases (body frame)\\
+$\bom_m$, $\ba_m$ & measured angular rate and specific force (IMU output, body frame)\\
+$\bom_n$, $\ba_n$; $\bom_w$, $\ba_w$ & white IMU noise; noise driving the bias random walks\\
+$\bg$ & gravity, $[0,0,-9.81]^\T$\,m/s$^2$\\
+$\delta\bx=(\delta\bp,\delta\bv,\delta\bth,\delta\bb_g,\delta\bb_a)$ & error state of the ESKF; $\delta\bth$: attitude error in the body frame\\
+$\skw{\cdot}$, $\Exp(\cdot)$ & skew-symmetric matrix; rotation vector to rotation\\
+\midrule
+\multicolumn{2}{@{}l}{\emph{Evaluation (Section~\ref{sec:metrics})}}\\
+$\be_t=\bx_t-\xh{t}{t}$ & estimation error, truth minus estimate (attitude: $\mathrm{Log}(\hat\Rot^\T\Rot)$)\\
+NEES, NIS & $\be_t^\T\Sg{t}{t}^{-1}\be_t$ and $\dy_t^\T\bS_t^{-1}\dy_t$; expected value: the dimension (3 for one 3-D block)\\
+\bottomrule
+\end{tabularx}
+\end{table}
