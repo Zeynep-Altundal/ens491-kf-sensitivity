@@ -63,3 +63,14 @@ def test_run_script(tmp_path):
 
     peaks.main(["curves", str(out / "curves"), "--out", str(tmp_path / "pk")])
     assert (tmp_path / "pk" / "condition_table.csv").exists()
+
+
+def test_instant_samples_are_averaged():
+    from experiments.nav_compare.compare.runner import imu_for_filter
+
+    g = np.arange(12.0).reshape(4, 3)
+    rec = {"imu_t": np.arange(4.0), "imu_gyro": g, "imu_accel": g.copy(), "meta": {}}
+    assert np.array_equal(imu_for_filter(rec)[1], g)
+    rec["meta"]["imu_sample"] = "instant"
+    got = imu_for_filter(rec)[1]
+    assert np.allclose(got[0], 0.5 * (g[0] + g[1])) and np.allclose(got[-1], g[-1])

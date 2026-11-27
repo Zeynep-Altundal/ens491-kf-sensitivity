@@ -44,9 +44,19 @@ be converted to the table above when the recording is written, never inside a fi
 | `pos_valid` | [K] bool | – | False inside an outage; the filter must skip these | yes |
 | `events` | JSON string | – | List of injected disturbances, see section 3 | yes (may be empty) |
 
-`meta` holds: `platform` (`uav` or `ugv`), `source` (`isaac_pegasus`, `scenario_gen`, `euroc`,
-`kalmannet_linear`, `kalmannet_sine`, `kalmannet_lorenz`, `nclt`), `imu_rate_hz`, `pos_rate_hz`,
-`seed`, `true_noise` (gyro and accel noise density, bias random walk actually used), `version`.
+`meta` holds: `platform` (`uav` or `ugv`), `source` (`isaac_pegasus`, `ens491_quadrotor_sim`,
+`scenario_gen`, `euroc`, `kalmannet_linear`, `kalmannet_sine`, `kalmannet_lorenz`, `nclt`),
+`imu_rate_hz`, `pos_rate_hz`, `seed`, `true_noise` (gyro and accel noise density, bias random walk
+actually used), `imu_sample`, `version` (`v1`).
+
+**What an IMU sample represents (`imu_sample`).** The filters hold IMU sample $k$ constant over the
+interval $[t_k, t_{k+1})$ (zero-order hold). `"interval"`: sample $k$ already describes that
+interval (mean rate and specific force over it), as in `scenario_gen`. `"instant"`: sample $k$ is
+the value at $t_k$, as for a real IMU, EuRoC and `ens491_quadrotor_sim`; `run_filter` then uses the
+mean of samples $k$ and $k+1$ for the interval. A source that averages the samples itself writes
+`"interval"`. Missing field: `"interval"`. Using instantaneous samples as interval values makes the
+filters overconfident in fast rotations (quadrotor simulation: full-state NEES 45.6 instead of about
+15; 14.6 with the mean).
 
 Rule: the truth (`truth_*`, `*_clean`, the true noise in `meta`) is only for evaluation. A filter
 receives only `imu_*`, `pos_*` and the initial state.

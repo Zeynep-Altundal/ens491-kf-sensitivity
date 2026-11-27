@@ -78,6 +78,21 @@ STATIC_SPEED = 0.05  # m/s; wheel speed below this = standing still (ZUPT and ZA
 ZUPT_STD = 0.02  # m/s
 
 
+def imu_for_filter(rec):
+    """IMU samples as the filters use them: sample k held constant over [t_k, t_k+1).
+
+    meta["imu_sample"] (docs/common_interface.md, section 2):
+      "interval" (default) - sample k already describes the interval [t_k, t_k+1) (our generator);
+      "instant"            - sample k is the value at t_k (real IMUs, EuRoC, the quadrotor
+                             simulation); the mean of samples k and k+1 is used for the interval.
+    """
+    t, gyro, accel = rec["imu_t"], rec["imu_gyro"], rec["imu_accel"]
+    if rec.get("meta", {}).get("imu_sample", "interval") == "instant":
+        gyro = np.vstack([0.5 * (gyro[:-1] + gyro[1:]), gyro[-1:]])
+        accel = np.vstack([0.5 * (accel[:-1] + accel[1:]), accel[-1:]])
+    return t, gyro, accel
+
+
 def run_filter(rec, name, log_every=10, sigma_cv=None, nhc_std=None, odometry=False,
                magnetometer=False, static=False, init_att_err=None, init_seed=0):  # fmt: skip
     """Run filter `name` on recording `rec`; return the run log (docs/common_interface.md, 5).
@@ -92,7 +107,7 @@ def run_filter(rec, name, log_every=10, sigma_cv=None, nhc_std=None, odometry=Fa
     """
     init = make_init(rec, init_att_err, init_seed)
     f = FILTERS[name](init, make_noise(rec, sigma_cv), attitude=rec["truth_q"])
-    t, gyro, accel = rec["imu_t"], rec["imu_gyro"], rec["imu_accel"]
+    t, gyro, accel = imu_for_filter(rec)
     pos_t, pos_z, pos_R = rec["pos_t"], rec["pos_z"], rec["pos_R"]
     valid = rec["pos_valid"]
     order = np.argsort(pos_t)

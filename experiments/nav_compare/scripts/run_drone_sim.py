@@ -56,7 +56,8 @@ def recording(fl, outage=None):
         events.append({"type": "outage", "sensor": "pos", "t_start": a, "t_end": b})
     sig = np.asarray(cfg.get("meas_sigma", (0.5, 0.5, 0.5)), float)
     z = np.where(np.isfinite(fl["z_meas"]), fl["z_meas"], 0.0)
-    meta = {"id": f"rviz_drone_s{cfg.get('seed', 0)}", "platform": "uav", "source": "rviz_drone",
+    meta = {"id": f"rviz_drone_s{cfg.get('seed', 0)}", "platform": "uav", "source": "ens491_quadrotor_sim", "version": "v1",
+            "imu_sample": "instant",
             "imu_rate_hz": float(cfg.get("imu_rate", 200.0)),
             "true_noise": {"gyro_density": cfg["gyro_noise_density"],
                            "accel_density": cfg["accel_noise_density"],

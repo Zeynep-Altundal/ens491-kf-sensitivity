@@ -88,7 +88,7 @@ def euroc_recording(folder, pos_rate_hz=10.0, pos_std_m=0.1, outage=None, t_max_
             {"type": "outage", "sensor": "pos", "t_start": float(a), "t_end": float(b)}
         )
     meta = {
-        "version": "v1", "id": folder.name, "platform": "uav", "source": "euroc",
+        "version": "v1", "imu_sample": "instant", "id": folder.name, "platform": "uav", "source": "euroc",
         "imu_rate_hz": float(1.0 / np.median(np.diff(t))), "true_noise": dict(SENSOR_YAML),
         "scenario": {"imu_grade": "euroc"}, "pos_rate_hz": pos_rate_hz, "pos_std_m": pos_std_m,
         "init_bias": init_bias,

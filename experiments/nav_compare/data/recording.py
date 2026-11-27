@@ -60,7 +60,8 @@ def _arrays(seq, source, extra_meta):
     pos_z = np.array([o.z for o in obs], dtype=float).reshape(-1, 3)
     pos_R = np.array([o.r_meas for o in obs], dtype=float).reshape(-1, 3, 3)
     meta = {
-        "version": "draft-2026-11-25",
+        "version": "v1",
+        "imu_sample": "interval",
         "id": seq.id,
         "platform": seq.platform,
         "source": source,
