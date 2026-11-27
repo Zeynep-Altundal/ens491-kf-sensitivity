@@ -118,3 +118,34 @@ def trail(t: np.ndarray, p: np.ndarray, k: int, length_s: float = 1.5, n: int = 
 def overlay_lines(time: float, phase: str, speed: float, camera: str) -> list[str]:
     return [f"t = {time:6.2f} s", f"phase: {PHASE_LABELS.get(phase, phase)}",
             f"speed: {speed:5.2f} m/s", f"camera: {camera}"]
+
+
+def project(points: np.ndarray, eye: np.ndarray, target: np.ndarray, up: np.ndarray, focal_mm: float,
+            h_aperture_mm: float, width: int, height: int) -> np.ndarray:
+    """Pixel coordinates (n, 2) of world points for a pinhole camera built like ``SetLookAt``
+    (right = forward x up), square pixels, principal point at the image centre."""
+    f = np.asarray(target, float) - np.asarray(eye, float)
+    f /= np.linalg.norm(f)
+    r = np.cross(f, up)
+    r /= np.linalg.norm(r)
+    u = np.cross(r, f)
+    d = np.atleast_2d(points) - np.asarray(eye, float)
+    z = d @ f
+    f_px = focal_mm / h_aperture_mm * width
+    return np.stack([width / 2 + f_px * (d @ r) / z, height / 2 - f_px * (d @ u) / z], axis=1)
+
+
+def tilt_deg(rotmat_wb: np.ndarray) -> float:
+    """Angle between body z and world z [deg]."""
+    return float(np.degrees(np.arccos(np.clip(rotmat_wb[2, 2], -1.0, 1.0))))
+
+
+def principal_angle_deg(mask: np.ndarray) -> float:
+    """Angle of the major axis of a pixel mask against the image horizontal [deg], counter-clockwise
+    positive (image y points down), in (-90, 90]."""
+    vs, us = np.nonzero(mask)
+    c = np.cov(np.stack([us - us.mean(), -(vs - vs.mean())]))
+    w, v = np.linalg.eigh(c)
+    major = v[:, np.argmax(w)]
+    a = np.degrees(np.arctan2(major[1], major[0]))
+    return float((a + 90.0) % 180.0 - 90.0) if a != -90.0 else 90.0

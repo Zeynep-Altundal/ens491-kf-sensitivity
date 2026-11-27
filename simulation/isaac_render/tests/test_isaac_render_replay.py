@@ -85,3 +85,24 @@ def test_trail_is_ordered_and_bounded():
 def test_overlay_lines():
     lines = replay.overlay_lines(12.345, "figure_eight", 2.5, "chase")
     assert lines == ["t =  12.35 s", "phase: figure-eight", "speed:  2.50 m/s", "camera: chase"]
+
+
+def test_projection_of_a_side_camera():
+    eye, target, up = np.array([0.0, -3.0, 1.5]), np.array([0.0, 0.0, 1.5]), np.array([0.0, 0.0, 1.0])
+    uv = replay.project(np.array([[0.0, 0.0, 1.5], [1.0, 0.0, 1.5], [0.0, 0.0, 2.5]]), eye, target, up,
+                        24.0, 20.955, 1280, 720)
+    np.testing.assert_allclose(uv[0], [640.0, 360.0])
+    f_px = 24.0 / 20.955 * 1280
+    np.testing.assert_allclose(uv[1], [640.0 + f_px / 3.0, 360.0])  # +x is to the right
+    np.testing.assert_allclose(uv[2], [640.0, 360.0 - f_px / 3.0])  # +z is up
+
+
+def test_principal_angle_of_a_tilted_bar():
+    mask = np.zeros((200, 200), bool)
+    for s in np.linspace(-60, 60, 400):
+        for w in np.linspace(-4, 4, 9):
+            a = np.radians(30.0)
+            u = 100 + s * np.cos(a) - w * np.sin(a)
+            v = 100 - (s * np.sin(a) + w * np.cos(a))
+            mask[int(round(v)), int(round(u))] = True
+    assert abs(replay.principal_angle_deg(mask) - 30.0) < 1.0

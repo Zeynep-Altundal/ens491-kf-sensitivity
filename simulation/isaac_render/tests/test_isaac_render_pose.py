@@ -12,7 +12,7 @@ _HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(_HERE.parent))
 sys.path.insert(0, str(_HERE.parents[2]))
 
-from usd_pose import enu_flu_to_usd, quat_multiply, rotmat, usd_matrix  # noqa: E402
+from usd_pose import enu_flu_to_usd, rotmat, usd_matrix  # noqa: E402
 from synthetic.rotation import quat_to_rotmat  # noqa: E402
 
 
@@ -50,17 +50,6 @@ def test_known_rotations(q, body, world):
     t, q_usd = enu_flu_to_usd(np.zeros(3), np.array(q, dtype=float))
     got = (np.append(np.array(body, dtype=float), 1.0) @ usd_matrix(t, q_usd))[:3]
     np.testing.assert_allclose(got, world, atol=1e-12)
-
-
-def test_asset_alignment_is_applied_on_the_body_side():
-    yaw90 = np.array([np.cos(np.pi / 4), 0, 0, np.sin(np.pi / 4)])
-    q_wb = _random_quats(1)[0]
-    _, q_usd = enu_flu_to_usd(np.zeros(3), q_wb, asset_to_body=yaw90)
-    # An asset point a is first rotated into the body, then into the world.
-    a = np.array([1.0, 2.0, 3.0])
-    np.testing.assert_allclose(rotmat(q_usd) @ a, rotmat(q_wb) @ (rotmat(yaw90) @ a), atol=1e-12)
-    np.testing.assert_allclose(quat_multiply(q_wb, yaw90) / np.linalg.norm(quat_multiply(q_wb, yaw90)),
-                               q_usd, atol=1e-12)
 
 
 def test_zero_quaternion_is_rejected():

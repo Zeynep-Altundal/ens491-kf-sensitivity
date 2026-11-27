@@ -9,6 +9,8 @@ Modes:
   (default)          PNG sequence of [--start, --end] at --fps with overlay, optionally an MP4 (--mp4)
   --stills T:CAM,..  single frames at the given times and cameras
   --verify-heading   pure +x flight and pure yaw seen from above; measures the rendered heading
+  --inspect          hover, +x translation, +90 deg yaw and t = 36 s from the side; tilt from the
+                     propeller prims (USD) and from the drone silhouette (image)
   --gui              window with real-time replay in a loop until the window is closed
 
 Run through the isolation wrapper only:
@@ -35,8 +37,9 @@ REPO = Path(os.environ.get("RVIZ_DRONE_REPO_ROOT", HERE.parents[1])).resolve()
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(REPO / "simulation" / "rviz_drone"))
 
+import asset_alignment  # noqa: E402
 import replay  # noqa: E402
-from usd_pose import enu_flu_to_usd, quat_normalize, usd_matrix  # noqa: E402
+from usd_pose import enu_flu_to_usd, quat_normalize, rotmat, usd_matrix  # noqa: E402
 from rviz_drone import flight  # noqa: E402
 from rviz_drone.quadrotor import QuadParams  # noqa: E402
 from rviz_drone.reference import segment_at  # noqa: E402
@@ -47,6 +50,8 @@ parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
 parser.add_argument("--gui", action="store_true", help="open a window and replay in real time")
 parser.add_argument("--stills", default="", help="comma-separated TIME:CAMERA list, e.g. 18:chase,33:topdown")
 parser.add_argument("--verify-heading", action="store_true")
+parser.add_argument("--inspect", action="store_true",
+                    help="side and oblique views of hover, +x translation, +90 deg yaw and t = 36 s")
 parser.add_argument("--camera", choices=replay.CAMERAS, default="chase")
 parser.add_argument("--env", choices=("field", "terrain", "grid"), default="field",
                     help="field: Isaac flat terrain with grass; terrain: Isaac rough terrain with grass; "
@@ -219,9 +224,27 @@ path_pts = [Gf.Vec3f(*map(float, x)) for x in P[::10]]
 path_curve.CreateTypeAttr(UsdGeom.Tokens.linear)
 path_curve.CreatePointsAttr(path_pts)
 path_curve.CreateCurveVertexCountsAttr([len(path_pts)])
-path_curve.CreateWidthsAttr([0.003])
+path_curve.CreateWidthsAttr([0.0015])
 path_curve.SetWidthsInterpolation(UsdGeom.Tokens.constant)
 path_curve.CreateDisplayColorAttr([Gf.Vec3f(0.85, 0.9, 1.0)])
+
+
+def preview_material(path: str, diffuse, emissive=None, roughness: float = 0.6) -> UsdShade.Material:
+    material = UsdShade.Material.Define(stage, path)
+    shader = UsdShade.Shader.Define(stage, f"{path}/Shader")
+    shader.CreateIdAttr("UsdPreviewSurface")
+    shader.CreateInput("diffuseColor", Sdf.ValueTypeNames.Color3f).Set(Gf.Vec3f(*diffuse))
+    shader.CreateInput("roughness", Sdf.ValueTypeNames.Float).Set(roughness)
+    if emissive is not None:
+        shader.CreateInput("emissiveColor", Sdf.ValueTypeNames.Color3f).Set(Gf.Vec3f(*emissive))
+    material.CreateSurfaceOutput().ConnectToSource(shader.ConnectableAPI(), "surface")
+    return material
+
+
+# Path: thin, pale grey-blue, matte. Trail: wider, self-lit orange, so that it stands out from the
+# path in light and in shadow; its width tapers with age.
+UsdShade.MaterialBindingAPI.Apply(path_curve.GetPrim()).Bind(
+    preview_material("/World/Looks/Path", (0.8, 0.85, 0.95)))
 
 TRAIL_N = 31
 trail_curve = UsdGeom.BasisCurves.Define(stage, "/World/Trail")
@@ -230,10 +253,11 @@ trail_curve.CreateCurveVertexCountsAttr([TRAIL_N])
 trail_curve.SetWidthsInterpolation(UsdGeom.Tokens.vertex)
 trail_pts_attr = trail_curve.CreatePointsAttr([Gf.Vec3f(0.0)] * TRAIL_N)
 trail_widths_attr = trail_curve.CreateWidthsAttr([0.01] * TRAIL_N)
-trail_color = UsdGeom.PrimvarsAPI(trail_curve).CreatePrimvar(
-    "displayColor", Sdf.ValueTypeNames.Color3fArray, UsdGeom.Tokens.vertex)
+UsdShade.MaterialBindingAPI.Apply(trail_curve.GetPrim()).Bind(
+    preview_material("/World/Looks/Trail", (1.0, 0.35, 0.0), emissive=(1.0, 0.3, 0.0), roughness=0.4))
 
-# Quadrotor: the body prim carries the pose; the asset is referenced below it unchanged.
+# Quadrotor: the body prim carries the pose (usd_pose.py); the alignment prim below it carries the
+# fixed asset-to-body rotation (asset_alignment.py); the asset is referenced below that unchanged.
 asset_stage = Usd.Stage.Open(str(DRONE_USD))
 print(f"RENDER drone asset: {DRONE_USD} metersPerUnit={UsdGeom.GetStageMetersPerUnit(asset_stage)} "
       f"upAxis={UsdGeom.GetStageUpAxis(asset_stage)} defaultPrim={asset_stage.GetDefaultPrim().GetPath()}",
@@ -242,23 +266,87 @@ del asset_stage
 body = UsdGeom.Xform.Define(stage, "/World/Quadrotor")
 op_t = body.AddTranslateOp(UsdGeom.XformOp.PrecisionDouble)
 op_q = body.AddOrientOp(UsdGeom.XformOp.PrecisionDouble)
-asset_prim = stage.DefinePrim("/World/Quadrotor/asset")
+alignment = UsdGeom.Xform.Define(stage, "/World/Quadrotor/alignment")
+_qa = asset_alignment.ASSET_TO_BODY
+alignment.AddOrientOp(UsdGeom.XformOp.PrecisionDouble).Set(
+    Gf.Quatd(float(_qa[0]), Gf.Vec3d(*map(float, _qa[1:]))))
+ASSET_ROOT = "/World/Quadrotor/alignment/asset"
+asset_prim = stage.DefinePrim(ASSET_ROOT)
 asset_prim.GetReferences().AddReference(str(DRONE_USD))
 
+# The asset is also a physics articulation (rigid bodies, joints, collisions). The replay is
+# kinematic, so the physics description is removed in this stage (the asset file is unchanged):
+# applied Physics/Physx schemas are deleted and joint and collision prims deactivated. (Removing
+# physics alone did not cure the delayed visuals; turning instancing off above did.)
+# The visuals of the asset are instanceable prims. With instancing, the rendered asset did not follow
+# a change of the body pose until a later change inside the asset (inspection views showed the pose
+# of the previous view while the nose marker was correct), so instancing is turned off in this stage.
+deinstanced = 0
+for prim in list(Usd.PrimRange(asset_prim)):
+    if prim.IsValid() and prim.IsInstanceable():
+        prim.SetInstanceable(False)
+        deinstanced += 1
+print(f"RENDER asset instancing turned off on {deinstanced} prims", flush=True)
+removed_schemas, deactivated = 0, 0
+for prim in list(Usd.PrimRange(asset_prim)):
+    if not prim.IsValid():  # below a prim deactivated in an earlier iteration
+        continue
+    for schema in list(prim.GetAppliedSchemas()):
+        if schema.startswith(("Physics", "Physx", "PhysX")):
+            prim.RemoveAppliedSchema(schema)
+            removed_schemas += 1
+    if prim.GetTypeName().startswith("Physics") and prim.GetTypeName().endswith("Joint") or \
+            prim.GetName() in ("collisions", "joints"):
+        prim.SetActive(False)
+        deactivated += 1
+left = [str(pr.GetPath()) for pr in Usd.PrimRange(asset_prim)
+        if any(sc.startswith(("Physics", "Physx", "PhysX")) for sc in pr.GetAppliedSchemas())]
+print(f"RENDER asset physics removed: {removed_schemas} applied schemas, {deactivated} prims deactivated, "
+      f"remaining physics prims: {len(left)}", flush=True)
+if left:
+    print("RENDER FAILED: physics schemas remain on " + ", ".join(left[:5]), flush=True)
+    simulation_app.close()
+    sys.exit(1)
+
+# Check of the alignment (body prim at identity here): propeller centres and spin axes in the body
+# frame must be those of the model.
 xf_check = UsdGeom.XformCache()
+align_err = 0.0
 prop_ops, prop_base = [], []
 for i, name in enumerate(replay.ROTOR_PRIMS):
-    prim = stage.GetPrimAtPath(f"/World/Quadrotor/asset/{name}")
+    prim = stage.GetPrimAtPath(f"{ASSET_ROOT}/{name}")
     if not prim:
         sys.exit(f"propeller prim {name} not found in the asset")
-    c = xf_check.GetLocalToWorldTransform(prim).ExtractTranslation()
+    m_prop = np.array(xf_check.GetLocalToWorldTransform(prim))
+    c, axis = m_prop[3, :3], m_prop[2, :3] / np.linalg.norm(m_prop[2, :3])
     expected = PARAMS.rotor_positions()[i]
-    print(f"RENDER rotor {i} {name}: asset ({c[0]:.4f}, {c[1]:.4f}, {c[2]:.4f}) m, model "
-          f"({expected[0]:.4f}, {expected[1]:.4f}, {expected[2]:.4f}) m, spin {int(SPIN[i]):+d}", flush=True)
+    align_err = max(align_err, float(np.abs(c - expected).max()), float(np.abs(axis - [0, 0, 1]).max()))
+    print(f"RENDER rotor {i} {name}: body frame ({c[0]:.4f}, {c[1]:.4f}, {c[2]:.4f}) m, spin axis "
+          f"({axis[0]:+.3f}, {axis[1]:+.3f}, {axis[2]:+.3f}), model ({expected[0]:.4f}, {expected[1]:.4f}, "
+          f"{expected[2]:.4f}) m, spin {int(SPIN[i]):+d}", flush=True)
     orient = UsdGeom.Xformable(prim).GetOrderedXformOps()
     op = next(o for o in orient if o.GetOpType() == UsdGeom.XformOp.TypeOrient)
     prop_ops.append(op)
     prop_base.append(op.Get())
+print(f"RENDER alignment check: max deviation {align_err:.2e} (m or axis component)", flush=True)
+if align_err > 1e-3:
+    print("RENDER FAILED: asset alignment check", flush=True)
+    simulation_app.close()
+    sys.exit(1)
+PROP_PRIMS = [stage.GetPrimAtPath(f"{ASSET_ROOT}/{name}") for name in replay.ROTOR_PRIMS]
+
+# Axes for the inspection views (red x/east, green y/north, blue z/up, 0.4 m), hidden otherwise.
+gizmo = UsdGeom.Xform.Define(stage, "/World/Axes")
+gizmo_op = gizmo.AddTranslateOp()
+for axis_name, color, offset in (("x", (0.9, 0.1, 0.1), (0.2, 0, 0)), ("y", (0.1, 0.8, 0.1), (0, 0.2, 0)),
+                                 ("z", (0.1, 0.3, 0.95), (0, 0, 0.2))):
+    cyl = UsdGeom.Cylinder.Define(stage, f"/World/Axes/{axis_name}")
+    cyl.CreateAxisAttr(axis_name.upper())
+    cyl.CreateRadiusAttr(0.012)
+    cyl.CreateHeightAttr(0.4)
+    cyl.AddTranslateOp().Set(Gf.Vec3d(*offset))
+    cyl.CreateDisplayColorAttr([Gf.Vec3f(*color)])
+gizmo.MakeInvisible()
 
 # Front marker: red arrow along +x of the body (FLU forward).
 NOSE_COLOR = Gf.Vec3f(0.9, 0.05, 0.03)
@@ -311,9 +399,7 @@ def set_frame(k: int) -> None:
         op.Set(base * quat_type(np.cos(a / 2.0), vec_type(0.0, 0.0, np.sin(a / 2.0))))
     pts, age = replay.trail(T, P, k, n=TRAIL_N)
     trail_pts_attr.Set([Gf.Vec3f(*map(float, x)) for x in pts])
-    trail_widths_attr.Set([float(0.008 * (1.0 - a) + 0.0015) for a in age])
-    hot, cold = np.array([1.0, 0.3, 0.0]), np.array([0.85, 0.9, 1.0])
-    trail_color.Set([Gf.Vec3f(*map(float, cold * a + hot * (1.0 - a))) for a in age])
+    trail_widths_attr.Set([float(0.012 * (1.0 - a) + 0.002) for a in age])
     for name, (_, op) in cameras.items():
         pose = replay.camera_pose(name, k, CHASE_EYE, CHASE_TARGET)
         op.Set(look_at(pose.eye, pose.target, pose.up))
@@ -425,7 +511,110 @@ if not args.gui:
         return f"mean={a.mean():.1f} saturated={100.0 * (a.max(axis=2) >= 250).mean():.2f}%"
 
     t_render = time.monotonic()
-    if args.verify_heading:
+    if args.inspect:
+        from PIL import ImageDraw, ImageFont
+        idir = out / "inspect"
+        idir.mkdir(exist_ok=True)
+        for old in idir.glob("*.png"):
+            old.unlink()
+        cam_path = str(verify_cam.GetPath())
+        focal, h_ap = 24.0, verify_cam.GetHorizontalApertureAttr().Get()
+        identity = np.array([1.0, 0.0, 0.0, 0.0])
+
+        def yaw_q(deg: float) -> np.ndarray:
+            return np.array([np.cos(np.radians(deg) / 2), 0.0, 0.0, np.sin(np.radians(deg) / 2)])
+
+        k36 = replay.sample_index(T, 36.0)
+        bz36 = rotmat(Q[k36])[:, 2]
+        tilt_axis = np.cross([0.0, 0.0, 1.0], bz36)
+        tilt_axis /= np.linalg.norm(tilt_axis)
+        up_z, up_y = np.array([0.0, 0.0, 1.0]), np.array([0.0, 1.0, 0.0])
+        h = np.array([0.0, 0.0, 1.5])
+        # name, position, attitude, eye, target, up, side view (rotor plane seen edge-on)
+        views = [
+            ("hover_side", h, identity, h + [0, -3.0, 0], h, up_z, True),
+            ("hover_oblique", h, identity, h + [-2.2, -2.2, 1.1], h, up_z, False),
+            ("xplus_m0.8", h + [-0.8, 0, 0], identity, h + [0, -3.5, 0], h, up_z, True),
+            ("xplus_0.0", h, identity, h + [0, -3.5, 0], h, up_z, True),
+            ("xplus_p0.8", h + [0.8, 0, 0], identity, h + [0, -3.5, 0], h, up_z, True),
+            ("yaw90_oblique", h, yaw_q(90.0), h + [-2.2, -2.2, 1.1], h, up_z, False),
+            ("yaw90_top", h, yaw_q(90.0), h + [0, 0, 4.0], h, up_y, False),
+            ("t36_side", P[k36], Q[k36], P[k36] - 3.0 * tilt_axis, P[k36], up_z, True),
+            ("t36_chase", P[k36], Q[k36], CHASE_EYE[k36], CHASE_TARGET[k36], up_z, False),
+        ]
+        prime(cam_path)
+        gizmo.MakeVisible()
+        rows = []
+        for name, p, q, eye, target, up, side in views:
+            on_flight = name.startswith("t36")
+            if on_flight:
+                set_frame(k36)
+                path_curve.MakeVisible() if name == "t36_chase" else path_curve.MakeInvisible()
+                trail_curve.MakeVisible() if name == "t36_chase" else trail_curve.MakeInvisible()
+            else:
+                set_body(p, q)
+                path_curve.MakeInvisible()
+                trail_curve.MakeInvisible()
+            gizmo_op.Set(Gf.Vec3d(*map(float, np.asarray(p) + [-0.6, -0.6, -0.7])))
+            verify_cam_op.Set(look_at(eye, target, up))
+            img_on = np.asarray(capture(cam_path, settle_steps=2)).astype(int)
+            body.MakeInvisible()
+            img_off = np.asarray(capture(cam_path, settle_steps=2)).astype(int)
+            body.MakeVisible()
+            # Drone pixels near the projected body origin (the shadow on the ground is excluded).
+            centre = replay.project(np.asarray(p)[None, :], eye, target, up, focal, h_ap, args.width, args.height)[0]
+            depth = float(np.dot(np.asarray(p) - eye, (np.asarray(target) - eye) / np.linalg.norm(np.asarray(target) - eye)))
+            radius = 0.45 * focal / h_ap * args.width / depth
+            vv, uu = np.mgrid[0:args.height, 0:args.width]
+            window = (uu - centre[0]) ** 2 + (vv - centre[1]) ** 2 < radius ** 2
+            mask = window & (np.abs(img_on - img_off).sum(axis=2) > 40)
+            image_angle = replay.principal_angle_deg(mask) if mask.sum() > 50 else float("nan")
+            # USD: spin axes and centres of the propeller prims, nose direction.
+            xf = UsdGeom.XformCache()
+            mats = [np.array(xf.GetLocalToWorldTransform(pr)) for pr in PROP_PRIMS]
+            axes = np.array([m[2, :3] / np.linalg.norm(m[2, :3]) for m in mats])
+            m_nose = np.array(xf.GetLocalToWorldTransform(nose.GetPrim()))
+            r_sim = rotmat(q if not on_flight else Q[k36])
+            p_sim = np.asarray(p if not on_flight else P[k36])
+            usd_tilt = float(np.degrees(np.arccos(np.clip(axes[:, 2].mean(), -1, 1))))
+            sim_tilt = replay.tilt_deg(r_sim)
+            usd_yaw = float(np.degrees(np.arctan2(m_nose[0, 1], m_nose[0, 0])))
+            sim_yaw = float(np.degrees(np.arctan2(r_sim[1, 0], r_sim[0, 0])))
+            centres_err = max(float(np.abs(m[3, :3] - (p_sim + r_sim @ b)).max())
+                              for m, b in zip(mats, PARAMS.rotor_positions()))
+            row = {"view": name, "sim_tilt_deg": sim_tilt, "usd_prop_axis_tilt_deg": usd_tilt,
+                   "rotors_up": bool(axes[:, 2].min() > 0), "sim_yaw_deg": sim_yaw, "usd_nose_yaw_deg": usd_yaw,
+                   "usd_rotor_centre_error_m": centres_err, "side_view": side,
+                   "image_rotor_plane_angle_deg": image_angle if side else None,
+                   "drone_pixels": int(mask.sum())}
+            rows.append(row)
+            # Expected geometry from the simulator pose, drawn over the image: rotor quadrilateral
+            # (cyan) and body z axis (yellow).
+            img = Image.fromarray(img_on.astype(np.uint8))
+            draw = ImageDraw.Draw(img)
+            rot = np.array([p_sim + r_sim @ b for b in PARAMS.rotor_positions()[[0, 2, 1, 3]]])
+            uv = replay.project(rot, eye, target, up, focal, h_ap, args.width, args.height)
+            draw.line([tuple(x) for x in np.vstack([uv, uv[:1]])], fill=(0, 230, 255), width=2)
+            zz = replay.project(np.array([p_sim, p_sim + 0.35 * r_sim[:, 2]]), eye, target, up, focal, h_ap,
+                                args.width, args.height)
+            draw.line([tuple(zz[0]), tuple(zz[1])], fill=(255, 220, 0), width=3)
+            font = ImageFont.load_default(size=20)
+            text = (f"{name}: sim tilt {sim_tilt:.1f} deg, USD rotor-axis tilt {usd_tilt:.1f} deg, "
+                    f"rotors up {row['rotors_up']}, sim yaw {sim_yaw:.1f}, nose yaw {usd_yaw:.1f}")
+            if side:
+                text += f", image rotor-plane angle {image_angle:.1f} deg"
+            draw.rectangle([0, args.height - 34, args.width, args.height], fill=(0, 0, 0))
+            draw.text((10, args.height - 30), text, font=font, fill=(255, 255, 255))
+            img.save(idir / f"{name}.png")
+            print(f"RENDER inspect {name:14s} sim tilt {sim_tilt:5.1f} | USD rotor-axis tilt {usd_tilt:5.1f} "
+                  f"rotors up {row['rotors_up']} | sim yaw {sim_yaw:6.1f} nose yaw {usd_yaw:6.1f} | rotor centre "
+                  f"error {centres_err:.1e} m | image angle {image_angle if side else float('nan'):6.1f} "
+                  f"(pixels {int(mask.sum())})", flush=True)
+        gizmo.MakeInvisible()
+        path_curve.MakeVisible()
+        trail_curve.MakeVisible()
+        (idir / "inspect.json").write_text(json.dumps({"rows": rows}, indent=2) + "\n")
+    elif args.verify_heading:
         # Synthetic poses (not the simulator flight): +x translation at zero attitude, then a pure
         # yaw rotation; a top-down camera with north up (east to the right) looks at them.
         vdir = out / "verify_heading"
@@ -535,9 +724,20 @@ else:
     try:
         frame = get_active_viewport_window().get_frame("flight_overlay")
         with frame:
-            with ui.VStack(height=0, spacing=2):
-                for _ in range(4):
-                    labels.append(ui.Label("", height=0, style={"font_size": 20, "color": 0xFFFFFFFF}))
+            with ui.VStack():
+                ui.Spacer(height=64)  # below the viewport toolbar
+                with ui.HStack(height=0):
+                    ui.Spacer(width=16)
+                    with ui.ZStack(width=360, height=112):
+                        ui.Rectangle(style={"background_color": 0x99000000, "border_radius": 4})
+                        with ui.HStack():
+                            ui.Spacer(width=10)
+                            with ui.VStack(spacing=2):
+                                ui.Spacer(height=6)
+                                for _ in range(4):
+                                    labels.append(ui.Label("", height=0,
+                                                           style={"font_size": 20, "color": 0xFFFFFFFF}))
+                ui.Spacer()
         overlay_where = "viewport"
     except Exception as exc:  # fall back to a small window
         print(f"RENDER gui: viewport overlay unavailable ({exc}); using a window", flush=True)
